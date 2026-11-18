@@ -18,6 +18,7 @@ class Request:
     ranks: tuple[int, ...] = ()
     amount: int = 0
     payment_ytd: bool = False
+    idempotent: bool = True
 
 
 class Zipf:
@@ -61,7 +62,8 @@ class Generator:
         d, c = rng.randint(1, cfg.districts), rng.randint(1, cfg.customers)
         if (sequence + self.first_kind) % 2:
             return Request(request_id, self.run_id, "payment", w, d, c,
-                           amount=rng.randint(100, 500000), payment_ytd=self.settings.payment_ytd)
+                           amount=rng.randint(100, 500000), payment_ytd=self.settings.payment_ytd,
+                           idempotent=self.settings.idempotency)
         quantities: dict[int, int] = {}
         ranks = []
         for _ in range(1 if self.zipf.hot_item else rng.randint(1, 5)):
@@ -69,4 +71,4 @@ class Generator:
             quantities[item] = quantities.get(item, 0) + rng.randint(1, 10)
             ranks.append(rank)
         return Request(request_id, self.run_id, "new_order", w, d, c,
-                       tuple(quantities.items()), tuple(ranks))
+                       tuple(quantities.items()), tuple(ranks), idempotent=self.settings.idempotency)

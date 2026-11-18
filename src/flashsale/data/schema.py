@@ -70,7 +70,7 @@ TABLES = {
 }
 
 
-def ddl(name: str, tidb: bool, foreign_keys: bool = False) -> str:
+def ddl(name: str, tidb: bool, foreign_keys: bool = False, idempotency: bool = True) -> str:
     # FK mặc định TẮT: InnoDB lấy khóa S trên dòng cha khi insert dòng con, làm
     # district/customer thành điểm nóng ngầm và sinh deadlock New-Order/Payment.
     # MongoDB không có FK, nên tắt để ba hệ cùng điều kiện (xem docs/assumptions.md).
@@ -79,7 +79,9 @@ def ddl(name: str, tidb: bool, foreign_keys: bool = False) -> str:
     if table.key:
         clustered = " CLUSTERED" if tidb else ""
         definitions.append(f"PRIMARY KEY ({','.join(table.key)}){clustered}")
-    definitions.extend(f"UNIQUE KEY uq_{key} ({key})" for key in table.unique)
+    # idempotency=False chỉ dành cho lượt phụ `idempotency_off`: giữ chỉ mục nhưng bỏ ràng buộc UNIQUE.
+    kind, prefix = ("UNIQUE KEY", "uq_") if idempotency else ("KEY", "ix_")
+    definitions.extend(f"{kind} {prefix}{key} ({key})" for key in table.unique)
     definitions.extend(f"KEY ix_{'_'.join(index)} ({','.join(index)})" for index in table.indexes)
     if foreign_keys:
         definitions.extend(f"FOREIGN KEY ({source}) REFERENCES {parent} ({target})"

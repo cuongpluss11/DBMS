@@ -39,8 +39,10 @@ def run_request(db: Adapter, req: Request, *, jitter: random.Random | None = Non
             return finish("success", retry)
         except DBError as exc:
             errors[exc.category] += 1
-            unresolved = unresolved or exc.ambiguous
-            if unresolved or exc.category in {"duplicate_key", "out_of_stock"}:
+            # Lượt idempotency_off: cố ý KHÔNG đối chiếu DB trước khi gửi lại, để thấy retry sau
+            # commit mơ hồ sinh đơn trùng (đề mục 2.1).
+            unresolved = unresolved or (exc.ambiguous and req.idempotent)
+            if req.idempotent and (unresolved or exc.category in {"duplicate_key", "out_of_stock"}):
                 try:
                     persisted = lookup(db, req)
                 except DBError as read_error:

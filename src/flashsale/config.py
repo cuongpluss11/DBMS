@@ -35,8 +35,16 @@ class Settings:
     payment_ytd: bool
     jitter: bool
     dataset: Dataset
+    # Mặc định giữ UNIQUE request_id + kiểm idempotency. Chỉ profile `idempotency_off`
+    # (lượt phụ theo mục 2.1 của đề) mới tắt.
+    idempotency: bool = True
+    client_timeout_seconds: float = 15.0
 
     def __post_init__(self) -> None:
+        if self.idempotency == (self.label == "idempotency_off"):
+            raise ValueError("Chỉ profile có nhãn idempotency_off mới được đặt idempotency=false (và ngược lại)")
+        if self.client_timeout_seconds <= 0:
+            raise ValueError("client_timeout_seconds phải dương")
         if self.warehouse_mode not in {"uniform", "single-warehouse"}:
             raise ValueError("warehouse_mode không hợp lệ")
         if self.theta not in (0, .3, .5, .7, .9):

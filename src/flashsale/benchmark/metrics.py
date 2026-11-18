@@ -9,7 +9,7 @@ from typing import Any
 from flashsale.workload.generator import Request
 from flashsale.workload.retry import ERRORS, Outcome
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def percentile(sorted_values: list[float], pct: int) -> float | None:
@@ -107,6 +107,8 @@ def write_result(directory: Path, result: dict) -> None:
             **{key: result[key] for key in ("schema_version", "run_id", "engine", "version", "label",
                                             "inventory_mode", "repetition", "seed", "concurrency",
                                             "warehouse_mode", "theta", "hot_item", "resource_limits")},
+            "idempotency": result.get("idempotency", True),
+            "client_timeout_seconds": result.get("client_timeout_seconds"),
             "phase": phase, **result[phase], **result["theoretical_selection"],
             "lock_wait_ms": result["lock_wait_ms"] if phase == "measurement" else None,
             "server_deadlocks": result["server_deadlocks"] if phase == "measurement" else None,

@@ -20,9 +20,10 @@ LOADER_VERSION = 1
 RESET_CHUNK = 10_000
 
 
-def fingerprint(dataset: Dataset, seed: int) -> str:
-    return hashlib.sha256(json.dumps([LOADER_VERSION, asdict(dataset), seed],
-                                     sort_keys=True).encode()).hexdigest()
+def fingerprint(dataset: Dataset, seed: int, idempotency: bool = True) -> str:
+    # Lược đồ khác nhau (có/không UNIQUE request_id) thì dataset không dùng chung được.
+    parts = [LOADER_VERSION, asdict(dataset), seed] + ([] if idempotency else ["idempotency_off"])
+    return hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()
 
 
 def text(rng: random.Random, minimum: int, maximum: int) -> str:

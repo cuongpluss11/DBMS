@@ -88,3 +88,33 @@ def test_metrics_and_export(tmp_path):
     assert parsed == result
     assert warmup["p50_ms"] == "null" and float(measurement["tps"]) == parsed["measurement"]["tps"]
     assert json.loads(measurement["error_counts"]) == parsed["measurement"]["error_counts"]
+
+
+def test_idempotency_off_schema_and_fingerprint():
+    from flashsale.data.loader import fingerprint
+    off = ddl("orders", False, idempotency=False)
+    assert "UNIQUE" not in off and "KEY ix_request_id (request_id)" in off
+    assert "UNIQUE KEY uq_request_id" in ddl("history", True)
+    assert "UNIQUE" not in ddl("history", True, idempotency=False)
+    cfg = Dataset(1, 1, 3, 1, 1, 10)
+    assert fingerprint(cfg, 1) == fingerprint(cfg, 1, True) != fingerprint(cfg, 1, False)
+
+
+def test_every_profile_loads_and_matches_the_document():
+    from pathlib import Path
+    from flashsale.config import read_settings
+    profiles = {path.stem: read_settings(path) for path in Path("configs").glob("*.toml")}
+    assert {"baseline", "baseline-single-warehouse", "baseline-1client", "performance", "correctness",
+            "payment-ytd", "idempotency-off", "smoke"} <= set(profiles)
+    for name, cfg in profiles.items():
+        if name == "smoke":
+            continue
+        assert (cfg.dataset.warehouses, cfg.dataset.districts, cfg.dataset.items) == (10, 10, 100000)
+        assert (cfg.warmup_seconds, cfg.measurement_seconds) == (30, 60)
+    assert profiles["baseline"].theta == 0 and profiles["baseline"].warehouse_mode == "uniform"
+    assert profiles["baseline-single-warehouse"].warehouse_mode == "single-warehouse"
+    assert profiles["baseline-1client"].concurrency == 1
+    assert profiles["payment-ytd"].payment_ytd and not profiles["baseline"].payment_ytd
+    assert profiles["correctness"].dataset.inventory == 1000
+    assert profiles["performance"].dataset.inventory == 10**9
+    assert all(profile.idempotency for name, profile in profiles.items() if name != "idempotency-off")

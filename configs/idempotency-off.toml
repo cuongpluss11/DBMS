@@ -1,0 +1,26 @@
+# Lượt phụ theo đề mục 2.1: tắt mã chống trùng (không UNIQUE request_id, không đối chiếu DB
+# trước khi gửi lại) để thấy retry sau commit mơ hồ sinh đơn trùng. KẾT QUẢ INVALID LÀ DỰ KIẾN
+# nếu quan sát được đơn trùng; lượt này không được xếp hạng. client_timeout_seconds ngắn là điểm
+# khởi đầu để gây timeout ở bước commit - cần tinh chỉnh khi chạy thật.
+label = "idempotency_off"
+idempotency = false
+client_timeout_seconds = 0.2
+workers_per_process = 8
+concurrency = 64
+warehouse_mode = "single-warehouse"
+theta = 0
+hot_item = true
+warmup_seconds = 30
+measurement_seconds = 60
+repetitions = 1
+seed = 2026
+payment_ytd = false
+jitter = false
+
+[dataset]
+warehouses = 10
+districts = 10
+items = 100000
+customers = 3000
+initial_orders = 3000
+inventory = 1000000000

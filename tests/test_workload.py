@@ -109,3 +109,52 @@ def test_error_classification():
     assert sql.classify(OperationalError(2013, "lost"), True).ambiguous
     assert mongo.classify(OperationFailure("conflict", 112)).category == "write_conflict"
     assert not mongo.classify(OperationFailure("bad", 2)).retryable
+
+
+def test_idempotency_off_profile_resubmits_without_reconciliation(monkeypatch):
+    cfg = read_settings(Path("configs/idempotency-off.toml"))
+    assert cfg.idempotency is False and cfg.label == "idempotency_off"
+    req = Generator(cfg, Zipf(20, 0, 4, True), "run", 1, 1, "measurement").next()
+    assert req.idempotent is False
+    calls = []
+
+    def execute(db, request):
+        calls.append(request.request_id)
+        if len(calls) < 3:
+            raise DBError("timeout", True, True)
+
+    def lookup(db, request):
+        raise AssertionError("lượt idempotency_off không được đối chiếu DB trước khi gửi lại")
+
+    monkeypatch.setattr(retry, "execute", execute)
+    monkeypatch.setattr(retry, "lookup", lookup)
+    assert retry.run_request(None, req, sleep=lambda _: None).status == "success"
+    assert calls == [req.request_id] * 3  # cùng request_id gửi lại 3 lần
+
+
+def test_execute_skips_idempotency_lookup_only_when_off(monkeypatch):
+    from contextlib import nullcontext
+    from flashsale.transactions import core
+
+    seen = []
+
+    class FakeDB:
+        def atomic(self):
+            return nullcontext()
+
+    monkeypatch.setattr(core, "lookup", lambda db, req: seen.append(req.request_id) or {"found": True})
+    monkeypatch.setattr(core, "new_order", lambda db, req: seen.append("executed:" + req.request_id))
+    base = dict(request_id="r", run_id="x", kind="new_order", warehouse=1, district=1, customer=1)
+    core.execute(FakeDB(), core.Request(**base))
+    core.execute(FakeDB(), core.Request(**base, idempotent=False))
+    assert seen == ["r", "executed:r"]
+
+
+def test_idempotency_flag_must_match_label():
+    cfg = settings()
+    with pytest.raises(ValueError):
+        replace(cfg, idempotency=False)
+    with pytest.raises(ValueError):
+        replace(cfg, label="idempotency_off")
+    with pytest.raises(ValueError):
+        replace(cfg, client_timeout_seconds=0)

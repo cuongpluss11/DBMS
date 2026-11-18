@@ -27,7 +27,7 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
 
     db = None
     try:
-        db = open_adapter(endpoint)
+        db = open_adapter(endpoint, timeout=cfg.client_timeout_seconds)
         jitter = Random(f"{cfg.seed}:{repetition}:{worker}:jitter") if cfg.jitter else None
         phases = []
         for i, name in enumerate(("warmup", "measurement")):
@@ -213,7 +213,8 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
     result = {
         "schema_version": SCHEMA_VERSION, "run_id": run_id, "engine": endpoint.engine,
         "version": server["version"], "label": cfg.label, "repetition": repetition,
-        "seed": cfg.seed, "concurrency": cfg.concurrency, "warehouse_mode": cfg.warehouse_mode,
+        "seed": cfg.seed, "idempotency": cfg.idempotency,
+        "client_timeout_seconds": cfg.client_timeout_seconds, "concurrency": cfg.concurrency, "warehouse_mode": cfg.warehouse_mode,
         "theta": cfg.theta, "hot_item": cfg.hot_item,
         "inventory_mode": "performance" if cfg.dataset.inventory == 1_000_000_000 else cfg.label,
         "resource_limits": {"cpus": sum(item["cpus"] for item in limits.values()),
