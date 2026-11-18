@@ -17,6 +17,7 @@ CUSTOMER_INITIAL = {"c_balance": -1000, "c_ytd_payment": 1000, "c_payment_cnt": 
 STOCK_INITIAL = {"s_ytd": 0, "s_order_cnt": 0, "s_remote_cnt": 0}
 SYLLABLES = ("BAR", "OUGHT", "ABLE", "PRI", "PRES", "ESE", "ANTI", "CALLY", "ATION", "EING")
 LOADER_VERSION = 1
+RESET_CHUNK = 10_000
 
 
 def fingerprint(dataset: Dataset, seed: int) -> str:
@@ -143,8 +144,11 @@ def reset(db: Adapter, cfg: Dataset) -> None:
         db.delete_tagged(table, "run_id")
     db.delete_tagged("history", "request_id")
     for warehouse in range(1, cfg.warehouses + 1):
-        db.change("stock", {"s_w_id": warehouse},
-                  set_values={"s_quantity": cfg.inventory, **STOCK_INITIAL}, changed_only=True)
+        # Chia lô để không vượt giới hạn kích thước giao dịch (TiDB) khi nhiều dòng đã bị đổi.
+        for first in range(1, cfg.items + 1, RESET_CHUNK):
+            db.change("stock", {"s_w_id": warehouse},
+                      set_values={"s_quantity": cfg.inventory, **STOCK_INITIAL}, changed_only=True,
+                      between={"s_i_id": (first, min(first + RESET_CHUNK - 1, cfg.items))})
         db.change("customer", {"c_w_id": warehouse}, set_values=CUSTOMER_INITIAL, changed_only=True)
     db.change("district", {}, set_values={"d_next_o_id": cfg.initial_orders + 1, "d_ytd": DISTRICT_YTD},
               changed_only=True)

@@ -220,11 +220,28 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
                             "memory_bytes": sum(item["memory_bytes"] for item in limits.values())},
         "theoretical_selection": zipf.theoretical(),
         "warmup": warmup, "measurement": measurement,
-        **counters, "container_cpu_pct": cpu,
+        **counters, "container_cpu_pct": cpu, "resource_warnings": cpu_warnings(cpu, limits),
         "validation": validation,
     }
     write_result(directory, result)
     return result
+
+
+SQL_TIER_CPU_LIMIT_PCT = 80
+
+
+def cpu_warnings(cpu: dict, limits: dict) -> list[str]:
+    """Cảnh báo khi tầng SQL/PD (không phải TiKV) vượt 80% giới hạn CPU: kết quả TPS của lượt đó
+    phản ánh nút thắt của tầng SQL chứ không phải của lưu trữ. Docker: 100% = một lõi."""
+    warnings = []
+    for name in ("tidb", "pd"):
+        value = cpu.get(name)
+        if value is None or name not in limits or not limits[name]["cpus"]:
+            continue
+        utilization = 100 * value / (100 * limits[name]["cpus"])
+        if utilization > SQL_TIER_CPU_LIMIT_PCT:
+            warnings.append(f"{name}_cpu_{utilization:.0f}pct_of_limit")
+    return warnings
 
 
 def unavailable_phase(seconds: float) -> dict:

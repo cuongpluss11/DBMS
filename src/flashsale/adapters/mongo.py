@@ -104,7 +104,9 @@ class MongoAdapter:
             raise classify(exc) from exc
 
     def change(self, table: str, key: Row, *, set_values: Row | None = None,
-               increment: Row | None = None, changed_only: bool = False) -> int:
+               increment: Row | None = None, changed_only: bool = False,
+               between: dict[str, tuple[int, int]] | None = None) -> int:
+        key = {**key, **{name: {"$gte": low, "$lte": high} for name, (low, high) in (between or {}).items()}}
         update = {}
         if set_values:
             update["$set"] = set_values
