@@ -4,7 +4,7 @@
 
 Lệnh được ghi ở [README](../README.md). Mỗi điểm dùng seed cố định và 3 lần lặp. Seed con được dẫn xuất từ lần lặp, client và pha. Mỗi client luân phiên New-Order và Payment, với loại đầu do seed chọn. Ở một cửa sổ hữu hạn, mỗi client có thể lệch tối đa một yêu cầu đã sinh; retry và thời gian hoàn thành có thể làm tỉ lệ giao dịch thành công khác 1:1.
 
-Runner chia client thành nhiều process, mỗi process dùng các luồng I/O. Cửa sổ dùng đồng hồ monotonic, kèm barrier trước khi bắt đầu và sau khi drain. Một client có một kết nối SQL hoặc một adapter MongoDB và session riêng cho từng transaction. Chạy cùng các tham số trên cùng VM để so sánh. Năng lực của load generator ở 256 client cần kiểm chứng trên VM đích.
+Runner chia client thành nhiều process, mỗi process dùng các luồng I/O. Cửa sổ dùng đồng hồ monotonic, kèm barrier trước khi bắt đầu và sau khi drain. Một client có một kết nối SQL hoặc một adapter MongoDB và session riêng cho từng transaction. Để so sánh trên ba VM, dùng cùng Git commit, cấu hình VM, ngân sách container và tham số workload. Ghi chênh lệch CPU hoặc ổ đĩa host nếu có. Năng lực của load generator ở 256 client cần kiểm chứng trên các VM đo. [Quy trình cho nhóm](trien-khai-2.1.md)
 
 Mỗi request có tối đa sáu lần thực thi, gồm lần đầu và tối đa năm retry. Khoảng chờ mặc định là 10, 20, 40, 80 và 160 ms. Khi bật jitter, nhân khoảng chờ với hệ số từ 0,5 đến 1,5 sinh từ seed riêng của client. Khi chưa rõ commit, runner tra request ID đã lưu trước khi gửi lại. Trạng thái commit chưa phân giải làm lượt chạy INVALID.
 
