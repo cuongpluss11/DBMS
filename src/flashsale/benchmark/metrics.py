@@ -9,7 +9,7 @@ from typing import Any
 from flashsale.workload.generator import Request
 from flashsale.workload.retry import ERRORS, Outcome
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def percentile(sorted_values: list[float], pct: int) -> float | None:
@@ -79,7 +79,8 @@ class Phase:
             "success": success, "failed": failed, "drained_requests": self.drained,
             "new_order_success": self.successes["new_order"], "payment_success": self.successes["payment"],
             "p50_ms": percentile(latency, 50), "p95_ms": percentile(latency, 95),
-            "p99_ms": percentile(latency, 99), "abort_pct": percent(failed, requests),
+            "p99_ms": percentile(latency, 99), "abort_pct": percent(failed - self.failures["out_of_stock"], requests),
+            "out_of_stock_pct": percent(self.failures["out_of_stock"], requests),
             "retry_pct": percent(self.retry_requests, requests), "retry_attempts": self.retry_attempts,
             "error_counts": {error: self.errors[error] for error in ERRORS},
             "failure_counts": {error: self.failures[error] for error in ERRORS},
@@ -110,6 +111,7 @@ def write_result(directory: Path, result: dict) -> None:
             "lock_wait_ms": result["lock_wait_ms"] if phase == "measurement" else None,
             "server_deadlocks": result["server_deadlocks"] if phase == "measurement" else None,
             "container_cpu_pct": result["container_cpu_pct"] if phase == "measurement" else None,
+            "resource_warnings": result.get("resource_warnings") if phase == "measurement" else None,
             "validation_status": result["validation"]["status"],
             "validation_error_counts": {rule: len(errors) for rule, errors in
                                         result["validation"].get("errors", {}).items()},
@@ -120,5 +122,5 @@ def write_result(directory: Path, result: dict) -> None:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
         for row in rows:
-            writer.writerow({key: json.dumps(value, sort_keys=True) if isinstance(value, dict)
+            writer.writerow({key: json.dumps(value, sort_keys=True) if isinstance(value, (dict, list))
                              else "null" if value is None else value for key, value in row.items()})

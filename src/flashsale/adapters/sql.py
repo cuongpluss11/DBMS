@@ -127,11 +127,15 @@ class SQLAdapter:
         return result[0] if result else None
 
     def change(self, table: str, key: Row, *, set_values: Row | None = None,
-               increment: Row | None = None, changed_only: bool = False) -> int:
+               increment: Row | None = None, changed_only: bool = False,
+               between: dict[str, tuple[int, int]] | None = None) -> int:
         assignments = [f"{name}=%s" for name in (set_values or {})]
         assignments.extend(f"{name}={name}+%s" for name in (increment or {}))
         where, values = keys(key)
         params = (*((set_values or {}).values()), *((increment or {}).values()), *values)
+        for name, (low, high) in (between or {}).items():
+            where += (" AND " if where else " WHERE ") + f"{name} BETWEEN %s AND %s"
+            params += (low, high)
         if changed_only and set_values:
             conditions = " OR ".join(f"NOT ({name} <=> %s)" for name in set_values)
             where += (" AND " if where else " WHERE ") + f"({conditions})"
@@ -194,8 +198,11 @@ class SQLAdapter:
     def counters(self) -> dict[str, int | None]:
         if self.tidb:
             return {"lock_wait_ms": None, "server_deadlocks": None}
-        names = "'Innodb_row_lock_time','Innodb_deadlocks'"
-        rows = self.query(f"SHOW GLOBAL STATUS WHERE Variable_name IN ({names})")
-        values = {row["Variable_name"].lower(): int(row["Value"]) for row in rows}
-        return {"lock_wait_ms": values.get("innodb_row_lock_time"),
-                "server_deadlocks": values.get("innodb_deadlocks")}
+        rows = self.query("SHOW GLOBAL STATUS WHERE Variable_name = 'Innodb_row_lock_time'")
+        lock_wait = int(rows[0]["Value"]) if rows else None
+        # MySQL không có status variable Innodb_deadlocks (chỉ MariaDB/Percona);
+        # bộ đếm nằm ở INNODB_METRICS.lock_deadlocks. Chưa bật thì trả None, không phải 0.
+        metric = self.query("SELECT `COUNT` AS cnt, STATUS AS status FROM information_schema.INNODB_METRICS "
+                            "WHERE NAME = 'lock_deadlocks'")
+        deadlocks = int(metric[0]["cnt"]) if metric and metric[0]["status"] == "enabled" else None
+        return {"lock_wait_ms": lock_wait, "server_deadlocks": deadlocks}

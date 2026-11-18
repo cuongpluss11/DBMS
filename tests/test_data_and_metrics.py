@@ -27,6 +27,20 @@ def test_nine_tables_and_initial_order_lines():
     assert "SHARD_ROW_ID_BITS = 4 PRE_SPLIT_REGIONS = 4" in ddl("history", True)
 
 
+def test_ddl_has_no_foreign_keys_by_default():
+    assert all("FOREIGN KEY" not in ddl(name, False) for name in TABLES)
+    assert "FOREIGN KEY" in ddl("history", False, foreign_keys=True)
+    assert "UNIQUE KEY uq_request_id" in ddl("orders", False)
+
+
+def test_cpu_warnings_only_for_sql_tier():
+    from flashsale.benchmark.runner import cpu_warnings
+    limits = {"tidb": {"cpus": 0.75}, "pd": {"cpus": 0.25}, "tikv1": {"cpus": 1}}
+    assert cpu_warnings({"tidb": 70, "pd": 5, "tikv1": 99}, limits) == ["tidb_cpu_93pct_of_limit"]
+    assert cpu_warnings({"tidb": None, "tikv1": 99}, limits) == []
+    assert cpu_warnings({"mysql": 399}, {"mysql": {"cpus": 4}}) == []
+
+
 def test_validator_distinguishes_two_directions_and_duplicates():
     cfg = Dataset(1, 1, 3, 1, 1, 10)
     stock = [dict(s_w_id=1, s_i_id=i, s_quantity=q) for i, q in enumerate((8, -1, 11), 1)]
@@ -53,7 +67,13 @@ def test_metrics_and_export(tmp_path):
     summary = phase.summary(5)
     assert (summary["p50_ms"], summary["p95_ms"], summary["p99_ms"], summary["tps"]) == (50, 95, 99, 20)
     assert summary["error_counts"]["deadlock"] == 100
-    assert summary["abort_pct"] == 100 / 101 and summary["retry_pct"] == 10000 / 101
+    # Hết hàng là kết quả nghiệp vụ, không tính vào tỉ lệ hủy.
+    assert summary["abort_pct"] == 0 and summary["out_of_stock_pct"] == 100 / 101
+    assert summary["retry_pct"] == 10000 / 101
+    aborted = Phase()
+    aborted.record(req, Outcome("deadlock", 5, {"deadlock": 6}, 3), True)
+    aborted.record(req, Outcome("success", 0, {}, 3), True)
+    assert aborted.summary(1)["abort_pct"] == 50 and aborted.summary(1)["out_of_stock_pct"] == 0
     assert summary["drained_requests"] == 1
     result = dict(schema_version=1, run_id="run", engine="mysql", version="example", label="smoke",
                   inventory_mode="smoke", repetition=1, seed=4, concurrency=2, warehouse_mode="uniform",

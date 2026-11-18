@@ -20,11 +20,12 @@ Mỗi lần lặp có thư mục `results/<run_id>/`. Manifest ghi cấu hình �
 | `new_order_success`, `payment_success` | Số request thành công theo loại giao dịch. |
 | `p50_ms`, `p95_ms`, `p99_ms` | Nearest-rank trên độ trễ request thành công, gồm thời gian thử lại, backoff và kiểm khóa idempotency. |
 | `drained_requests` | Số request bắt đầu trong cửa sổ nhưng hoàn tất sau deadline. Được đối soát và báo riêng. |
-| `abort_pct`, `retry_pct`, `retry_attempts` | Phần trăm request kết thúc lỗi, phần trăm request thử lại ít nhất một lần, và tổng lượt thử lại trong pha. Hết hàng là kết quả nghiệp vụ được tính trong `failed`. |
+| `abort_pct`, `out_of_stock_pct`, `retry_pct`, `retry_attempts` | `abort_pct`: phần trăm request kết thúc lỗi hệ thống (deadlock, timeout, write conflict, ...), **không** gồm hết hàng. `out_of_stock_pct`: phần trăm request kết thúc vì hết hàng (kết quả nghiệp vụ, vẫn nằm trong `failed`). `retry_pct`: phần trăm request thử lại ít nhất một lần. `retry_attempts`: tổng lượt thử lại trong pha. (Schema v2: trước đây hết hàng bị tính vào `abort_pct`.) |
 | `error_counts`, `failure_counts`, `request_error_pct` | Sự kiện lỗi kể cả khi recover, kết quả lỗi cuối và phần trăm request gặp ít nhất một lỗi timeout/deadlock/write conflict tương ứng. |
 | `rank_draws`, `observed_rank1_pct`, `observed_top100_pct` | Lượt rút rank của New-Order đã kết thúc trong cửa sổ, gồm request hết hàng. `rank1_pct` và `top100_pct` là xác suất lý thuyết. |
 | `out_of_stock_all`, `unknown_commits_all` | Tổng kết quả hết hàng và commit chưa xác định của từng pha, gồm drain. |
-| `lock_wait_ms`, `server_deadlocks` | Delta server counter MySQL từ sau khi drain warmup đến sau khi drain measurement. MongoDB và TiDB trả `null` cho hai trường này. |
+| `lock_wait_ms`, `server_deadlocks` | Delta server counter MySQL từ sau khi drain warmup đến sau khi drain measurement: `Innodb_row_lock_time` và `information_schema.INNODB_METRICS.lock_deadlocks` (trả `null` nếu metric chưa bật). MongoDB và TiDB trả `null` cho hai trường này. Số deadlock phía client nằm ở `error_counts.deadlock`. |
+| `resource_warnings` | Danh sách cảnh báo khi `tidb` hoặc `pd` dùng quá 80% giới hạn CPU trong cửa sổ đo (ví dụ `tidb_cpu_93pct_of_limit`). Chỉ là cảnh báo, không đổi VALID/INVALID; lượt có cảnh báo cần xem xét có phải nghẽn tầng SQL trước khi dùng so sánh TiKV. |
 | `container_cpu_pct` | Trung bình các mẫu Docker Stats hoàn tất trong cửa sổ đo, theo từng service. 100% tương ứng một CPU logic. Service thiếu mẫu có giá trị `null`. |
 | `validation` | Trạng thái, ba kết quả luật, bằng chứng từng sai lệch và các lỗi giao thức. CSV có một hàng cho mỗi pha, ghi cờ VALID/INVALID, ba kết quả và số lỗi theo luật. JSON giữ bằng chứng chi tiết. |
 

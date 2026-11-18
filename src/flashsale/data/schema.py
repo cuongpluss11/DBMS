@@ -70,7 +70,10 @@ TABLES = {
 }
 
 
-def ddl(name: str, tidb: bool) -> str:
+def ddl(name: str, tidb: bool, foreign_keys: bool = False) -> str:
+    # FK mặc định TẮT: InnoDB lấy khóa S trên dòng cha khi insert dòng con, làm
+    # district/customer thành điểm nóng ngầm và sinh deadlock New-Order/Payment.
+    # MongoDB không có FK, nên tắt để ba hệ cùng điều kiện (xem docs/assumptions.md).
     table = TABLES[name]
     definitions = [table.columns]
     if table.key:
@@ -78,7 +81,8 @@ def ddl(name: str, tidb: bool) -> str:
         definitions.append(f"PRIMARY KEY ({','.join(table.key)}){clustered}")
     definitions.extend(f"UNIQUE KEY uq_{key} ({key})" for key in table.unique)
     definitions.extend(f"KEY ix_{'_'.join(index)} ({','.join(index)})" for index in table.indexes)
-    definitions.extend(f"FOREIGN KEY ({source}) REFERENCES {parent} ({target})"
-                       for source, parent, target in table.references)
+    if foreign_keys:
+        definitions.extend(f"FOREIGN KEY ({source}) REFERENCES {parent} ({target})"
+                           for source, parent, target in table.references)
     options = " SHARD_ROW_ID_BITS = 4 PRE_SPLIT_REGIONS = 4" if tidb and name == "history" else ""
     return f"CREATE TABLE {name} ({', '.join(definitions)}) ENGINE=InnoDB{options}"
