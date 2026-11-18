@@ -1,0 +1,30 @@
+name: flashsale-mongo
+services:
+  mongo:
+    image: mongo:8.0.20@sha256:972a9fa5d0f06418faa85d3f831ebba14e203a55dee5cd2dbcaf09490d2eff31
+    platform: linux/amd64
+    command: ["mongod", "--replSet", "flashsale", "--bind_ip_all"]
+    ports:
+      - "127.0.0.1:${FLASHSALE_MONGO_PORT:-27018}:27017"
+    volumes:
+      - mongo_data:/data/db
+    cpus: 4
+    mem_limit: 6g
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - >-
+          try { rs.status() }
+          catch (error) {
+            if (error.code !== 94) throw error;
+            rs.initiate({_id:"flashsale",members:[{_id:0,host:"mongo:27017"}]});
+          }
+          quit(db.hello().isWritablePrimary && db.hello().setName === "flashsale" ? 0 : 1)
+      interval: 3s
+      timeout: 5s
+      retries: 30
+volumes:
+  mongo_data:

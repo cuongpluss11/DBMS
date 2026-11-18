@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "run_id": "00000000000000000000000000000000",
+  "engine": "mysql",
+  "database": null,
+  "started_utc": null,
+  "repetition": 1,
+  "config_path": "configs/baseline.toml",
+  "config": {
+    "label": "example",
+    "seed": 2026,
+    "workers_per_process": 8,
+    "concurrency": 8,
+    "warehouse_mode": "uniform",
+    "theta": 0,
+    "hot_item": false,
+    "warmup_seconds": 30,
+    "measurement_seconds": 60,
+    "repetitions": 3,
+    "payment_ytd": false,
+    "jitter": false,
+    "dataset": {
+      "warehouses": 10,
+      "districts": 10,
+      "items": 100000,
+      "customers": 3000,
+      "initial_orders": 3000,
+      "inventory": 1000000000
+    }
+  },
+  "dataset_state": null,
+  "environment": null,
+  "dbms": null,
+  "containers": null,
+  "access_paths": null,
+  "hot_item_id": null
+}

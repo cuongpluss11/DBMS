@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "run_id": "00000000000000000000000000000000",
+  "engine": "mysql",
+  "version": null,
+  "label": "example",
+  "repetition": 1,
+  "seed": 2026,
+  "concurrency": 8,
+  "warehouse_mode": "uniform",
+  "theta": 0,
+  "hot_item": false,
+  "inventory_mode": "performance",
+  "resource_limits": {
+    "cpus": 4,
+    "memory_bytes": 6442450944
+  },
+  "theoretical_selection": {
+    "rank1_pct": 0.001,
+    "top100_pct": 0.1
+  },
+  "warmup": {
+    "seconds": 30,
+    "tps": null,
+    "success": null,
+    "failed": null,
+    "drained_requests": null,
+    "new_order_success": null,
+    "payment_success": null,
+    "p50_ms": null,
+    "p95_ms": null,
+    "p99_ms": null,
+    "abort_pct": null,
+    "retry_pct": null,
+    "retry_attempts": null,
+    "error_counts": null,
+    "failure_counts": null,
+    "request_error_pct": null,
+    "rank_draws": null,
+    "observed_rank1_pct": null,
+    "observed_top100_pct": null,
+    "out_of_stock_all": null,
+    "unknown_commits_all": null
+  },
+  "measurement": {
+    "seconds": 60,
+    "tps": null,
+    "success": null,
+    "failed": null,
+    "drained_requests": null,
+    "new_order_success": null,
+    "payment_success": null,
+    "p50_ms": null,
+    "p95_ms": null,
+    "p99_ms": null,
+    "abort_pct": null,
+    "retry_pct": null,
+    "retry_attempts": null,
+    "error_counts": null,
+    "failure_counts": null,
+    "request_error_pct": null,
+    "rank_draws": null,
+    "observed_rank1_pct": null,
+    "observed_top100_pct": null,
+    "out_of_stock_all": null,
+    "unknown_commits_all": null
+  },
+  "lock_wait_ms": null,
+  "server_deadlocks": null,
+  "container_cpu_pct": null,
+  "validation": {
+    "status": "NOT_RUN",
+    "rules": {
+      "nonnegative": null,
+      "reconciliation": null,
+      "idempotency": null
+    },
+    "errors": {},
+    "committed_orders": null,
+    "protocol_errors": []
+  }
+}

@@ -1,0 +1,23 @@
+name: flashsale-mysql
+services:
+  mysql:
+    image: mysql:8.4.8@sha256:4fc4bca5a26c5aa2246a92779d238bc2d34f0373e65dc083d7b635b02780dd3d
+    platform: linux/amd64
+    command: ["mysqld", "--max-connections=${FLASHSALE_MYSQL_MAX_CONNECTIONS:-151}"]
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "127.0.0.1:${FLASHSALE_MYSQL_PORT:-13306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    cpus: 4
+    mem_limit: 6g
+    healthcheck:
+      test: ["CMD", "mysql", "--protocol=TCP", "-h", "127.0.0.1", "-uroot", "-Nse", "SELECT 1"]
+      start_period: 30s
+      interval: 3s
+      timeout: 3s
+      retries: 30
+volumes:
+  mysql_data:

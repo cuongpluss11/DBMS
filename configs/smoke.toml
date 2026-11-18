@@ -1,0 +1,20 @@
+label = "smoke"
+workers_per_process = 2
+concurrency = 2
+warehouse_mode = "single-warehouse"
+theta = 0
+hot_item = true
+warmup_seconds = 1
+measurement_seconds = 2
+repetitions = 1
+seed = 2026
+payment_ytd = false
+jitter = false
+
+[dataset]
+warehouses = 2
+districts = 2
+items = 20
+customers = 10
+initial_orders = 10
+inventory = 20

@@ -1,0 +1,20 @@
+label = "baseline"
+workers_per_process = 8
+concurrency = 8
+warehouse_mode = "uniform"
+theta = 0
+hot_item = false
+warmup_seconds = 30
+measurement_seconds = 60
+repetitions = 3
+seed = 2026
+payment_ytd = false
+jitter = false
+
+[dataset]
+warehouses = 10
+districts = 10
+items = 100000
+customers = 3000
+initial_orders = 3000
+inventory = 1000000000
