@@ -14,7 +14,7 @@ Thứ tự làm việc là chốt commit và cấu hình → chuẩn bị ba VM 
 
 ## 2. Chuẩn bị ba VM cùng cấu hình
 
-1. TV1 chốt thông số vCPU, RAM và kiểu lưu trữ. Cả ba dùng Ubuntu 24.04 LTS x86_64, cùng phiên bản Python, Docker và Compose, và cùng tổng ngân sách container 4 CPU, 6 GiB RAM. Nếu các VM nằm trên những máy vật lý khác nhau, ghi lại model CPU và loại ổ đĩa của từng host khi có thông tin.
+1. TV1 chốt thông số vCPU, RAM và kiểu lưu trữ. Cả ba dùng Ubuntu 24.04 LTS x86_64, cùng phiên bản Python, Docker và Compose, và cùng tổng ngân sách container 8 CPU, 16 GiB RAM. Nếu các VM nằm trên những máy vật lý khác nhau, ghi lại model CPU và loại ổ đĩa của từng host khi có thông tin.
 2. Cài công cụ trên từng VM theo [README](../README.md). TV1 gửi URL repo và SHA của commit đã có trên GitHub. Trên mỗi VM, thay URL và SHA trong ví dụ bằng giá trị của nhóm. Nếu đã clone, chạy từ gốc repo và bắt đầu ở `git fetch origin`.
 
 ```bash

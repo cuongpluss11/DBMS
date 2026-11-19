@@ -12,7 +12,7 @@ from flashsale.benchmark.metrics import write_json
 from flashsale.benchmark.runner import run_one
 from flashsale.config import Settings, read_settings
 from flashsale.data.loader import fingerprint, load, reset
-from flashsale.infra import (ENGINES, ROOT, active_engines, container_limits, endpoint, enforce_one,
+from flashsale.infra import (BUDGET_CPUS, BUDGET_MEMORY_BYTES, ENGINES, ROOT, active_engines, container_limits, endpoint, enforce_one,
                             host_info, pd_status, project_lock, ready, source_hashes, start, stop)
 from flashsale.validation.checks import validate
 
@@ -91,8 +91,9 @@ def run(target: Endpoint, cfg: Settings, config_path: Path, *, reset_between: bo
     if target.engine == "tidb":
         environment["pd"] = pd_status()
     limits = container_limits(target.engine)
-    if environment["docker_cpu_count"] < 4 or environment["docker_memory_bytes"] < 6 * 1024 ** 3:
-        raise RuntimeError("Docker cần ít nhất 4 CPU và 6 GiB RAM cho ngân sách container")
+    if environment["docker_cpu_count"] < BUDGET_CPUS or environment["docker_memory_bytes"] < BUDGET_MEMORY_BYTES:
+        raise RuntimeError(f"Docker cần ít nhất {BUDGET_CPUS} CPU và {BUDGET_MEMORY_BYTES // 1024 ** 3} GiB RAM "
+                           "cho ngân sách container")
     reports = []
     for repetition in range(1, cfg.repetitions + 1):
         if repetition > 1:

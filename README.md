@@ -12,11 +12,11 @@ Mục 2.1 của bài tập lớn DBMS. Dự án nạp cùng dữ liệu TPC-C, c
 | TV2 | MongoDB 8.0.20 | Replica set một nút, giao dịch nhiều tài liệu, bằng chứng rollback và replay |
 | TV3 | TiDB, PD và TiKV v8.5.7 | Một PD, một TiDB, ba TiKV, replica count 1 và bằng chứng Region |
 
-Mỗi người dùng một VM Ubuntu có cùng cấu hình và checkout cùng một Git commit. Mỗi VM chỉ chạy DBMS được giao, với tổng ngân sách container 4 CPU và 6 GiB RAM. Nếu nhiều VM nằm trên cùng một máy vật lý, nhóm đo lần lượt để tránh tranh tài nguyên. Kết quả kiểm chứng cục bộ được ghi trong [giao thức thực nghiệm](docs/experiment-2.1.md).
+Mỗi người dùng một VM Ubuntu có cùng cấu hình và checkout cùng một Git commit. Mỗi VM chỉ chạy DBMS được giao, với tổng ngân sách container 8 CPU và 16 GiB RAM. Nếu nhiều VM nằm trên cùng một máy vật lý, nhóm đo lần lượt để tránh tranh tài nguyên. Kết quả kiểm chứng cục bộ được ghi trong [giao thức thực nghiệm](docs/experiment-2.1.md).
 
 ## Cài đặt trên Ubuntu 24.04 LTS
 
-Dùng VM x86_64 với ít nhất 4 vCPU, 8 GiB RAM cấp cho VM và 10 GiB đĩa trống. Chừa thêm dung lượng cho các volume W=10 và tài nguyên cho load generator.
+Dùng VM x86_64 với ít nhất 12 vCPU, 20 GiB RAM cấp cho VM (ví dụ AWS `c6i.4xlarge`: 16 vCPU, 32 GiB) và 10 GiB đĩa trống. Chừa thêm dung lượng cho các volume W=10 và tài nguyên cho load generator.
 
 ```bash
 sudo apt-get update

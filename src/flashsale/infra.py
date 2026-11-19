@@ -14,6 +14,9 @@ from flashsale.adapters.base import Endpoint, open_adapter
 
 ROOT = Path(__file__).resolve().parents[2]
 ENGINES = ("mysql", "mongo", "tidb")
+# Ngân sách container chung cho MỌI hệ (mục 2.1: cùng tổng CPU/RAM). Xem docs/assumptions.md.
+BUDGET_CPUS = 8
+BUDGET_MEMORY_BYTES = 16 * 1024 ** 3
 DEFAULT_PORTS = {"mysql": 13306, "mongo": 27018, "tidb": 14000, "pd": 12379}
 
 
@@ -136,9 +139,10 @@ def container_limits(engine: str) -> dict[str, dict]:
                         "cpus": host["NanoCpus"] / 1e9, "memory_bytes": host["Memory"]}
     if len(result) != (5 if engine == "tidb" else 1):
         raise RuntimeError("Thiếu container của cấu hình mục 2.1")
-    if sum(entry["cpus"] for entry in result.values()) != 4 or sum(
-            entry["memory_bytes"] for entry in result.values()) != 6 * 1024 ** 3:
-        raise RuntimeError("Container đang chạy khác ngân sách 4 CPU và 6 GiB")
+    if sum(entry["cpus"] for entry in result.values()) != BUDGET_CPUS or sum(
+            entry["memory_bytes"] for entry in result.values()) != BUDGET_MEMORY_BYTES:
+        raise RuntimeError(f"Container đang chạy khác ngân sách {BUDGET_CPUS} CPU và "
+                           f"{BUDGET_MEMORY_BYTES // 1024 ** 3} GiB")
     return result
 
 

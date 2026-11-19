@@ -118,3 +118,25 @@ def test_every_profile_loads_and_matches_the_document():
     assert profiles["correctness"].dataset.inventory == 1000
     assert profiles["performance"].dataset.inventory == 10**9
     assert all(profile.idempotency for name, profile in profiles.items() if name != "idempotency-off")
+
+
+def test_compose_budgets_equal_across_engines():
+    import re
+    from pathlib import Path
+    from flashsale.infra import BUDGET_CPUS, BUDGET_MEMORY_BYTES
+
+    units = {"m": 1024 ** 2, "g": 1024 ** 3}
+
+    def limits(text):
+        return [(float(c), int(m) * units[u])
+                for c, m, u in re.findall(r"cpus: ([\d.]+)\s+mem_limit: (\d+)([mg])", text)]
+
+    def total(name):
+        text = Path("docker", f"compose.{name}.yml").read_text(encoding="utf-8")
+        head, _, services = text.partition("services:")
+        copies = 3 if "x-tikv" in head else 1  # tikv1..3 kế thừa anchor
+        pairs = [(c * copies, m * copies) for c, m in limits(head)] + limits(services)
+        return sum(c for c, _ in pairs), sum(m for _, m in pairs)
+
+    for name in ("mysql", "mongo", "tidb"):
+        assert total(name) == (BUDGET_CPUS, BUDGET_MEMORY_BYTES), name
