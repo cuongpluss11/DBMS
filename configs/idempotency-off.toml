@@ -1,10 +1,12 @@
 # Lượt phụ theo đề mục 2.1: tắt mã chống trùng (không UNIQUE request_id, không đối chiếu DB
 # trước khi gửi lại) để thấy retry sau commit mơ hồ sinh đơn trùng. KẾT QUẢ INVALID LÀ DỰ KIẾN
-# nếu quan sát được đơn trùng; lượt này không được xếp hạng. client_timeout_seconds ngắn là điểm
-# khởi đầu để gây timeout ở bước commit - cần tinh chỉnh khi chạy thật.
+# nếu quan sát được đơn trùng; lượt này không được xếp hạng.
+# client_timeout_seconds: đã thử trên MySQL 8.4.8 (VM AWS c6i.4xlarge, 1 lần lặp mỗi mức):
+#   0.2 s và 0.05 s -> VALID (chưa thấy đơn trùng); 0.02 s -> INVALID luật 3 (1 đơn ghi hai lần,
+#   2 đơn đã commit nhưng client không ghi nhận). Mức 0.02 s gây ~34% hủy: chỉ dùng cho lượt này.
 label = "idempotency_off"
 idempotency = false
-client_timeout_seconds = 0.2
+client_timeout_seconds = 0.02
 workers_per_process = 8
 concurrency = 64
 warehouse_mode = "single-warehouse"

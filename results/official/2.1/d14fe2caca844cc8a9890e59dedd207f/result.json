@@ -1,0 +1,149 @@
+{
+  "schema_version": 3,
+  "run_id": "d14fe2caca844cc8a9890e59dedd207f",
+  "engine": "mysql",
+  "version": "8.4.8",
+  "label": "idempotency_off",
+  "repetition": 1,
+  "seed": 2026,
+  "idempotency": false,
+  "client_timeout_seconds": 0.05,
+  "concurrency": 64,
+  "warehouse_mode": "single-warehouse",
+  "theta": 0,
+  "hot_item": true,
+  "inventory_mode": "performance",
+  "resource_limits": {
+    "cpus": 8.0,
+    "memory_bytes": 17179869184
+  },
+  "theoretical_selection": {
+    "rank1_pct": 100.0,
+    "top100_pct": 100.0
+  },
+  "warmup": {
+    "seconds": 30,
+    "tps": 320.96666666666664,
+    "success": 9629,
+    "failed": 1468,
+    "drained_requests": 64,
+    "new_order_success": 4065,
+    "payment_success": 5564,
+    "p50_ms": 7.543866000560229,
+    "p95_ms": 461.8846110006416,
+    "p99_ms": 677.9799870000716,
+    "abort_pct": 13.22880057673245,
+    "out_of_stock_pct": 0.0,
+    "retry_pct": 38.08236460304587,
+    "retry_attempts": 14436,
+    "error_counts": {
+      "timeout": 15904,
+      "deadlock": 0,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0
+    },
+    "failure_counts": {
+      "timeout": 1468,
+      "deadlock": 0,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0
+    },
+    "request_error_pct": {
+      "timeout": 38.08236460304587,
+      "deadlock": 0.0,
+      "write_conflict": 0.0
+    },
+    "rank_draws": 5533,
+    "observed_rank1_pct": 100.0,
+    "observed_top100_pct": 100.0,
+    "out_of_stock_all": 0,
+    "unknown_commits_all": 0
+  },
+  "measurement": {
+    "seconds": 60,
+    "tps": 316.6166666666667,
+    "success": 18997,
+    "failed": 3960,
+    "drained_requests": 64,
+    "new_order_success": 8331,
+    "payment_success": 10666,
+    "p50_ms": 7.9947349995563854,
+    "p95_ms": 453.8990709997961,
+    "p99_ms": 677.6955200002703,
+    "abort_pct": 17.249640632486823,
+    "out_of_stock_pct": 0.0,
+    "retry_pct": 37.9143616326175,
+    "retry_attempts": 32403,
+    "error_counts": {
+      "timeout": 25881,
+      "deadlock": 0,
+      "write_conflict": 0,
+      "connection": 10482,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0
+    },
+    "failure_counts": {
+      "timeout": 2240,
+      "deadlock": 0,
+      "write_conflict": 0,
+      "connection": 1720,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0
+    },
+    "request_error_pct": {
+      "timeout": 30.548416604957094,
+      "deadlock": 0.0,
+      "write_conflict": 0.0
+    },
+    "rank_draws": 11463,
+    "observed_rank1_pct": 100.0,
+    "observed_top100_pct": 100.0,
+    "out_of_stock_all": 0,
+    "unknown_commits_all": 0
+  },
+  "lock_wait_ms": 2418036,
+  "server_deadlocks": 0,
+  "container_cpu_pct": {
+    "mysql": 62.365833333333335
+  },
+  "resource_warnings": [],
+  "validation": {
+    "status": "VALID",
+    "rules": {
+      "nonnegative": true,
+      "reconciliation": true,
+      "idempotency": true
+    },
+    "errors": {
+      "nonnegative": [],
+      "reconciliation": [],
+      "idempotency": []
+    },
+    "committed_orders": 12511,
+    "tagged_rows": {
+      "orders": 12511,
+      "order_line": 12511
+    },
+    "protocol_errors": []
+  }
+}

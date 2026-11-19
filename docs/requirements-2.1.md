@@ -12,3 +12,4 @@
 | CSV/JSON, phiên bản, tài nguyên và CPU | benchmark/metrics.py, infra.py | `test_metrics_and_export`, `test_smoke_exports`, manifest baseline |
 | Hướng dẫn và thao tác có phạm vi | README.md, scripts/, docs/experiment-2.1.md | Kiểm Bash, Compose và smoke tuần tự |
 | Lượt phụ tắt idempotency, baseline một kho và 1 client, Payment bật YTD | configs/idempotency-off.toml, baseline-single-warehouse.toml, baseline-1client.toml, payment-ytd.toml, workload/retry.py, data/schema.py | `test_idempotency_off_profile_resubmits_without_reconciliation`, `test_idempotency_off_schema_and_fingerprint`, `test_every_profile_loads_and_matches_the_document`, integration `test_idempotency_off_replay_creates_duplicate_order` (NOT TESTED trên DBMS thật) |
+| Nghiệm thu thực tế trên VM | docs/acceptance-2.1.md, results/official/2.1/ | 30 lượt trên MySQL, MongoDB và TiDB; 29 VALID, 1 INVALID dự kiến (idempotency-off) |

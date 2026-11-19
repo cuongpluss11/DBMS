@@ -1,0 +1,149 @@
+{
+  "schema_version": 3,
+  "run_id": "3e9da89b05714396b6870050acf8c660",
+  "engine": "mongo",
+  "version": "8.0.20",
+  "label": "correctness",
+  "repetition": 3,
+  "seed": 2026,
+  "idempotency": true,
+  "client_timeout_seconds": 15.0,
+  "concurrency": 8,
+  "warehouse_mode": "single-warehouse",
+  "theta": 0,
+  "hot_item": true,
+  "inventory_mode": "correctness",
+  "resource_limits": {
+    "cpus": 8.0,
+    "memory_bytes": 17179869184
+  },
+  "theoretical_selection": {
+    "rank1_pct": 100.0,
+    "top100_pct": 100.0
+  },
+  "warmup": {
+    "seconds": 30,
+    "tps": 387.5,
+    "success": 11625,
+    "failed": 11253,
+    "drained_requests": 8,
+    "new_order_success": 185,
+    "payment_success": 11440,
+    "p50_ms": 7.910094000180834,
+    "p95_ms": 11.259678999522293,
+    "p99_ms": 13.900552999984939,
+    "abort_pct": 0.017484045808200017,
+    "out_of_stock_pct": 49.1695078241105,
+    "retry_pct": 5.402570154733805,
+    "retry_attempts": 1524,
+    "error_counts": {
+      "timeout": 0,
+      "deadlock": 0,
+      "write_conflict": 1528,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 11249,
+      "unknown_commit": 0
+    },
+    "failure_counts": {
+      "timeout": 0,
+      "deadlock": 0,
+      "write_conflict": 4,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 11249,
+      "unknown_commit": 0
+    },
+    "request_error_pct": {
+      "timeout": 0.0,
+      "deadlock": 0.0,
+      "write_conflict": 5.402570154733805
+    },
+    "rank_draws": 11438,
+    "observed_rank1_pct": 100.0,
+    "observed_top100_pct": 100.0,
+    "out_of_stock_all": 11254,
+    "unknown_commits_all": 0
+  },
+  "measurement": {
+    "seconds": 60,
+    "tps": 388.03333333333336,
+    "success": 23282,
+    "failed": 23281,
+    "drained_requests": 8,
+    "new_order_success": 0,
+    "payment_success": 23282,
+    "p50_ms": 7.94718399993144,
+    "p95_ms": 11.16108299993357,
+    "p99_ms": 12.699486000201432,
+    "abort_pct": 0.0,
+    "out_of_stock_pct": 49.99892618602753,
+    "retry_pct": 5.446384468354702,
+    "retry_attempts": 2891,
+    "error_counts": {
+      "timeout": 0,
+      "deadlock": 0,
+      "write_conflict": 2891,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 23281,
+      "unknown_commit": 0
+    },
+    "failure_counts": {
+      "timeout": 0,
+      "deadlock": 0,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 23281,
+      "unknown_commit": 0
+    },
+    "request_error_pct": {
+      "timeout": 0.0,
+      "deadlock": 0.0,
+      "write_conflict": 5.446384468354702
+    },
+    "rank_draws": 23281,
+    "observed_rank1_pct": 100.0,
+    "observed_top100_pct": 100.0,
+    "out_of_stock_all": 23285,
+    "unknown_commits_all": 0
+  },
+  "lock_wait_ms": null,
+  "server_deadlocks": null,
+  "container_cpu_pct": {
+    "mongo": 109.68833333333333
+  },
+  "resource_warnings": [],
+  "validation": {
+    "status": "VALID",
+    "rules": {
+      "nonnegative": true,
+      "reconciliation": true,
+      "idempotency": true
+    },
+    "errors": {
+      "nonnegative": [],
+      "reconciliation": [],
+      "idempotency": []
+    },
+    "committed_orders": 185,
+    "tagged_rows": {
+      "orders": 185,
+      "order_line": 185
+    },
+    "protocol_errors": []
+  }
+}
