@@ -74,9 +74,11 @@ def test_transaction_contract_and_validator(dataset):
     assert run_request(db, extra).status == "success"
     assert db.one("warehouse", warehouse)["w_ytd"] == original_ytd + 100
     assert validate(db, config, run_id, [req.request_id])["status"] == "VALID"
+    assert db.doc_reconciliation(config.inventory, config.initial_orders) == []  # SQL/aggregation của đề
     db.change("stock", stock1, set_values={"s_quantity": -1})
     db.change("stock", stock2, set_values={"s_quantity": 99})
     invalid = validate(db, config, run_id, [req.request_id, req.request_id])
+    assert db.doc_reconciliation(config.inventory, config.initial_orders)
     assert invalid["status"] == "INVALID"
     assert not any(invalid["rules"].values())
     reset(db, config)

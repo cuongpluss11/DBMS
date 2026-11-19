@@ -196,6 +196,17 @@ class SQLAdapter:
             result["history_ddl"] = self.query("SHOW CREATE TABLE history")
         return result
 
+    def doc_reconciliation(self, inventory: int, initial_orders: int) -> list[dict]:
+        """Câu SQL kiểm luật 1 và 2 của đề (mục 2.1), mở rộng cho mọi kho. Kết quả rỗng là đạt.
+        Chỉ đếm dòng đơn tạo trong lượt chạy bằng ol_o_id > initial_orders: đúng vì d_next_o_id nạp
+        ban đầu là initial_orders + 1 và reset khôi phục lại giá trị đó."""
+        statement = (
+            "SELECT s.s_w_id, s.s_i_id, s.s_quantity, COALESCE(o.sold, 0) AS sold FROM stock s "
+            "LEFT JOIN (SELECT ol_supply_w_id AS w, ol_i_id AS i, SUM(ol_quantity) AS sold FROM order_line "
+            "WHERE ol_o_id > %s GROUP BY ol_supply_w_id, ol_i_id) o ON o.w = s.s_w_id AND o.i = s.s_i_id "
+            "WHERE s.s_quantity < 0 OR %s - s.s_quantity <> COALESCE(o.sold, 0) LIMIT 10")
+        return self.query(statement, (initial_orders, inventory))
+
     def counters(self) -> dict[str, int | None]:
         if self.tidb:
             return {"lock_wait_ms": None, "server_deadlocks": None}

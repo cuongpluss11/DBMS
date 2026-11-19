@@ -149,5 +149,28 @@ class MongoAdapter:
                       for plan in plans.values())
         return {"indexed": indexed, "plans": plans}
 
+    def doc_reconciliation(self, inventory: int, initial_orders: int) -> list[dict]:
+        """Bản aggregation tương đương câu SQL kiểm luật 1 và 2 của đề. Kết quả rỗng là đạt."""
+        grouped = [{"$match": {"ol_o_id": {"$gt": initial_orders}}},
+                   {"$group": {"_id": {"w": "$ol_supply_w_id", "i": "$ol_i_id"}, "sold": {"$sum": "$ol_quantity"}}}]
+        violations = grouped + [
+            {"$lookup": {"from": "stock", "let": {"w": "$_id.w", "i": "$_id.i"}, "as": "stock",
+                         "pipeline": [{"$match": {"$expr": {"$and": [{"$eq": ["$s_w_id", "$$w"]},
+                                                                      {"$eq": ["$s_i_id", "$$i"]}]}}}]}},
+            {"$match": {"$expr": {"$or": [
+                {"$eq": [{"$size": "$stock"}, 0]},
+                {"$lt": [{"$first": "$stock.s_quantity"}, 0]},
+                {"$ne": [{"$subtract": [{"$subtract": [inventory, {"$first": "$stock.s_quantity"}]}, "$sold"]}, 0]}]}}},
+            {"$limit": 10}]
+        errors = [{"warehouse": row["_id"]["w"], "item": row["_id"]["i"], "sold": row["sold"],
+                   "s_quantity": row["stock"][0]["s_quantity"] if row["stock"] else None}
+                  for row in self.db.order_line.aggregate(violations)]
+        # Dòng tồn đã đổi nhưng không có đơn tương ứng (bao gồm tồn âm không do đơn nào gây ra).
+        groups = next(iter(self.db.order_line.aggregate(grouped + [{"$count": "n"}])), {"n": 0})["n"]
+        changed = self.db.stock.count_documents({"s_quantity": {"$ne": inventory}})
+        if changed != groups:
+            errors.append({"stock_rows_changed": changed, "items_with_sales": groups})
+        return errors
+
     def counters(self) -> dict[str, int | None]:
         return {"lock_wait_ms": None, "server_deadlocks": None}
