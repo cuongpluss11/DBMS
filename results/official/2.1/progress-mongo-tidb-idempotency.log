@@ -1,0 +1,19 @@
+2026-11-19T14:37:03Z START commit=38dda58
+2026-11-19T14:37:07Z mongo started
+2026-11-19T14:39:32Z mongo loaded W=10 dataset=flashsale_54a18f5549a34ecd9a8cfdcea5d8eed3
+2026-11-19T14:39:32Z mongo counts:  warehouse rows=10  item rows=100000  district rows=100  stock rows=1000000  customer rows=300000  history rows=300000  orders rows=300000  new_order rows=90000  order_line rows=2998678 
+2026-11-19T14:39:32Z RUN mongo correctness
+2026-11-19T14:44:28Z DONE mongo correctness exit=0
+2026-11-19T14:44:45Z tidb started
+2026-11-19T14:50:22Z tidb loaded W=10 dataset=flashsale_72b53c304ee04cbd8efcf11666913e39
+2026-11-19T14:50:22Z tidb counts:  warehouse rows=10  item rows=100000  district rows=100  stock rows=1000000  customer rows=300000  history rows=300000  orders rows=300000  new_order rows=90000  order_line rows=2998678 
+2026-11-19T14:50:22Z RUN tidb correctness
+2026-11-19T14:55:45Z DONE tidb correctness exit=0
+2026-11-19T14:59:36Z loaded idempotency-off dataset=flashsale_9427cc71bf5d4deb8c390a97f571f1c8
+2026-11-19T14:59:36Z RUN idempotency-off timeout=0.2
+2026-11-19T15:01:33Z DONE idempotency-off timeout=0.2 exit=0
+2026-11-19T15:01:46Z RUN idempotency-off timeout=0.05
+2026-11-19T15:03:42Z DONE idempotency-off timeout=0.05 exit=0
+2026-11-19T15:03:54Z RUN idempotency-off timeout=0.02
+2026-11-19T15:05:50Z DONE idempotency-off timeout=0.02 exit=1
+2026-11-19T15:06:04Z ALL DONE
