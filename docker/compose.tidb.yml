@@ -2,15 +2,15 @@ name: flashsale-tidb
 x-tikv: &tikv
   image: pingcap/tikv:v8.5.7@sha256:59e3938480776caf2aa86010b4bf4bcb88ccd401707f2f3b25f99997578190b9
   platform: linux/amd64
-  cpus: 1
-  mem_limit: 1536m
+  cpus: 1.5
+  mem_limit: 4g
   depends_on: [pd]
 services:
   pd:
     image: pingcap/pd:v8.5.7@sha256:d6f15a94617dbb9778b4a5e81d5a4ec1e795bf1818cf8821dca21960a2d61986
     platform: linux/amd64
-    cpus: 0.25
-    mem_limit: 512m
+    cpus: 0.5
+    mem_limit: 1g
     command: ["--name=pd", "--data-dir=/data", "--client-urls=http://0.0.0.0:2379", "--advertise-client-urls=http://pd:2379", "--peer-urls=http://0.0.0.0:2380", "--advertise-peer-urls=http://pd:2380", "--initial-cluster=pd=http://pd:2380", "--config=/etc/pd.toml"]
     ports:
       - "127.0.0.1:${FLASHSALE_PD_PORT:-12379}:2379"
@@ -38,8 +38,8 @@ services:
   tidb:
     image: pingcap/tidb:v8.5.7@sha256:eda497853e94c77c6849fb582e26181bd298d3fc7f32589997bd6359d3aa8bdf
     platform: linux/amd64
-    cpus: 0.75
-    mem_limit: 1g
+    cpus: 3
+    mem_limit: 3g
     command: ["--store=tikv", "--path=pd:2379", "--host=0.0.0.0", "--advertise-address=tidb"]
     depends_on: [tikv1, tikv2, tikv3]
     ports:

@@ -11,8 +11,8 @@ services:
       - "127.0.0.1:${FLASHSALE_MYSQL_PORT:-13306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-    cpus: 4
-    mem_limit: 6g
+    cpus: 8
+    mem_limit: 16g
     healthcheck:
       test: ["CMD", "mysql", "--protocol=TCP", "-h", "127.0.0.1", "-uroot", "-Nse", "SELECT 1"]
       start_period: 30s
