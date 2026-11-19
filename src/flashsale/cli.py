@@ -36,10 +36,10 @@ def load_dataset(target: Endpoint, cfg: Settings) -> dict:
     path = state_path(target)
     path.parent.mkdir(parents=True, exist_ok=True)
     state = {"engine": target.engine, "database": target.database,
-             "fingerprint": fingerprint(cfg.dataset, cfg.seed), "status": "loading"}
+             "fingerprint": fingerprint(cfg.dataset, cfg.seed, cfg.idempotency), "status": "loading"}
     write_json(path, state)
     with connect(target, admin=True) as db:
-        db.create()
+        db.create(idempotency=cfg.idempotency)
         state["counts"] = load(db, cfg.dataset, cfg.seed)
     state["status"] = "ready"
     write_json(path, state)
@@ -51,7 +51,7 @@ def dataset_state(target: Endpoint, cfg: Settings) -> dict:
     if not path.is_file():
         raise ValueError("Dataset chưa được đăng ký bằng lệnh load của dự án")
     state = json.loads(path.read_text(encoding="utf-8"))
-    if state["fingerprint"] != fingerprint(cfg.dataset, cfg.seed):
+    if state["fingerprint"] != fingerprint(cfg.dataset, cfg.seed, cfg.idempotency):
         raise ValueError("Dataset hoặc seed của config khác lúc load")
     if "counts" not in state:
         raise ValueError("Dataset chưa nạp xong, hãy tạo dataset mới")

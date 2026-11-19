@@ -17,7 +17,7 @@ def required(row: Row | None) -> Row:
 
 def execute(db: Adapter, req: Request) -> None:
     with db.atomic():
-        if lookup(db, req) is not None:
+        if req.idempotent and lookup(db, req) is not None:
             return
         if req.kind == "new_order":
             new_order(db, req)

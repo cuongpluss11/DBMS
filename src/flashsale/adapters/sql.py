@@ -37,14 +37,14 @@ def keys(key: Row) -> tuple[str, tuple]:
 
 
 class SQLAdapter:
-    def __init__(self, endpoint: Endpoint, *, admin: bool = False):
+    def __init__(self, endpoint: Endpoint, *, admin: bool = False, timeout: float = 15.0):
         self.endpoint = endpoint
         self.tidb = endpoint.engine == "tidb"
         self.in_transaction = False
         self.connection = pymysql.connect(
             host="127.0.0.1", port=endpoint.port, user="root", charset="utf8mb4",
             database=None if admin else endpoint.database, autocommit=True, cursorclass=DictCursor,
-            connect_timeout=5, read_timeout=15, write_timeout=15,
+            connect_timeout=5, read_timeout=timeout, write_timeout=timeout,
         )
 
     def close(self) -> None:
@@ -94,11 +94,11 @@ class SQLAdapter:
         finally:
             self.in_transaction = False
 
-    def create(self) -> None:
+    def create(self, idempotency: bool = True) -> None:
         self.query(f"CREATE DATABASE {self.endpoint.database} CHARACTER SET utf8mb4")
         self.connection.select_db(self.endpoint.database)
         for name in TABLES:
-            self.query(ddl(name, self.tidb))
+            self.query(ddl(name, self.tidb, idempotency=idempotency))
 
     def drop(self) -> None:
         self.query(f"DROP DATABASE IF EXISTS {self.endpoint.database}")
@@ -184,7 +184,8 @@ class SQLAdapter:
                         ("probe", "probz"),
                     )
             indexed = all(
-                any(row.get("key") == ("uq_request_id" if table in ("orders", "history") else "PRIMARY")
+                any(row.get("key") in (("uq_request_id", "ix_request_id") if table in ("orders", "history")
+                                       else ("PRIMARY",))
                     for row in plans.get(table + "_range", plans[table]))
                 for table in probes
             )

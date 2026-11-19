@@ -105,3 +105,32 @@ def test_replay_without_persisted_idempotency_is_rejected(dataset):
     report = validate(db, config, run_id, [req.request_id], counts)
     assert report["status"] == "INVALID"
     assert report["rules"] == {"nonnegative": True, "reconciliation": True, "idempotency": False}
+
+
+@pytest.fixture
+def dataset_idempotency_off(engine):
+    config = read_settings(Path("configs/smoke.toml"))
+    target = endpoint(engine)
+    with project_lock():
+        enforce_one(engine)
+        db = open_adapter(target, admin=True)
+        try:
+            db.create(idempotency=False)
+            counts = load(db, config.dataset, config.seed)
+            yield db, config.dataset, counts
+        finally:
+            try:
+                db.drop()
+            finally:
+                db.close()
+
+
+def test_idempotency_off_replay_creates_duplicate_order(dataset_idempotency_off):
+    db, config, counts = dataset_idempotency_off
+    run_id = "c" * 32
+    req = Request(run_id + "-dup", run_id, "new_order", 1, 1, 1, ((1, 1),), idempotent=False)
+    assert run_request(db, req).status == "success"
+    assert run_request(db, req).status == "success"  # không có UNIQUE: được ghi lần hai
+    assert db.count("orders") == counts["orders"] + 2
+    report = validate(db, config, run_id, [req.request_id], counts)
+    assert report["status"] == "INVALID" and report["rules"]["idempotency"] is False

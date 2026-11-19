@@ -72,6 +72,10 @@ Sau khi kiểm tra xong, gửi trạng thái cho nhóm và có thể dừng hệ
 | `configs/baseline.toml` | TV1 trên MySQL | W=10, 8 client, θ=0, kho uniform, tồn đầu 10^9. Chạy thêm một điểm single-warehouse. Điểm một client chỉ dùng khi cần chẩn đoán. |
 | `configs/performance.toml` | Cả ba, trên VM riêng | W=10, 8 client, θ=0,5, kho uniform, tồn đầu 10^9. Dùng cùng cấu hình trên ba hệ nếu nhóm đo so sánh hiệu năng. |
 | `configs/correctness.toml` | Cả ba, trên VM riêng | W=10, 8 client, kho 1 và một món hot, tồn đầu 1.000. Kiểm tra cả ba luật và có tình huống hết hàng thực tế. |
+| `configs/baseline-single-warehouse.toml` | TV1 trên MySQL | Điểm θ=0 kiểu "một kho" của đề (cùng dataset với baseline, dùng chung một lần `load`). |
+| `configs/baseline-1client.toml` | TV1 trên MySQL | Điểm 1 client dùng cho phân tích "việc có ích" ở 2.5. |
+| `configs/payment-ytd.toml` | Cả ba | Lượt riêng bật cập nhật `w_ytd`, `d_ytd` ở Payment để thấy điểm nóng thứ ba (khác TPC-C chuẩn, ghi rõ trong báo cáo). |
+| `configs/idempotency-off.toml` | Cả ba, tùy chọn | Lượt phụ tắt mã chống trùng của đề (dataset và lược đồ riêng, không UNIQUE). INVALID luật 3 là kết quả dự kiến; không xếp hạng. Cần tinh chỉnh `client_timeout_seconds` khi chạy thật. |
 | `configs/smoke.toml` | Cả ba | Dữ liệu nhỏ để kiểm tra đường chạy, có nhãn `smoke`. |
 
 Mỗi điểm đầy đủ có 3 lần lặp, mỗi lần gồm 30 giây warmup và 60 giây đo. Các cấu hình dùng New-Order và Payment theo tỉ lệ 1:1, tắt cập nhật YTD của warehouse và district ở Payment. Dùng `--concurrency` khi nhóm thống nhất mức khác với 8. Giữ cùng số client cho các điểm đem so sánh. Với MySQL ở 256 client, dùng `FLASHSALE_MYSQL_MAX_CONNECTIONS=258 flashsale start mysql` và ghi giá trị thực trong manifest. Chạy các mức client còn lại theo kế hoạch nhóm đã chốt.

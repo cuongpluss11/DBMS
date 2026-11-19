@@ -31,10 +31,10 @@ def classify(exc: PyMongoError, committing: bool = False) -> DBError:
 class MongoAdapter:
     """Mode A. Một adapter và session cho mỗi client của runner."""
 
-    def __init__(self, endpoint: Endpoint):
+    def __init__(self, endpoint: Endpoint, timeout: float = 15.0):
         self.client = MongoClient("127.0.0.1", endpoint.port, directConnection=True,
                                   replicaSet="flashsale", retryWrites=False,
-                                  serverSelectionTimeoutMS=5000, socketTimeoutMS=15000,
+                                  serverSelectionTimeoutMS=5000, socketTimeoutMS=int(timeout * 1000),
                                   maxPoolSize=1)
         self.db = self.client.get_database(endpoint.database, read_concern=ReadConcern("majority"))
         self.session = None
@@ -71,7 +71,7 @@ class MongoAdapter:
             finally:
                 self.session = None
 
-    def create(self) -> None:
+    def create(self, idempotency: bool = True) -> None:
         if self.db.list_collection_names():
             raise RuntimeError("Database MongoDB đã có collection")
         for name, table in TABLES.items():
@@ -79,7 +79,9 @@ class MongoAdapter:
             if table.key:
                 collection.create_index(list(table.key), unique=True, name="logical_pk")
             for field in table.unique:
-                collection.create_index(field, unique=True, name="uq_" + field,
+                # Lượt idempotency_off: chỉ số thường (không UNIQUE) để vẫn có đường truy cập theo request_id.
+                collection.create_index(field, unique=idempotency,
+                                        name=("uq_" if idempotency else "ix_") + field,
                                         partialFilterExpression={field: {"$type": "string"}})
             for fields in table.indexes:
                 collection.create_index(list(fields), name="ix_" + "_".join(fields))
