@@ -10,12 +10,12 @@ Bạn là kỹ sư Python, hệ quản trị cơ sở dữ liệu (DBMS) và đ�
 
 ## 2. Tài liệu nguồn và thứ tự ưu tiên
 
-1. `Bài tập lớn .pdf`: **đặc tả nghiệp vụ và quy trình thực nghiệm chính**, đặc biệt mục 2.1 (trang 5–8).
+1. **Tài liệu ý tưởng mới nhất** (hiện là `Bài tập lớn (4).docx`; trước đó là `Bài tập lớn .pdf`): **đặc tả nghiệp vụ và quy trình thực nghiệm chính**, đặc biệt mục 2.1. Khi các bản khác nhau, bản mới nhất người dùng cung cấp thắng.
 2. `Bài tập lớn  (1).pdf`: khuyến nghị nhánh phiên bản DBMS.
 3. Các quyết định được ghi trong `docs/assumptions.md` và cấu hình thực nghiệm đã được người dùng phê duyệt.
 4. Tài liệu chính thức tương ứng với **phiên bản thực tế đang cài** để xác minh cú pháp, tham số, tính tương thích và cách quan sát hệ thống.
 
-Không tự ý thay đổi yêu cầu trong PDF. Nếu phát hiện điểm mơ hồ, bất khả thi, hoặc mâu thuẫn kỹ thuật, ghi rõ `yêu cầu gốc → vấn đề → phương án → ảnh hưởng tính so sánh` vào `docs/assumptions.md`. Không trình bày giả định hoặc dự đoán trong tài liệu thành kết quả thực đo.
+**Tài liệu ý tưởng luôn thắng AGENTS.md.** Nếu một quy tắc trong file này mâu thuẫn với tài liệu, làm theo tài liệu, **báo người dùng ngay** và ghi vào `docs/assumptions.md` (không tự chọn lặng lẽ). Không tự ý thay đổi yêu cầu trong tài liệu. Nếu phát hiện điểm mơ hồ, bất khả thi, hoặc mâu thuẫn kỹ thuật, ghi rõ `yêu cầu gốc → vấn đề → phương án → ảnh hưởng tính so sánh` vào `docs/assumptions.md`. Không trình bày giả định hoặc dự đoán trong tài liệu thành kết quả thực đo.
 
 ## 3. Ngôn ngữ và cách làm việc
 
@@ -33,7 +33,7 @@ Không tự ý thay đổi yêu cầu trong PDF. Nếu phát hiện điểm mơ 
 - `requirements.txt` **chỉ quản lý thư viện Python**, không thay thế việc cài DBMS. Dùng Docker Compose để triển khai DBMS, dùng script shell cho thiết lập máy ảo và kiểm tra sẵn sàng.
 - Pin chính xác các bản vá Python dependency và image Docker sau khi xác minh image/tag thực sự tồn tại, tương thích kiến trúc và có thể chạy. Không sử dụng `latest` trong kết quả chuẩn.
 - Ghi phiên bản thực tế của Python, DBMS, Docker, image tag/digest, Git commit, cấu hình VM và giới hạn container vào manifest từng lần chạy.
-- Không để mật khẩu, connection string chứa bí mật, `.env`, dữ liệu thực nghiệm lớn hay volume DBMS vào Git. Cung cấp `.env.example` không chứa bí mật.
+- Không để mật khẩu, connection string chứa bí mật, `.env`, dữ liệu thô lớn (ví dụ `successful_new_orders.json`) hay volume DBMS vào Git. Riêng **kết quả chính thức nhỏ** (CSV/JSON/manifest, `INDEX.csv`) được commit vào `results/official/` vì tài liệu yêu cầu đưa CSV kết quả lên repo để người khác chạy lại. Cung cấp `.env.example` không chứa bí mật.
 - Docker bootstrap cần quyền quản trị phải được tách rõ với bước setup thông thường; không âm thầm sửa hệ điều hành hoặc xóa dữ liệu.
 
 ## 5. Kiến trúc mã nguồn
@@ -59,7 +59,8 @@ Thiết kế CLI tối thiểu cho setup, doctor/status, start/stop, load, reset
 - MongoDB thiết kế (a): 9 collection, dùng giao dịch nhiều tài liệu trên **replica set một nút**. Chỉ tạo điểm mở rộng cho thiết kế (b), không đánh đồng một lệnh `updateOne` nguyên tử với toàn bộ đơn đa mặt hàng nguyên tử.
 - Lượt đo tốc độ sử dụng tồn ban đầu lớn (ví dụ **10^9/mặt hàng**), tắt cơ chế bù kho `+91` của TPC-C, điều chỉnh `s_quantity` thành INT/BIGINT thích hợp và nêu rõ đây là thay đổi chủ đích.
 - Lượt kiểm luật dùng tồn đầu nhỏ (ví dụ **1.000/mặt hàng**) để thực sự kiểm tra tình huống hết hàng.
-- Thêm `request_id`/idempotency key UNIQUE trong `orders` (MongoDB: unique index); không phát sinh đơn thứ hai khi yêu cầu được retry. Bảo toàn khóa và ràng buộc cần thiết của lược đồ.
+- Thêm `request_id`/idempotency key UNIQUE trong `orders` (MongoDB: unique index); không phát sinh đơn thứ hai khi yêu cầu được retry. Bảo toàn khóa và ràng buộc cần thiết của lược đồ. **Ngoại lệ theo tài liệu:** có một lượt phụ `idempotency_off` (profile riêng, dataset riêng) tắt UNIQUE và bước đối chiếu để chứng minh retry sinh đơn trùng; lượt này được phép INVALID và không bao giờ xếp hạng.
+- Lược đồ SQL **không tạo FOREIGN KEY** (khóa S trên dòng cha gây điểm nóng và deadlock ngầm; MongoDB không có FK). Đây là lựa chọn có chủ đích, ghi trong `docs/assumptions.md`.
 - Với TiDB, kiểm tra lại cấu hình `history` (`SHARD_ROW_ID_BITS = 4`, `PRE_SPLIT_REGIONS = 4`) theo phiên bản và lược đồ loader; đặt block cache phù hợp RAM VM. Kiểm tra phân bố Region thay vì giả định.
 - Không đếm nhầm đơn TPC-C đã nạp sẵn thành đơn benchmark: đối soát bằng run-id/snapshot/định danh yêu cầu phù hợp; nếu dùng `o_id > 3000`, cần chứng minh điều kiện đó đúng cho dữ liệu đang chạy.
 
@@ -73,17 +74,17 @@ Thiết kế CLI tối thiểu cho setup, doctor/status, start/stop, load, reset
 - Ghi phần trăm chọn rank 1 và top 100: cả xác suất lý thuyết lẫn tần suất quan sát; việc chọn nhiều item trong một đơn phải được giải thích rõ.
 - Concurrency: **8, 32, 64, 128, 256 client**.
 - Retry khi lỗi có thể thử lại: chờ 10 ms, exponential backoff, **tối đa 5 lần retry** (phân biệt 5 lần retry với tổng số lần attempt); phân loại rõ timeout, deadlock, write conflict, lỗi ứng dụng và hết hàng.
-- Trường hợp commit có kết quả không rõ phải kiểm tra idempotency key ở DB trước khi quyết định retry. Không dùng lại session không an toàn giữa các worker/process.
+- Trường hợp commit có kết quả không rõ phải kiểm tra idempotency key ở DB trước khi quyết định retry (trừ profile `idempotency_off`). Không dùng lại session không an toàn giữa các worker/process.
 - Với Python ở concurrency cao, ưu tiên nhiều tiến trình hoặc mô hình đã được đo xác nhận không khiến load generator trở thành nút thắt.
 
 ## 8. Quy trình thí nghiệm và tính công bằng
 
 - Chỉ chạy **một DBMS tại một thời điểm**.
 - Mỗi điểm đo chạy **3 lần độc lập**, gồm **30 giây warmup + 60 giây measurement**. Không tính warmup vào TPS/p95/p99 của lượt đo.
-- **Baseline:** MySQL InnoDB cấu hình mặc định, θ = 0, chọn kho uniform; có thêm một điểm θ = 0 với single-warehouse; một điểm 1 client được dùng cho phân tích khi cần.
+- **Baseline:** MySQL InnoDB cấu hình mặc định, θ = 0, chọn kho uniform; có thêm một điểm θ = 0 với single-warehouse; một điểm 1 client được dùng cho phân tích khi cần. Các điểm/lượt phụ của tài liệu có profile riêng: `baseline-single-warehouse`, `baseline-1client`, `payment-ytd` (Payment bật `w_ytd`/`d_ytd`), `idempotency-off`.
 - Reset hoặc khôi phục dataset đúng trạng thái quy định trước mỗi lần đo; không để lượt sau kế thừa tồn kho đã bị tiêu thụ hoặc lịch sử của lượt trước.
 - Mọi cấu hình so sánh phải ghi seed, client, θ, cách chọn kho, loại workload, tài nguyên VM/container, bản DBMS, giới hạn CPU/RAM, thời lượng và trạng thái dữ liệu.
-- Ở mục 2.1 và các lượt thông thường: mỗi hệ Docker Compose có **cùng tổng ngân sách CPU/RAM**; trường hợp 2.3 có ngoại lệ riêng theo đề.
+- Ở mục 2.1 và các lượt thông thường: mỗi hệ Docker Compose có **cùng tổng ngân sách CPU/RAM**; trường hợp 2.3 có ngoại lệ riêng theo đề. Giá trị hiện tại là hằng `BUDGET_CPUS`/`BUDGET_MEMORY_BYTES` trong `infra.py` (8 CPU / 16 GiB; lý do ở `docs/assumptions.md`: mỗi TiKV dùng ~1,85 GiB khi rảnh nên 6 GiB gây OOM). Đổi ngân sách phải đổi đồng thời cả ba file compose.
 - TiDB cấu hình mục 2.1: **1 PD + 1 TiDB server + 3 TiKV**, replica count **1** cho lượt chính; replica count **3** chỉ dành cho nhóm đo Raft riêng sau này. Không suy diễn rằng 3 container trên cùng VM tương đương cluster 3 máy vật lý.
 - Trước benchmark chính, dùng EXPLAIN hoặc công cụ tương đương xác minh truy vấn chính đi đúng chỉ mục; nếu không hỗ trợ cần ghi rõ.
 - Không lẫn thời gian nạp/reset dữ liệu, pull image hay khởi tạo container vào thời gian đo TPS.
@@ -109,7 +110,7 @@ Sau **mọi lượt chạy**, kiểm tra độc lập:
 2. **Đối soát bán hàng:** với từng `(warehouse, item)`, `stock_initial - stock_final == SUM(quantity)` từ `order_line` thuộc **các đơn benchmark đã commit**. Số đã bán phải tính từ đơn, **không** được suy ngược từ chênh lệch tồn.
 3. **Không trùng đơn:** mỗi yêu cầu thành công tương ứng chính xác một đơn đã commit; các `request_id` thành công là duy nhất và khớp dữ liệu DB.
 
-Kiểm tra cả performance mode lẫn correctness mode; correctness mode phải có tình huống hết hàng thực sự. Báo cáo mọi sai lệch hai chiều của đối soát tồn. Cấu hình vi phạm luật bị đánh **INVALID** và không được xếp hạng như cấu hình hợp lệ dù TPS cao.
+Ngoài validator Python, chạy **phép kiểm chéo của tài liệu** (câu SQL kiểm luật 1–2 và bản aggregation tương đương cho MongoDB, `doc_reconciliation` ở adapter); kết quả khác rỗng là INVALID. Kiểm tra cả performance mode lẫn correctness mode; correctness mode phải có tình huống hết hàng thực sự. Báo cáo mọi sai lệch hai chiều của đối soát tồn. Cấu hình vi phạm luật bị đánh **INVALID** và không được xếp hạng như cấu hình hợp lệ dù TPS cao.
 
 Với phương án MongoDB không dùng giao dịch đa tài liệu trong tương lai, nếu có nguy cơ mất cập nhật khi ứng dụng chết giữa các bước, phải nêu rõ giới hạn và không tuyên bố đáp ứng ba luật nếu không chứng minh được.
 
@@ -157,7 +158,7 @@ Nếu tài nguyên VM không đủ chạy W=10, dùng cấu hình smoke quy mô 
 - **Đã thực hiện:** những chức năng và file thay đổi.
 - **Đã kiểm thử:** câu lệnh, môi trường và kết quả PASS/FAIL thật.
 - **Chưa kiểm thử:** điều kiện hoặc DBMS chưa chạy được, nguyên nhân.
-- **Khác biệt so với PDF:** liệt kê rõ cùng tác động đến kết luận.
+- **Khác biệt so với tài liệu ý tưởng:** liệt kê rõ cùng tác động đến kết luận.
 - **Bước tiếp theo:** tác vụ cụ thể còn thiếu để nghiệm thu mục 2.1.
 
 ## 14. Tiêu chí hoàn thành mục 2.1
@@ -172,6 +173,7 @@ Chỉ ghi nhận **DONE** khi:
 - Xuất CSV/JSON và manifest phiên bản/tài nguyên.
 - Tự động kiểm tra ba luật sau mỗi lượt chạy.
 - Test trên các DBMS thật PASS; mọi mục chưa thử đều được ghi NOT TESTED.
+- Đã chạy các lượt phụ của tài liệu: baseline một kho và 1 client, `payment-ytd`, `idempotency-off`; có bằng chứng ở các mức θ và số client mà tài liệu liệt kê (hoặc ghi rõ NOT TESTED); kết quả chính thức nằm ở `results/official/` kèm `docs/acceptance-2.1.md`.
 
 Nếu mới sinh mã nguồn hoặc chỉ chạy mock, báo cáo **PARTIAL**, tuyệt đối không tuyên bố mục 2.1 đã hoàn tất.
 
