@@ -5,7 +5,7 @@ description: Triển khai, kiểm thử và tái hiện benchmark Flash-sale tr�
 
 # Benchmark Flash-sale
 
-- Đọc AGENTS.md, docs/requirements-2.1.md và docs/assumptions.md để xác định phạm vi bài được yêu cầu. Dùng mục tương ứng của PDF chính làm đặc tả.
+- Đọc AGENTS.md, docs/requirements-2.1.md và docs/assumptions.md để xác định phạm vi bài được yêu cầu. Dùng mục tương ứng của tài liệu ý tưởng mới nhất làm đặc tả; nếu AGENTS.md mâu thuẫn với tài liệu thì ưu tiên tài liệu và báo người dùng.
 - Dùng một luồng yêu cầu logic cho ba adapter. Khi sửa New-Order hoặc Payment, thử lại cùng request ID trên DB thật và kiểm tra rollback đầy đủ sau khi món thứ hai hết hàng.
 - Dùng database UUID do CLI tạo. Chạy từng dự án Compose lần lượt. Dừng bằng lệnh stop và giữ volume. Các lệnh reset và drop cần đúng dataset mà người dùng đã đồng ý thao tác.
 - Kiểm tra EXPLAIN trước đo và lưu bằng chứng TiDB Region. Đối soát order_line của cả warmup và measurement từ đơn đã commit. Giữ TPS, percentile và thống kê lỗi riêng theo cửa sổ thời gian.

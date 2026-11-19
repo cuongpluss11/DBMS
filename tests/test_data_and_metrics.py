@@ -140,3 +140,25 @@ def test_compose_budgets_equal_across_engines():
 
     for name in ("mysql", "mongo", "tidb"):
         assert total(name) == (BUDGET_CPUS, BUDGET_MEMORY_BYTES), name
+
+
+def test_validate_includes_document_cross_check():
+    from flashsale.validation.checks import validate
+
+    class FakeDB:
+        def __init__(self, violations):
+            self.violations = violations
+
+        def rows(self, table, fields, *, tagged=False):
+            return iter([dict(s_w_id=1, s_i_id=i, s_quantity=10) for i in (1, 2, 3)] if table == "stock" else [])
+
+        def doc_reconciliation(self, inventory, initial_orders):
+            assert (inventory, initial_orders) == (10, 1)
+            return self.violations
+
+    cfg = Dataset(1, 1, 3, 1, 1, 10)
+    clean = validate(FakeDB([]), cfg, "run", [])
+    assert clean["status"] == "VALID" and clean["doc_check"]["violations"] == 0
+    bad = validate(FakeDB([{"s_w_id": 1, "s_i_id": 2, "sold": 3}]), cfg, "run", [])
+    assert bad["status"] == "INVALID" and bad["rules"]["reconciliation"] is False
+    assert bad["errors"]["reconciliation"][-1]["doc_sql_check"][0]["sold"] == 3

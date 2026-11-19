@@ -1,0 +1,443 @@
+{
+  "schema_version": 3,
+  "run_id": "1e177e27813c4f71bd54b1c2c4abbc12",
+  "engine": "tidb",
+  "version": "8.0.11-TiDB-v8.5.7",
+  "label": "idempotency_off",
+  "repetition": 1,
+  "seed": 2026,
+  "idempotency": false,
+  "client_timeout_seconds": 0.02,
+  "concurrency": 64,
+  "warehouse_mode": "single-warehouse",
+  "theta": 0,
+  "hot_item": true,
+  "inventory_mode": "performance",
+  "resource_limits": {
+    "cpus": 8.0,
+    "memory_bytes": 17179869184
+  },
+  "theoretical_selection": {
+    "rank1_pct": 100.0,
+    "top100_pct": 100.0
+  },
+  "warmup": {
+    "seconds": 30,
+    "tps": 202.23333333333332,
+    "success": 6067,
+    "failed": 3562,
+    "drained_requests": 64,
+    "new_order_success": 1238,
+    "payment_success": 4829,
+    "p50_ms": 9.962329000700265,
+    "p95_ms": 278.0349849999766,
+    "p99_ms": 475.45563600033347,
+    "abort_pct": 36.99241873507114,
+    "out_of_stock_pct": 0.0,
+    "retry_pct": 50.981410322982654,
+    "retry_attempts": 20901,
+    "error_counts": {
+      "timeout": 24463,
+      "deadlock": 0,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0
+    },
+    "failure_counts": {
+      "timeout": 3562,
+      "deadlock": 0,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0
+    },
+    "request_error_pct": {
+      "timeout": 50.981410322982654,
+      "deadlock": 0.0,
+      "write_conflict": 0.0
+    },
+    "rank_draws": 4800,
+    "observed_rank1_pct": 100.0,
+    "observed_top100_pct": 100.0,
+    "out_of_stock_all": 0,
+    "unknown_commits_all": 0
+  },
+  "measurement": {
+    "seconds": 60,
+    "tps": 127.18333333333334,
+    "success": 7631,
+    "failed": 8502,
+    "drained_requests": 64,
+    "new_order_success": 1917,
+    "payment_success": 5714,
+    "p50_ms": 9.564289000991266,
+    "p95_ms": 202.62039299996104,
+    "p99_ms": 471.62959100023727,
+    "abort_pct": 52.699435938759066,
+    "out_of_stock_pct": 0.0,
+    "retry_pct": 59.69131593627967,
+    "retry_attempts": 45474,
+    "error_counts": {
+      "timeout": 26877,
+      "deadlock": 0,
+      "write_conflict": 0,
+      "connection": 27099,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0
+    },
+    "failure_counts": {
+      "timeout": 3946,
+      "deadlock": 0,
+      "write_conflict": 0,
+      "connection": 4556,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0
+    },
+    "request_error_pct": {
+      "timeout": 35.93875906526994,
+      "deadlock": 0.0,
+      "write_conflict": 0.0
+    },
+    "rank_draws": 8051,
+    "observed_rank1_pct": 100.0,
+    "observed_top100_pct": 100.0,
+    "out_of_stock_all": 0,
+    "unknown_commits_all": 0
+  },
+  "lock_wait_ms": null,
+  "server_deadlocks": null,
+  "container_cpu_pct": {
+    "tidb": 116.626,
+    "tikv1": 92.129,
+    "tikv2": 55.821,
+    "tikv3": 27.567,
+    "pd": 24.102
+  },
+  "resource_warnings": [],
+  "validation": {
+    "status": "INVALID",
+    "rules": {
+      "nonnegative": true,
+      "reconciliation": true,
+      "idempotency": false
+    },
+    "errors": {
+      "nonnegative": [],
+      "reconciliation": [],
+      "idempotency": [
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-12-174",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-12-186",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-14-4",
+          "client_successes": 1,
+          "committed_orders": 2
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-15-137",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-16-176",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-18-138",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-19-0",
+          "client_successes": 1,
+          "committed_orders": 2
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-2-142",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-21-24",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-22-9",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-26-12",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-3-147",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-34-10",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-37-210",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-41-19",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-43-135",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-44-126",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-53-128",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-54-185",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-59-181",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-60-125",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-61-172",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-7-107",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-m-9-142",
+          "client_successes": 1,
+          "committed_orders": 2
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-10-116",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-10-120",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-11-51",
+          "client_successes": 1,
+          "committed_orders": 2
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-15-134",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-16-122",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-17-43",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-17-47",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-2-136",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-21-141",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-21-53",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-22-140",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-27-51",
+          "client_successes": 1,
+          "committed_orders": 2
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-29-47",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-3-129",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-3-35",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-3-53",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-36-50",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-37-56",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-39-132",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-40-139",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-41-157",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-45-36",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-49-41",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-49-51",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-5-51",
+          "client_successes": 1,
+          "committed_orders": 2
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-50-49",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-53-150",
+          "client_successes": 1,
+          "committed_orders": 2
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-56-129",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-58-137",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-6-41",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-7-136",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-8-136",
+          "client_successes": 0,
+          "committed_orders": 1
+        },
+        {
+          "request_id": "1e177e27813c4f71bd54b1c2c4abbc12-w-9-48",
+          "client_successes": 0,
+          "committed_orders": 1
+        }
+      ]
+    },
+    "committed_orders": 3275,
+    "tagged_rows": {
+      "orders": 3275,
+      "order_line": 3275
+    },
+    "doc_check": {
+      "violations": 0,
+      "sample": []
+    },
+    "protocol_errors": []
+  }
+}

@@ -101,4 +101,12 @@ def validate(db: Adapter, dataset: Dataset, run_id: str, expected_requests: Iter
                 report["errors"][rule].append({"table": table, "expected_rows": expected, "actual_rows": actual})
                 report["rules"][rule] = False
                 report["status"] = "INVALID"
+    cross_check = getattr(db, "doc_reconciliation", None)
+    if cross_check is not None:
+        violations = cross_check(dataset.inventory, dataset.initial_orders)
+        report["doc_check"] = {"violations": len(violations), "sample": violations[:5]}
+        if violations:
+            report["errors"]["reconciliation"].append({"doc_sql_check": violations[:5]})
+            report["rules"]["reconciliation"] = False
+            report["status"] = "INVALID"
     return report
