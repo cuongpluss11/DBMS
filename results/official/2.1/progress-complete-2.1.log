@@ -1,0 +1,26 @@
+2026-11-19T15:55:31Z START commit=3a5aded
+2026-11-19T15:55:37Z mysql started (max_connections=400)
+2026-11-19T15:55:59Z validate CLI run=5ec59b78d7c946f0ba036378c034cbb2 exit=0
+2026-11-19T15:56:21Z RUN theta=0.3
+2026-11-19T15:58:44Z DONE theta=0.3 exit=0
+2026-11-19T15:59:07Z RUN theta=0.7
+2026-11-19T16:01:29Z DONE theta=0.7 exit=0
+2026-11-19T16:01:52Z RUN theta=0.9
+2026-11-19T16:04:14Z DONE theta=0.9 exit=0
+2026-11-19T16:04:37Z RUN hot_item single-warehouse
+2026-11-19T16:06:57Z DONE hot_item exit=0
+2026-11-19T16:07:09Z RUN concurrency=8
+2026-11-19T16:15:03Z DONE concurrency=8 exit=0
+2026-11-19T16:15:26Z RUN concurrency=32
+2026-11-19T16:23:26Z DONE concurrency=32 exit=0
+2026-11-19T16:23:52Z RUN concurrency=64
+2026-11-19T16:31:57Z DONE concurrency=64 exit=0
+2026-11-19T16:32:24Z RUN concurrency=128
+2026-11-19T16:40:32Z DONE concurrency=128 exit=0
+2026-11-19T16:40:59Z RUN concurrency=256
+2026-11-19T16:49:10Z DONE concurrency=256 exit=0
+2026-11-19T16:52:09Z mongo idempotency-off dataset=flashsale_1a12d96280184cd8854e1359703835bd
+2026-11-19T16:53:53Z DONE mongo idempotency-off exit=1
+2026-11-19T16:59:51Z tidb idempotency-off dataset=flashsale_10d483c7393a4d34999cb3c4ac9d0ae6
+2026-11-19T17:01:40Z DONE tidb idempotency-off exit=1
+2026-11-19T17:01:51Z ALL DONE
