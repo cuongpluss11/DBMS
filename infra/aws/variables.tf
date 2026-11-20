@@ -1,0 +1,103 @@
+variable "region" {
+  description = "Region duy nhat cho moi thi nghiem chinh."
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "availability_zone" {
+  description = "Mot AZ duy nhat (cung AZ voi VM TestTiDB cu)."
+  type        = string
+  default     = "us-east-1c"
+}
+
+variable "stack" {
+  description = "Chi mot he DBMS tai mot thoi diem: mysql | mongo | tidb1 | tidb3 | none (chi may tai)."
+  type        = string
+  default     = "none"
+  validation {
+    condition     = contains(["none", "mysql", "mongo", "tidb1", "tidb3"], var.stack)
+    error_message = "stack phai la none, mysql, mongo, tidb1 hoac tidb3."
+  }
+}
+
+variable "ssh_public_key_path" {
+  description = "Duong dan file .pub cua SSH key (khoa rieng khong bao gio vao repo)."
+  type        = string
+}
+
+variable "allowed_ssh_cidr" {
+  description = "CIDR duoc phep SSH, vi du 203.0.113.7/32 (IP cong cong cua ban)."
+  type        = string
+  validation {
+    condition     = var.allowed_ssh_cidr != "0.0.0.0/0"
+    error_message = "Khong mo SSH cho ca Internet."
+  }
+}
+
+# Loai instance. Mac dinh theo goi y cua tai lieu (TiKV 2 vCPU, TiDB 4, PD 2, may tai 4).
+# Tong vCPU/RAM cua cum TiDB (PD + TiDB + TiKV) phai bang MySQL va MongoDB; khong tinh may tai/monitor.
+variable "tikv_instance_type" {
+  type    = string
+  default = "c6i.large"
+}
+
+variable "tidb_instance_type" {
+  type    = string
+  default = "c6i.xlarge"
+}
+
+variable "pd_instance_type" {
+  type    = string
+  default = "c6i.large"
+}
+
+variable "loadgen_instance_type" {
+  type    = string
+  default = "c6i.xlarge"
+}
+
+variable "monitor_instance_type" {
+  type    = string
+  default = "c6i.large"
+}
+
+# MySQL/MongoDB: khong co c6i 12 vCPU nen dung c6i.4xlarge (16 vCPU/32 GiB) roi gioi han bang
+# cpuset va mem_limit trong compose override (tai lieu cho phep; ghi ro trong bao cao).
+variable "single_node_instance_type" {
+  type    = string
+  default = "c6i.4xlarge"
+}
+
+variable "single_node_cpus" {
+  description = "So loi gioi han cho MySQL/MongoDB (cpuset 0..n-1); 12 = tong vCPU cum 3 TiKV (3x2 + 4 + 2)."
+  type        = number
+  default     = 12
+}
+
+variable "single_node_mem_gb" {
+  description = "Gioi han bo nho (GiB) container MySQL/MongoDB; 24 = tong RAM cum 3 TiKV."
+  type        = number
+  default     = 24
+}
+
+# EBS gp3 co dinh, GIONG NHAU cho moi he. Mac dinh 3000 IOPS / 125 MB/s la muc co ban (khong tinh them phi).
+variable "data_volume_gb" {
+  type    = number
+  default = 100
+}
+
+variable "data_volume_iops" {
+  type    = number
+  default = 3000
+}
+
+variable "data_volume_throughput" {
+  type    = number
+  default = 125
+}
+
+variable "data_snapshot_id" {
+  description = "Snapshot EBS chua du lieu TPC-C da nap cho stack mysql/mongo (rong = o trong)."
+  type        = string
+  default     = ""
+}

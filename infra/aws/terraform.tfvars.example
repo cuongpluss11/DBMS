@@ -1,0 +1,4 @@
+# Sao chep thanh terraform.tfvars (file do bi .gitignore, khong commit).
+ssh_public_key_path = "~/.ssh/flashsale_aws.pub"
+allowed_ssh_cidr    = "203.0.113.7/32" # IP cong cong cua ban, xem https://checkip.amazonaws.com
+stack               = "none"           # none | mysql | mongo | tidb1 | tidb3
