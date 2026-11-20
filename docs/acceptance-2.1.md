@@ -5,6 +5,25 @@ Ngày chạy: 2026-11-19 và 2026-11-20. Môi trường: AWS EC2 `c6i.4xlarge` (
 ## Cập nhật theo bản chốt `bao_cao_DBMS_ban_chot.docx` (2026-11-20): PARTIAL
 Các lượt bên dưới được chạy **trước** khi có bản chốt và chỉ là số đo **sơ bộ trên Docker**. Bản chốt thêm yêu cầu mà chưa được kiểm chứng trên DBMS thật: (1) MySQL-chỉnh (`configs/baseline-tuned.toml`) ở điểm baseline; (2) độ bền ngang nhau (`sync_binlog=1`, MongoDB `j:true`) và cache MongoDB đặt tường minh, nên các lượt MongoDB cũ cần chạy lại; (3) kiểm warmup bằng TPS theo giây; (4) baseline 1 client và baseline uniform trên mỗi hệ; (5) 3 lần lặp cho lưới θ × client; (6) hạ tầng AWS nhiều VM, script tải riêng, `iostat`, EBS snapshot. Mã và test đơn vị cho (1)–(3) đã có; (4)–(6) chưa làm. Chi tiết ở [assumptions.md](assumptions.md).
 
+### Checklist để 2.1 thành DONE theo bản chốt (số đo chính thức trên AWS)
+
+| # | Việc | Bằng chứng cần có | Cách tạo | Trạng thái |
+| --- | --- | --- | --- | --- |
+| 1 | Quota vCPU ≥ 32 và hạ tầng `stack` dựng được | `terraform plan/apply` thành công, ảnh Budgets | `infra/aws/README.md` | NOT DONE (quota `CASE_OPENED`) |
+| 2 | TiDB 1 PD + 1 TiDB + 3 TiKV bằng TiUP, `max-replicas=1`, block cache như nhau | `manifest.json` (`pd`, `tikv_durability_config`), `SHOW TABLE stock REGIONS` | topology TiUP trong repo | NOT DONE |
+| 3 | Tài nguyên ba hệ bằng nhau (12 vCPU / 24 GiB, không tính VM tải/monitor) | `resource_limits` và `remote_nodes` trong manifest | Terraform + `FLASHSALE_REMOTE_NODES` | NOT DONE |
+| 4 | Độ bền ngang nhau: MySQL `flush=1`, `sync_binlog=1`; MongoDB `majority + j`; TiKV mặc định | `dbms` trong manifest cả ba hệ | compose override, `flashsale run` | NOT DONE |
+| 5 | Máy tải không là nút thắt | `loadgen_cpu_pct` và không có cảnh báo `loadgen_cpu_*pct_of_limit` | node_exporter trên `loadgen` | NOT DONE |
+| 6 | Baseline MySQL-mặc-định, MySQL-chỉnh, một kho, 1 client; uniform và 1 client cho từng hệ | `INDEX.csv`, `SUMMARY.md` | `scripts/run-matrix-2.1.sh` (MySQL-chỉnh chạy riêng) | NOT DONE trên AWS |
+| 7 | `payment-ytd`, `correctness` (hết hàng thực), `idempotency-off` trên cả ba hệ | các lượt VALID; idempotency-off INVALID luật 3 đúng dự kiến | script ma trận | NOT DONE trên AWS |
+| 8 | Các mức θ và số client (8–256) | lưới `evidence` (hoặc `full` nếu muốn) | `--grid evidence|full` | NOT DONE trên AWS |
+| 9 | Kiểm warmup 30 giây có đủ không | mục "Kiểm tra warmup" trong `SUMMARY.md` | `flashsale report` | NOT DONE |
+| 10 | Nút thắt đĩa EBS xác nhận bằng `iostat` | `iostat.txt` mỗi điểm | `FLASHSALE_IOSTAT_SSH` + script ma trận | NOT DONE |
+| 11 | Ba luật + phép kiểm chéo VALID sau mọi lượt, EXPLAIN đúng chỉ mục trên cả ba hệ | `validation`, `access_paths` | tự động trong `flashsale run` | PASS trên Docker; NOT DONE trên AWS |
+| 12 | Kết quả chính thức commit vào `results/official/2.1/` kèm manifest, INDEX | thư mục và `INDEX.csv` | `flashsale report --results-dir results --out results/official/2.1` sau khi chọn lượt | NOT DONE |
+
+**Ước lượng thời gian và chi phí (chưa đo, chỉ là dự toán để hoạch định):** mỗi lần lặp tốn khoảng 90 giây đo cộng reset và đối soát, tạm tính 4–6 phút. Lưới `evidence` có khoảng 18 điểm × 3 lần cho MySQL (15 điểm cho MongoDB và TiDB), nên khoảng 4–5 giờ mỗi hệ, khoảng 13–16 giờ cho ba hệ. Cộng nạp dữ liệu W=10 (ba dataset mỗi hệ), dựng hạ tầng và debug, thực tế 30–40 giờ bật máy. Với 0,7–0,9 USD mỗi giờ, đó là khoảng 25–40 USD cho 2.1. Lưới `full` thêm khoảng 7 giờ đo cộng reset mỗi hệ; nên để 2.2. Con số có thể lệch nhiều, hãy đo thời gian một điểm đầu tiên rồi nhân lên.
+
 ## Kết luận (theo AGENTS.md trước bản chốt): DONE
 
 | Tiêu chí | Trạng thái | Bằng chứng |

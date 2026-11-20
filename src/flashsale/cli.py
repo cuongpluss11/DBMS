@@ -156,6 +156,9 @@ def parser() -> argparse.ArgumentParser:
     setup = commands.add_parser("setup")
     setup.add_argument("--smoke-all", action="store_true")
     commands.add_parser("doctor")
+    report = commands.add_parser("report", help="Tổng hợp results/ thành INDEX.csv và SUMMARY.md (không cần DBMS)")
+    report.add_argument("--results-dir", type=Path, default=ROOT / "results" / "official" / "2.1")
+    report.add_argument("--out", type=Path, default=None, help="Mặc định: cùng thư mục với --results-dir")
     for name in ("start", "stop", "status", "load", "reset", "run", "benchmark", "validate", "smoke", "drop"):
         command = commands.add_parser(name)
         command.add_argument("engine", choices=ENGINES)
@@ -171,6 +174,9 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--concurrency", type=int)
             command.add_argument("--warehouse-mode", choices=("uniform", "single-warehouse"))
             command.add_argument("--repetitions", type=int)
+            command.add_argument("--theta", type=float, choices=(0, 0.3, 0.5, 0.7, 0.9))
+            command.add_argument("--hot-item", action=argparse.BooleanOptionalAction, default=None,
+                                 help="Mọi yêu cầu chọn đúng một món (mức cực đoan của đề)")
         if name == "validate":
             command.add_argument("--run-id", required=True)
         if name == "smoke":
@@ -223,7 +229,7 @@ def execute_command(args) -> dict | list:
         return load_dataset(target, cfg)
     if command == "reset":
         return restore(target, cfg, dataset_state(target, cfg))
-    cfg = replace(cfg, **{name: getattr(args, name) for name in ("concurrency", "warehouse_mode", "repetitions")
+    cfg = replace(cfg, **{name: getattr(args, name) for name in ("concurrency", "warehouse_mode", "repetitions", "theta", "hot_item")
                           if getattr(args, name) is not None})
     return run(target, cfg, args.config, reset_between=args.reset_between)
 
@@ -234,6 +240,14 @@ def main() -> int:
     if args.command == "setup":
         return subprocess.call(["bash", str(ROOT / "scripts" / "setup.sh"),
                                 *(["--smoke-all"] if args.smoke_all else [])], cwd=ROOT)
+    if args.command == "report":
+        try:
+            from flashsale.benchmark.report import write_report
+            print(json.dumps(write_report(args.results_dir, args.out or args.results_dir), indent=2))
+            return 0
+        except Exception as exc:
+            logging.error("%s: %s", type(exc).__name__, exc)
+            return 1
     try:
         with project_lock():
             result = execute_command(args)
