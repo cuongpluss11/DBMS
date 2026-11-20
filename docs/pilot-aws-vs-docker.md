@@ -30,6 +30,22 @@ Nguồn số Docker: `docs/acceptance-2.1.md` (51 lượt, trung vị 3 lần l�
 
 Trên VM MySQL AWS, trong lúc đo (`iostat -x -d -t 1`, thiết bị dữ liệu `nvme1n1`, trung bình các giây có ghi đĩa): khoảng 2.281 lần ghi mỗi giây, 46 MB/s, độ trễ ghi 10,7 ms, hàng đợi trung bình 28, **%util 97%**. Ổ gp3 gần chạm mức 3000 IOPS. CPU MySQL chỉ ~40% của một lõi và máy tải ~72–76% của một lõi (khoảng 18% trên 4 vCPU), nên **máy tải không phải nút thắt**. Điều này xác nhận giả thuyết trước đây của `acceptance-2.1.md` (đĩa EBS là nút thắt) mà trước đó chỉ là suy luận.
 
+Cụ thể hơn: với buffer pool mặc định 128 MiB (nhỏ hơn dữ liệu W=10), MySQL còn đọc khoảng 718 lần đọc mỗi giây (11 MB/s) cộng 2.281 lần ghi mỗi giây, tức **tổng khoảng 3.000 IOPS, đúng mức trần gp3**. Đọc đĩa là phần dư mà bộ đệm lớn hơn có thể loại bỏ.
+
+## MySQL-chỉnh (buffer pool 3 GiB), cùng VM, cùng dataset
+
+Khởi động lại MySQL với `FLASHSALE_MYSQL_BUFFER_POOL_BYTES=3221225472` (3 GiB = 3 TiKV × 1 GiB block cache), giữ nguyên độ bền (`flush_at_commit=1`, `sync_binlog=1`), reset dataset rồi chạy `configs/baseline-tuned.toml` 3 lần (runner kiểm nhãn khớp buffer pool). Kết quả ở `results/official/pilot-aws-vs-docker/tuned/`.
+
+| | TPS (min–max) | p50 | p95 | p99 | iostat (khi đo) |
+| --- | --- | --- | --- | --- | --- |
+| AWS, MySQL-mặc-định (128 MiB) | 247,1 (245,8–251,1) | 22,3 ms | 102,9 ms | 149,4 ms | 718 r/s + 2.281 w/s, util 97%, w_await 10,7 ms |
+| AWS, **MySQL-chỉnh (3 GiB)** | **394,7 (394,2–397,7)** | **14,7 ms** | 44,9 ms | 53,5 ms | 113 r/s + 2.609 w/s, util 71,5%, w_await 2,8 ms |
+
+- MySQL-chỉnh nhanh hơn khoảng **60%** về TPS và p99 giảm hơn 2,5 lần, cả 3 lần lặp VALID, không hủy, không cảnh báo tài nguyên. Máy tải dùng khoảng 133–136% của một lõi (khoảng 34% trên 4 vCPU), không phải nút thắt.
+- Nguyên nhân phù hợp với `iostat`: buffer pool lớn bỏ gần hết đọc đĩa, ổ không còn chạm trần 3000 IOPS (util 71,5%, độ trễ ghi từ 10,7 xuống 2,8 ms). Phần ghi (fsync mỗi commit) vẫn còn và là giới hạn kế tiếp.
+- **Hệ quả cho báo cáo:** mốc MySQL-mặc-định thấp một phần vì bộ đệm nhỏ, không chỉ vì MySQL chậm. Đúng như bản chốt, so sánh giữa các hệ ở 2.2–2.5 nên dùng MySQL-chỉnh. Cả hai mốc (mặc định và chỉnh) đều phải báo cáo.
+- Chỉ một điểm đo trên một VM; chưa so với Docker ở MySQL-chỉnh (chưa chạy lại trên Docker).
+
 ## Kiểm tra warmup
 
 Trung bình TPS 10 giây cuối warmup so với 10 giây đầu đo: lệch −3,6%, −7,1%, −3,2% (cả ba trong ngưỡng 10%), nên 30 giây warmup có vẻ đủ cho riêng điểm này. Đây là bằng chứng ở một cấu hình MySQL; chưa kiểm cho TiDB và các θ khác.
