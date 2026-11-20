@@ -74,11 +74,17 @@ Sau khi kiểm tra xong, gửi trạng thái cho nhóm và có thể dừng hệ
 | `configs/correctness.toml` | Cả ba, trên VM riêng | W=10, 8 client, kho 1 và một món hot, tồn đầu 1.000. Kiểm tra cả ba luật và có tình huống hết hàng thực tế. |
 | `configs/baseline-single-warehouse.toml` | TV1 trên MySQL | Điểm θ=0 kiểu "một kho" của đề (cùng dataset với baseline, dùng chung một lần `load`). |
 | `configs/baseline-1client.toml` | TV1 trên MySQL | Điểm 1 client dùng cho phân tích "việc có ích" ở 2.5. |
+| `configs/baseline-tuned.toml` | TV1 trên MySQL | **MySQL-chỉnh**: cùng điểm baseline nhưng buffer pool lớn hơn mặc định (`FLASHSALE_MYSQL_BUFFER_POOL_BYTES`, khuyến nghị 3 GiB). Runner từ chối nếu buffer pool không khớp nhãn. |
+| `configs/baseline-cross.toml`, `configs/baseline-cross-1client.toml` | MongoDB và TiDB (và MySQL nếu cần) | Điểm θ=0 uniform ở 8 client và 1 client cho từng hệ (đề: "một điểm θ = 0 với 1 client cho mỗi hệ"). Chỉ để so sánh, không phải mốc MySQL của đề. |
 | `configs/payment-ytd.toml` | Cả ba | Lượt riêng bật cập nhật `w_ytd`, `d_ytd` ở Payment để thấy điểm nóng thứ ba (khác TPC-C chuẩn, ghi rõ trong báo cáo). |
 | `configs/idempotency-off.toml` | Cả ba, tùy chọn | Lượt phụ tắt mã chống trùng của đề (dataset và lược đồ riêng, không UNIQUE). INVALID luật 3 là kết quả dự kiến; không xếp hạng. Cần tinh chỉnh `client_timeout_seconds` khi chạy thật. |
 | `configs/smoke.toml` | Cả ba | Dữ liệu nhỏ để kiểm tra đường chạy, có nhãn `smoke`. |
 
 Mỗi điểm đầy đủ có 3 lần lặp, mỗi lần gồm 30 giây warmup và 60 giây đo. Các cấu hình dùng New-Order và Payment theo tỉ lệ 1:1, tắt cập nhật YTD của warehouse và district ở Payment. Dùng `--concurrency` khi nhóm thống nhất mức khác với 8. Giữ cùng số client cho các điểm đem so sánh. Với MySQL ở 256 client, dùng `FLASHSALE_MYSQL_MAX_CONNECTIONS=258 flashsale start mysql` và ghi giá trị thực trong manifest. Chạy các mức client còn lại theo kế hoạch nhóm đã chốt.
+
+### Chạy trên AWS (số đo chính thức theo bản chốt)
+
+Hạ tầng nhiều VM nằm ở [infra/aws/](../infra/aws/README.md): Terraform dựng VM và EBS, TiUP dựng TiDB, script tải Python chạy trên VM `loadgen` ở chế độ remote (`FLASHSALE_DB_HOST`, `FLASHSALE_REMOTE_NODES`). Các lệnh `load`, `run`, `reset`, `validate` giữ nguyên; `start`/`stop` không dùng ở chế độ này. Mỗi lượt đo thêm `iostat-capture.sh` trên VM DBMS. **Chưa chạy trên AWS (NOT TESTED).**
 
 ### Nạp và chạy một điểm
 

@@ -24,6 +24,11 @@ Mỗi lần lặp có thư mục `results/<run_id>/`. Manifest ghi cấu hình �
 | `error_counts`, `failure_counts`, `request_error_pct` | Sự kiện lỗi kể cả khi recover, kết quả lỗi cuối và phần trăm request gặp ít nhất một lỗi timeout/deadlock/write conflict tương ứng. |
 | `rank_draws`, `observed_rank1_pct`, `observed_top100_pct` | Lượt rút rank của New-Order đã kết thúc trong cửa sổ, gồm request hết hàng. `rank1_pct` và `top100_pct` là xác suất lý thuyết. |
 | `out_of_stock_all`, `unknown_commits_all` | Tổng kết quả hết hàng và commit chưa xác định của từng pha, gồm drain. |
+| `tps_series` (chỉ `result.json`), `tps_per_second.csv` | Số request thành công mỗi giây của warmup và measurement (giây 0 = đầu phase), dùng kiểm tra 30 giây warmup có đủ không. `null` nếu runner lỗi. |
+| `warmup_stability` (chỉ `result.json`) | `warmup_tail_tps` (10 giây cuối warmup), `measurement_head_tps` (10 giây đầu đo), `drift_pct`. Lệch lớn → kéo dài warmup cho mọi hệ rồi đo lại. |
+| `dbms.sync_binlog`, `dbms.flush_at_commit`, `dbms.buffer_pool_bytes` (manifest MySQL) | Độ bền và buffer pool thực tế; `baseline` = 128 MiB, `baseline-tuned` > 128 MiB. |
+| `dbms.transaction_write_journal`, `dbms.wiredtiger_cache_bytes` (manifest MongoDB) | writeConcern giao dịch `majority` + `j: true`; kích thước cache WiredTiger đã cấu hình (`null` nếu không đọc được). |
+| `dbms.tikv_durability_config` (manifest TiDB) | `SHOW CONFIG` cho `storage.block-cache.capacity` và `raftstore.sync-log`; `null` nếu phiên bản không trả. |
 | `lock_wait_ms`, `server_deadlocks` | Delta server counter MySQL từ sau khi drain warmup đến sau khi drain measurement: `Innodb_row_lock_time` và `information_schema.INNODB_METRICS.lock_deadlocks` (trả `null` nếu metric chưa bật). MongoDB và TiDB trả `null` cho hai trường này. Số deadlock phía client nằm ở `error_counts.deadlock`. |
 | `idempotency`, `client_timeout_seconds` | Cờ idempotency (false chỉ ở profile `idempotency_off`) và timeout socket của client dùng trong lượt. Schema v3 thêm hai cột này; `null` ở timeout nghĩa là kết quả cũ không ghi. |
 | `resource_warnings` | Danh sách cảnh báo khi `tidb` hoặc `pd` dùng quá 80% giới hạn CPU trong cửa sổ đo (ví dụ `tidb_cpu_93pct_of_limit`). Chỉ là cảnh báo, không đổi VALID/INVALID; lượt có cảnh báo cần xem xét có phải nghẽn tầng SQL trước khi dùng so sánh TiKV. |

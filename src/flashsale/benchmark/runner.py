@@ -14,11 +14,11 @@ from uuid import uuid4
 
 from flashsale.adapters.base import Adapter, Endpoint, open_adapter
 from flashsale.config import Settings
-from flashsale.infra import docker_cpu
+from flashsale.infra import cpu_sampler, setting
 from flashsale.validation.checks import validate
 from flashsale.workload.generator import Generator, Zipf
 from flashsale.workload.retry import run_request
-from .metrics import Phase, SCHEMA_VERSION, write_json, write_result
+from .metrics import Phase, SCHEMA_VERSION, warmup_stability, write_json, write_result, write_series
 
 
 def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetition: int,
@@ -32,14 +32,17 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
         phases = []
         for i, name in enumerate(("warmup", "measurement")):
             phase = Phase()
+            seconds = cfg.warmup_seconds if i == 0 else cfg.measurement_seconds
             gen = Generator(cfg, zipf, run_id, repetition, worker, name)
             barrier.wait()
             barrier.wait()
             deadline = deadlines[i]
+            start = deadline - seconds
             while time.monotonic() < deadline:
                 req = gen.next()
                 outcome = run_request(db, req, jitter=jitter)
-                phase.record(req, outcome, time.monotonic() <= deadline)
+                now = time.monotonic()
+                phase.record(req, outcome, now <= deadline, int(now - start))
             phases.append(phase)
             barrier.wait()
         return phases[0], phases[1]
@@ -69,14 +72,15 @@ def group(endpoint, cfg, run_id, repetition, workers, barrier, deadlines, output
 
 
 def sample_cpu(limits: dict, deadline: float, stop: Event, samples: dict[str, list[float]]) -> None:
+    sample_once = cpu_sampler(limits)
     while time.monotonic() < deadline and not stop.is_set():
         try:
-            sample = docker_cpu(limits)
+            sample = sample_once()
             if time.monotonic() <= deadline:
                 for name, value in sample.items():
-                    samples[name].append(value)
+                    samples.setdefault(name, []).append(value)
         except Exception as exc:
-            logging.warning("CPU Docker unavailable: %s", exc)
+            logging.warning("CPU unavailable: %s", exc)
         stop.wait(4)
 
 
@@ -126,6 +130,8 @@ def phases(endpoint: Endpoint, cfg: Settings, db: Adapter, run_id: str,
         counters = {name: (final[name] - value if value is not None and final[name] is not None
                            and final[name] >= value else None) for name, value in initial.items()}
         cpu = {name: statistics.mean(values) if values else None for name, values in samples.items()}
+        for name in limits:
+            cpu.setdefault(name, None)
         return warmup, measurement, counters, cpu
     except Exception as exc:
         with suppress(Empty):
@@ -177,6 +183,7 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
     warmup = unavailable_phase(cfg.warmup_seconds)
     measurement = unavailable_phase(cfg.measurement_seconds)
     expected = None
+    tps_series = None
     if evidence["indexed"]:
         try:
             warm, measured, counters, cpu = phases(endpoint, cfg, db, run_id, repetition, limits)
@@ -186,6 +193,9 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
             warmup = warm.summary(cfg.warmup_seconds)
             measurement = measured.summary(cfg.measurement_seconds)
             expected = sorted(warm.successful_orders + measured.successful_orders)
+            tps_series = {"warmup": warm.series_list(cfg.warmup_seconds),
+                          "measurement": measured.series_list(cfg.measurement_seconds)}
+            write_series(directory / "tps_per_second.csv", tps_series)
             write_json(directory / "successful_new_orders.json", expected)
             if cfg.label in {"correctness", "smoke"} and warm.out_of_stock_all + measured.out_of_stock_all == 0:
                 protocol_errors.append("out_of_stock_not_observed")
@@ -221,8 +231,12 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
                             "memory_bytes": sum(item["memory_bytes"] for item in limits.values())},
         "theoretical_selection": zipf.theoretical(),
         "warmup": warmup, "measurement": measurement,
-        **counters, "container_cpu_pct": cpu, "resource_warnings": cpu_warnings(cpu, limits),
+        **counters, "container_cpu_pct": {name: cpu.get(name) for name in limits},
+        "loadgen_cpu_pct": cpu.get("loadgen"),
+        "resource_warnings": cpu_warnings(cpu, limits) + loadgen_warnings(cpu.get("loadgen")),
         "validation": validation,
+        "tps_series": tps_series,
+        "warmup_stability": warmup_stability(**tps_series) if tps_series else None,
     }
     write_result(directory, result)
     return result
@@ -243,6 +257,15 @@ def cpu_warnings(cpu: dict, limits: dict) -> list[str]:
         if utilization > SQL_TIER_CPU_LIMIT_PCT:
             warnings.append(f"{name}_cpu_{utilization:.0f}pct_of_limit")
     return warnings
+
+
+def loadgen_warnings(value: float | None) -> list[str]:
+    """Máy tải (remote) trên ~80% tổng CPU của nó nghĩa là script tải là nút thắt: tăng cỡ VM hoặc chạy nhiều VM tải."""
+    cpus = float(setting("FLASHSALE_LOADGEN_CPUS", "0") or 0)
+    if value is None or cpus <= 0:
+        return []
+    utilization = value / (100 * cpus) * 100
+    return [f"loadgen_cpu_{utilization:.0f}pct_of_limit"] if utilization > SQL_TIER_CPU_LIMIT_PCT else []
 
 
 def unavailable_phase(seconds: float) -> dict:

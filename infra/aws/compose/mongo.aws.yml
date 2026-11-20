@@ -1,0 +1,9 @@
+# Override cho VM MongoDB tren AWS:
+#   docker compose -f docker/compose.mongo.yml -f infra/aws/compose/mongo.aws.yml up -d
+services:
+  mongo:
+    cpus: 12
+    cpuset: "${FLASHSALE_AWS_CPUSET:-0-11}"
+    mem_limit: ${FLASHSALE_AWS_MEM:-24g}
+    ports:
+      - "0.0.0.0:${FLASHSALE_MONGO_PORT:-27018}:27017"

@@ -34,8 +34,10 @@ class Phase:
     out_of_stock_all: int = 0
     unknown_commits: int = 0
     successful_orders: list[str] = field(default_factory=list)
+    # Số request thành công mỗi giây của phase (giây 0 = đầu phase); dùng kiểm tra warmup đã ổn định chưa.
+    series: Counter[int] = field(default_factory=Counter)
 
-    def record(self, req: Request, outcome: Outcome, in_window: bool) -> None:
+    def record(self, req: Request, outcome: Outcome, in_window: bool, second: int | None = None) -> None:
         success = outcome.status == "success"
         if success and req.kind == "new_order":
             self.successful_orders.append(req.request_id)
@@ -47,6 +49,8 @@ class Phase:
         if success:
             self.successes[req.kind] += 1
             self.latency.append(outcome.latency_ms)
+            if second is not None:
+                self.series[second] += 1
         else:
             self.failures[outcome.status] += 1
         self.errors.update(outcome.errors)
@@ -58,13 +62,16 @@ class Phase:
         self.top1 += req.ranks.count(1)
 
     def merge(self, part: "Phase") -> None:
-        for key in ("successes", "failures", "errors", "error_requests"):
+        for key in ("successes", "failures", "errors", "error_requests", "series"):
             getattr(self, key).update(getattr(part, key))
         self.latency.extend(part.latency)
         self.successful_orders.extend(part.successful_orders)
         for key in ("retry_requests", "retry_attempts", "draws", "top100", "top1", "drained",
                     "out_of_stock_all", "unknown_commits"):
             setattr(self, key, getattr(self, key) + getattr(part, key))
+
+    def series_list(self, seconds: float) -> list[int]:
+        return [self.series[i] for i in range(int(seconds))]
 
     def summary(self, seconds: float) -> dict[str, Any]:
         success, failed = self.successes.total(), self.failures.total()
@@ -90,6 +97,25 @@ class Phase:
             "observed_top100_pct": percent(self.top100, self.draws),
             "out_of_stock_all": self.out_of_stock_all, "unknown_commits_all": self.unknown_commits,
         }
+
+
+def warmup_stability(warmup: list[int], measurement: list[int], window: int = 10) -> dict[str, Any]:
+    """So TPS trung bình `window` giây cuối của warmup với `window` giây đầu của đo.
+    Lệch lớn nghĩa là 30 giây warmup chưa đủ (đề: kéo dài warmup cho mọi hệ). Thiếu dữ liệu → null."""
+    if len(warmup) < window or len(measurement) < window:
+        return {"window_seconds": window, "warmup_tail_tps": None, "measurement_head_tps": None, "drift_pct": None}
+    tail, head = sum(warmup[-window:]) / window, sum(measurement[:window]) / window
+    return {"window_seconds": window, "warmup_tail_tps": tail, "measurement_head_tps": head,
+            "drift_pct": 100 * (head - tail) / tail if tail else None}
+
+
+def write_series(path: Path, series: dict[str, list[int]]) -> None:
+    with path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.writer(stream)
+        writer.writerow(["phase", "second", "successes"])
+        for phase, values in series.items():
+            for second, count in enumerate(values):
+                writer.writerow([phase, second, count])
 
 
 def write_json(path: Path, data: Any) -> None:

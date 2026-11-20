@@ -3,7 +3,15 @@ services:
   mysql:
     image: mysql:8.4.8@sha256:4fc4bca5a26c5aa2246a92779d238bc2d34f0373e65dc083d7b635b02780dd3d
     platform: linux/amd64
-    command: ["mysqld", "--max-connections=${FLASHSALE_MYSQL_MAX_CONNECTIONS:-151}"]
+    # Độ bền đặt tường minh (đề 2.1): flush log mỗi commit + sync binlog mỗi commit.
+    # Buffer pool mặc định 128 MiB = "MySQL-mặc-định"; đặt FLASHSALE_MYSQL_BUFFER_POOL_BYTES
+    # (ví dụ 3221225472 = 3 GiB, bằng 3 TiKV x 1 GiB block cache) cho "MySQL-chỉnh".
+    command:
+      - mysqld
+      - --max-connections=${FLASHSALE_MYSQL_MAX_CONNECTIONS:-151}
+      - --innodb-flush-log-at-trx-commit=1
+      - --sync-binlog=1
+      - --innodb-buffer-pool-size=${FLASHSALE_MYSQL_BUFFER_POOL_BYTES:-134217728}
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_ROOT_HOST: "%"

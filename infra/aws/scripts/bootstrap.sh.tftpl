@@ -1,0 +1,64 @@
+#!/bin/bash
+# cloud-init user_data (Terraform templatefile). Chay mot lan khi VM khoi dong; idempotent trong pham vi hop ly.
+# Khong dung cu phap dollar-ngoac-nhon trong file nay vi Terraform se noi suy no.
+set -euxo pipefail
+exec > >(tee /var/log/flashsale-bootstrap.log) 2>&1
+
+ROLE="${role}"
+HAS_DATA="${has_data}"
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update -y
+apt-get install -y sysstat xfsprogs fio chrony curl jq
+
+# Chi cac VM khong do TiUP quan ly moi cai node_exporter qua apt (TiUP tu trien khai node_exporter:9100).
+case "$ROLE" in
+  loadgen|mysql|mongo) apt-get install -y prometheus-node-exporter ;;
+esac
+
+# Mount o du lieu EBS gp3 co dinh (NVMe thu hai tren instance Nitro).
+mount_data() {
+  local target="$1"
+  local root_disk dev=""
+  root_disk="/dev/$(lsblk -no PKNAME "$(findmnt -no SOURCE /)")"
+  for _ in $(seq 1 60); do
+    dev="$(lsblk -dpno NAME,TYPE | awk '$2=="disk"{print $1}' | grep -v "^$root_disk$" | head -1 || true)"
+    [ -n "$dev" ] && break
+    sleep 5
+  done
+  [ -n "$dev" ] || { echo "Khong thay o du lieu sau 300 giay" >&2; exit 1; }
+  # Chi tao filesystem khi o trong; o khoi phuc tu snapshot da co du lieu.
+  if ! blkid "$dev" >/dev/null 2>&1; then
+    mkfs.xfs -f "$dev"
+  fi
+  mkdir -p "$target"
+  local uuid
+  uuid="$(blkid -s UUID -o value "$dev")"
+  grep -q "$uuid" /etc/fstab || echo "UUID=$uuid $target xfs defaults,noatime,nofail 0 2" >> /etc/fstab
+  mountpoint -q "$target" || mount "$target"
+  echo "$dev" > /etc/flashsale-data-device
+}
+
+if [ "$HAS_DATA" = "true" ]; then
+  case "$ROLE" in
+    pd|tikv) mount_data /tidb-data ;;
+    *) mount_data /data ;;
+  esac
+fi
+
+# Docker cho MySQL/MongoDB: toan bo volume Docker nam tren o EBS co dinh.
+case "$ROLE" in
+  mysql|mongo)
+    apt-get install -y docker.io docker-compose-v2 git
+    mkdir -p /data/docker
+    printf '{ "data-root": "/data/docker" }\n' > /etc/docker/daemon.json
+    systemctl restart docker
+    usermod -aG docker ubuntu
+    ;;
+  loadgen)
+    apt-get install -y git python3-venv python3-pip
+    ;;
+esac
+
+# Ghi nhan cho script kiem tra san sang.
+touch /var/lib/flashsale-bootstrap-done

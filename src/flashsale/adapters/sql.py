@@ -42,7 +42,7 @@ class SQLAdapter:
         self.tidb = endpoint.engine == "tidb"
         self.in_transaction = False
         self.connection = pymysql.connect(
-            host="127.0.0.1", port=endpoint.port, user="root", charset="utf8mb4",
+            host=endpoint.host, port=endpoint.port, user="root", charset="utf8mb4",
             database=None if admin else endpoint.database, autocommit=True, cursorclass=DictCursor,
             connect_timeout=5, read_timeout=timeout, write_timeout=timeout,
         )
@@ -66,9 +66,16 @@ class SQLAdapter:
         if self.tidb:
             info["build"] = self.query("SELECT TIDB_VERSION() AS build")[0]["build"]
             info["transaction_mode"] = self.query("SELECT @@tidb_txn_mode AS mode")[0]["mode"]
+            try:
+                rows = self.query("SHOW CONFIG WHERE type='tikv' AND name IN "
+                                  "('storage.block-cache.capacity','raftstore.sync-log')")
+                info["tikv_durability_config"] = sorted({(r["Instance"], r["Name"], r["Value"]) for r in rows})
+            except Exception:
+                info["tikv_durability_config"] = None
         else:
             values = self.query("SELECT @@innodb_buffer_pool_size AS buffer_pool_bytes, "
                                 "@@innodb_flush_log_at_trx_commit AS flush_at_commit, "
+                                "@@sync_binlog AS sync_binlog, @@log_bin AS log_bin, "
                                 "@@innodb_lock_wait_timeout AS lock_wait_timeout, "
                                 "@@default_storage_engine AS storage_engine")
             info.update(values[0])
