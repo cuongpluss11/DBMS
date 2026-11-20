@@ -105,7 +105,8 @@ def test_every_profile_loads_and_matches_the_document():
     from flashsale.config import read_settings
     profiles = {path.stem: read_settings(path) for path in Path("configs").glob("*.toml")}
     assert {"baseline", "baseline-single-warehouse", "baseline-1client", "performance", "correctness",
-            "payment-ytd", "idempotency-off", "smoke"} <= set(profiles)
+            "payment-ytd", "idempotency-off", "baseline-tuned", "baseline-cross",
+            "baseline-cross-1client", "smoke"} <= set(profiles)
     for name, cfg in profiles.items():
         if name == "smoke":
             continue
@@ -118,6 +119,87 @@ def test_every_profile_loads_and_matches_the_document():
     assert profiles["correctness"].dataset.inventory == 1000
     assert profiles["performance"].dataset.inventory == 10**9
     assert all(profile.idempotency for name, profile in profiles.items() if name != "idempotency-off")
+
+
+def test_warmup_series_and_stability():
+    from flashsale.benchmark.metrics import warmup_stability
+    req = Request("run-1", "run", "new_order", 1, 1, 1, ((1, 1),), (1,))
+    phase = Phase()
+    for second in (0, 0, 2):
+        phase.record(req, Outcome("success", 0, {}, 1), True, second)
+    phase.record(req, Outcome("success", 0, {}, 1), False, 1)
+    assert phase.series_list(4) == [2, 0, 1, 0]
+    other = Phase()
+    other.record(req, Outcome("success", 0, {}, 1), True, 0)
+    phase.merge(other)
+    assert phase.series_list(1) == [3]
+    steady = warmup_stability([100] * 10, [110] * 10)
+    assert round(steady["drift_pct"], 6) == 10 and warmup_stability([1], [1])["drift_pct"] is None
+
+
+def test_mysql_variant_label_matches_buffer_pool():
+    import pytest
+    from pathlib import Path
+    from flashsale.cli import check_mysql_variant
+    from flashsale.config import read_settings
+    base, tuned = read_settings(Path("configs/baseline.toml")), read_settings(Path("configs/baseline-tuned.toml"))
+    check_mysql_variant(base, {"buffer_pool_bytes": 128 * 1024 ** 2})
+    check_mysql_variant(tuned, {"buffer_pool_bytes": 3 * 1024 ** 3})
+    with pytest.raises(ValueError):
+        check_mysql_variant(base, {"buffer_pool_bytes": 3 * 1024 ** 3})
+    with pytest.raises(ValueError):
+        check_mysql_variant(tuned, {"buffer_pool_bytes": 128 * 1024 ** 2})
+
+
+def test_endpoint_host_and_remote_mode(monkeypatch):
+    import json
+    import pytest
+    from flashsale import infra
+    monkeypatch.delenv("FLASHSALE_DB_HOST", raising=False)
+    monkeypatch.delenv("FLASHSALE_REMOTE_NODES", raising=False)
+    assert infra.endpoint("mysql").host == "127.0.0.1" and infra.remote_nodes() is None
+    monkeypatch.setenv("FLASHSALE_DB_HOST", "10.20.1.5")
+    assert infra.endpoint("mysql").host == "10.20.1.5"
+    nodes = {"mysql": {"host": "10.20.1.5", "cpus": 12, "memory_bytes": 24 * 1024 ** 3}}
+    monkeypatch.setenv("FLASHSALE_REMOTE_NODES", json.dumps(nodes))
+    limits = infra.container_limits("mysql")
+    assert limits["mysql"]["cpus"] == 12 and limits["mysql"]["remote"] and not infra.active_engines()["mysql"]
+    infra.enforce_one("mysql")  # remote: không kiểm Docker cục bộ
+    with pytest.raises(RuntimeError):
+        infra.start("mysql")
+    bad = {"mysql": {"host": "10.20.1.5", "cpus": 8, "memory_bytes": 16 * 1024 ** 3}}
+    monkeypatch.setenv("FLASHSALE_REMOTE_NODES", json.dumps(bad))
+    with pytest.raises(RuntimeError):
+        infra.container_limits("mysql")  # khác ngân sách 12 vCPU / 24 GiB
+    monkeypatch.setenv("FLASHSALE_REMOTE_BUDGET_CPUS", "8")
+    monkeypatch.setenv("FLASHSALE_REMOTE_BUDGET_MEMORY_BYTES", str(16 * 1024 ** 3))
+    assert infra.container_limits("mysql")["mysql"]["cpus"] == 8
+    monkeypatch.setenv("FLASHSALE_REMOTE_NODES", json.dumps({"mysql": {"host": "x"}}))
+    with pytest.raises(ValueError):
+        infra.remote_nodes()
+
+
+def test_node_exporter_cpu_sampling(monkeypatch):
+    import json
+    from flashsale import infra
+    text = "\n".join([
+        '# HELP node_cpu_seconds_total x',
+        'node_cpu_seconds_total{cpu="0",mode="idle"} 900',
+        'node_cpu_seconds_total{cpu="0",mode="iowait"} 50',
+        'node_cpu_seconds_total{cpu="0",mode="user"} 30.5',
+        'node_cpu_seconds_total{cpu="1",mode="system"} 19.5',
+        'other_metric{mode="user"} 7'])
+    assert infra.parse_node_cpu(text) == (50.0, 1000.0)
+    monkeypatch.setenv("FLASHSALE_REMOTE_NODES", json.dumps(
+        {"mysql": {"host": "h1", "cpus": 12, "memory_bytes": 24 * 1024 ** 3}}))
+    readings = iter([(10.0, 0), (1.0, 0), (14.0, 0), (3.0, 0)])  # lần 1: mysql, loadgen; lần 2: mysql, loadgen
+    monkeypatch.setattr(infra, "node_cpu_seconds", lambda host: next(readings))
+    ticks = iter([100.0, 102.0])
+    monkeypatch.setattr(infra.time, "monotonic", lambda: next(ticks))
+    sample = infra.cpu_sampler(infra.container_limits("mysql"))
+    assert sample() == {}  # lần đầu chỉ lấy mốc
+    values = sample()
+    assert values["mysql"] == 100 * 4 / 2 and values["loadgen"] == 100 * 2 / 2
 
 
 def test_compose_budgets_equal_across_engines():

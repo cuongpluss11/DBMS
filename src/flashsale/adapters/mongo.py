@@ -32,7 +32,7 @@ class MongoAdapter:
     """Mode A. Một adapter và session cho mỗi client của runner."""
 
     def __init__(self, endpoint: Endpoint, timeout: float = 15.0):
-        self.client = MongoClient("127.0.0.1", endpoint.port, directConnection=True,
+        self.client = MongoClient(endpoint.host, endpoint.port, directConnection=True,
                                   replicaSet="flashsale", retryWrites=False,
                                   serverSelectionTimeoutMS=5000, socketTimeoutMS=int(timeout * 1000),
                                   maxPoolSize=1)
@@ -46,9 +46,16 @@ class MongoAdapter:
         hello = self.client.admin.command("hello")
         if hello.get("setName") != "flashsale" or not hello.get("isWritablePrimary"):
             raise RuntimeError("MongoDB replica set chưa có primary")
-        return {"version": self.client.server_info()["version"], "replica_set": "flashsale",
+        info = {"version": self.client.server_info()["version"], "replica_set": "flashsale",
                 "transaction_read_concern": "snapshot", "transaction_write_concern": "majority",
+                "transaction_write_journal": True,
                 "logical_session_timeout_minutes": hello.get("logicalSessionTimeoutMinutes")}
+        try:
+            cache = self.client.admin.command("serverStatus")["wiredTiger"]["cache"]
+            info["wiredtiger_cache_bytes"] = cache["maximum bytes configured"]
+        except Exception:
+            info["wiredtiger_cache_bytes"] = None
+        return info
 
     @contextmanager
     def atomic(self) -> Iterator[None]:
@@ -57,7 +64,7 @@ class MongoAdapter:
             self.session = session
             try:
                 session.start_transaction(read_concern=ReadConcern("snapshot"),
-                                          write_concern=WriteConcern("majority"))
+                                          write_concern=WriteConcern("majority", j=True))
                 yield
                 committing = True
                 session.commit_transaction()

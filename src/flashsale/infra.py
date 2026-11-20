@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 from urllib.request import urlopen
+import re
 from uuid import uuid4
 
 from flashsale.adapters.base import Endpoint, open_adapter
@@ -20,21 +21,102 @@ BUDGET_MEMORY_BYTES = 16 * 1024 ** 3
 DEFAULT_PORTS = {"mysql": 13306, "mongo": 27018, "tidb": 14000, "pd": 12379}
 
 
-def port(service: str) -> int:
-    key = f"FLASHSALE_{service.upper()}_PORT"
+def setting(key: str, default: str | None = None) -> str | None:
+    """Biến môi trường, rồi `.env` (không chứa bí mật), rồi mặc định."""
     if key in os.environ:
-        return int(os.environ[key])
+        return os.environ[key]
     env_file = ROOT / ".env"
     if env_file.is_file():
         for line in env_file.read_text(encoding="utf-8").splitlines():
             name, sep, value = line.partition("=")
             if sep and name.strip() == key:
-                return int(value.strip().strip('"').strip("'"))
-    return DEFAULT_PORTS[service]
+                return value.strip().strip('"').strip("'")
+    return default
+
+
+def port(service: str) -> int:
+    return int(setting(f"FLASHSALE_{service.upper()}_PORT", str(DEFAULT_PORTS[service])))
+
+
+def db_host() -> str:
+    """Địa chỉ DBMS. Mặc định 127.0.0.1 (Docker cục bộ); trên AWS là IP nội bộ của VM DBMS."""
+    return setting("FLASHSALE_DB_HOST", "127.0.0.1")
 
 
 def endpoint(engine: str, database: str | None = None) -> Endpoint:
-    return Endpoint(engine, port(engine), database or f"flashsale_{uuid4().hex}")
+    return Endpoint(engine, port(engine), database or f"flashsale_{uuid4().hex}", db_host())
+
+
+# --- Chế độ remote (AWS): DBMS chạy trên VM riêng, script tải chạy trên VM khác. ---
+# FLASHSALE_REMOTE_NODES là JSON: {"mysql": {"host": "10.20.1.5", "cpus": 12, "memory_bytes": 25769803776}, ...}
+# Mỗi nút có node_exporter ở cổng 9100 (xem infra/aws). Ngân sách DBMS (tổng cpus/memory) mặc định 12 vCPU / 24 GiB.
+NODE_EXPORTER_PORT = 9100
+REMOTE_BUDGET_CPUS = 12
+REMOTE_BUDGET_MEMORY_BYTES = 24 * 1024 ** 3
+
+
+def remote_nodes() -> dict[str, dict] | None:
+    raw = setting("FLASHSALE_REMOTE_NODES")
+    if not raw:
+        return None
+    nodes = json.loads(raw)
+    for name, node in nodes.items():
+        if not {"host", "cpus", "memory_bytes"} <= set(node):
+            raise ValueError(f"FLASHSALE_REMOTE_NODES[{name}] cần host, cpus, memory_bytes")
+    return nodes
+
+
+def remote_budget() -> tuple[float, int]:
+    return (float(setting("FLASHSALE_REMOTE_BUDGET_CPUS", str(REMOTE_BUDGET_CPUS))),
+            int(setting("FLASHSALE_REMOTE_BUDGET_MEMORY_BYTES", str(REMOTE_BUDGET_MEMORY_BYTES))))
+
+
+CPU_LINE = re.compile(r'^node_cpu_seconds_total\{cpu="[^"]*",mode="([^"]+)"\} ([0-9.eE+-]+)$')
+
+
+def parse_node_cpu(text: str) -> tuple[float, float]:
+    """Trả (tổng giây CPU bận, tổng giây mọi mode). Bận = mọi mode trừ idle và iowait."""
+    busy = total = 0.0
+    for line in text.splitlines():
+        match = CPU_LINE.match(line)
+        if match:
+            value = float(match.group(2))
+            total += value
+            if match.group(1) not in ("idle", "iowait"):
+                busy += value
+    return busy, total
+
+
+def node_cpu_seconds(host: str) -> tuple[float, float]:
+    with urlopen(f"http://{host}:{NODE_EXPORTER_PORT}/metrics", timeout=3) as response:
+        return parse_node_cpu(response.read().decode())
+
+
+def cpu_sampler(limits: dict[str, dict]):
+    """Hàm lấy CPU% (100% = một lõi) từng nút/container. Docker: docker stats; remote: delta node_exporter.
+    Ở chế độ remote có thêm khóa "loadgen" (node_exporter của chính máy tải) để kiểm tra nút thắt của script tải."""
+    nodes = remote_nodes()
+    if nodes is None:
+        return lambda: docker_cpu(limits)
+    hosts = {name: value["host"] for name, value in limits.items()}
+    hosts["loadgen"] = setting("FLASHSALE_LOADGEN_EXPORTER_HOST", "127.0.0.1")
+    previous: dict[str, tuple[float, float]] = {}
+
+    def sample() -> dict[str, float]:
+        values = {}
+        now = time.monotonic()
+        for name, host in hosts.items():
+            try:
+                busy, _ = node_cpu_seconds(host)
+            except Exception:
+                continue
+            if name in previous:
+                busy0, t0 = previous[name]
+                values[name] = 100 * (busy - busy0) / max(now - t0, 1e-9)
+            previous[name] = (busy, now)
+        return values
+
+    return sample
 
 
 def docker(*args: str, timeout: float = 15, capture: bool = True) -> str:
@@ -69,6 +151,8 @@ def project_lock():
 
 
 def active_engines() -> dict[str, list[str]]:
+    if remote_nodes() is not None:
+        return {engine: [] for engine in ENGINES}  # DBMS remote do Terraform/TiUP/compose trên VM quản lý
     running = {}
     for engine in ENGINES:
         output = docker("ps", "--quiet", "--filter", f"label=com.docker.compose.project=flashsale-{engine}")
@@ -77,6 +161,8 @@ def active_engines() -> dict[str, list[str]]:
 
 
 def enforce_one(engine: str, *, must_run: bool = True) -> None:
+    if remote_nodes() is not None:
+        return  # Terraform chỉ dựng một stack tại một thời điểm (biến stack)
     running = active_engines()
     others = [name for name, containers in running.items() if name != engine and containers]
     if others:
@@ -86,14 +172,17 @@ def enforce_one(engine: str, *, must_run: bool = True) -> None:
 
 
 def pd_status() -> dict:
-    base = f"http://127.0.0.1:{port('pd')}/pd/api/v1"
+    nodes = remote_nodes()
+    host = nodes["pd"]["host"] if nodes and "pd" in nodes else db_host()
+    base = f"http://{host}:{port('pd')}/pd/api/v1"
     with urlopen(base + "/stores", timeout=2) as response:
         stores = json.load(response)["stores"]
     with urlopen(base + "/config/replicate", timeout=2) as response:
         replica = json.load(response)
     live = [entry["store"] for entry in stores if entry["store"]["state_name"] == "Up"]
-    if len(live) != 3 or replica.get("max-replicas") != 1:
-        raise RuntimeError(f"TiDB cần 3 TiKV Up và max-replicas=1. Hiện có {len(live)} store, {replica}")
+    expected = int(setting("FLASHSALE_TIKV_COUNT", "3"))
+    if len(live) != expected or replica.get("max-replicas") != 1:
+        raise RuntimeError(f"TiDB cần {expected} TiKV Up và max-replicas=1. Hiện có {len(live)} store, {replica}")
     return {"store_versions": {store["address"]: store["version"] for store in live},
             "max_replicas": replica["max-replicas"]}
 
@@ -115,6 +204,8 @@ def ready(engine: str, timeout: float = 150) -> dict:
 
 
 def start(engine: str) -> dict:
+    if remote_nodes() is not None:
+        raise RuntimeError("Chế độ remote: khởi động DBMS bằng Terraform/TiUP/compose trên VM (infra/aws/README.md)")
     enforce_one(engine, must_run=False)
     args = ["up", "-d", "--wait", "--wait-timeout", "150"]
     compose(engine, *args, timeout=240, capture=False)
@@ -122,10 +213,28 @@ def start(engine: str) -> dict:
 
 
 def stop(engine: str) -> None:
+    if remote_nodes() is not None:
+        raise RuntimeError("Chế độ remote: dừng DBMS bằng Terraform/TiUP/compose trên VM (infra/aws/README.md)")
     compose(engine, "stop", timeout=180, capture=False)
 
 
+def remote_limits(engine: str, nodes: dict[str, dict]) -> dict[str, dict]:
+    """Giới hạn tài nguyên của các VM DBMS (không gồm máy tải/monitor) lấy từ FLASHSALE_REMOTE_NODES."""
+    result = {name: {"id": None, "image": None, "image_id": None, "repo_digests": None, "remote": True,
+                     "host": node["host"], "cpus": float(node["cpus"]), "memory_bytes": int(node["memory_bytes"])}
+              for name, node in nodes.items()}
+    budget_cpus, budget_memory = remote_budget()
+    if sum(item["cpus"] for item in result.values()) != budget_cpus or sum(
+            item["memory_bytes"] for item in result.values()) != budget_memory:
+        raise RuntimeError(f"Các nút DBMS khác ngân sách {budget_cpus} vCPU / {budget_memory // 1024 ** 3} GiB; "
+                           "đặt FLASHSALE_REMOTE_BUDGET_* nếu chủ ý (ví dụ cụm 1 TiKV của 2.3)")
+    return result
+
+
 def container_limits(engine: str) -> dict[str, dict]:
+    nodes = remote_nodes()
+    if nodes is not None:
+        return remote_limits(engine, nodes)
     ids = active_engines()[engine]
     inspected = json.loads(docker("inspect", *ids))
     result = {}
@@ -157,7 +266,15 @@ def docker_cpu(limits: dict[str, dict]) -> dict[str, float]:
 
 
 def host_info() -> dict:
-    runtime = json.loads(docker("info", "--format", "{{json .}}"))
+    nodes = remote_nodes()
+    try:
+        runtime = json.loads(docker("info", "--format", "{{json .}}"))
+        compose_version = docker("compose", "version", "--short")
+    except (OSError, subprocess.SubprocessError):
+        if nodes is None:
+            raise
+        runtime = {"ServerVersion": None, "OperatingSystem": None, "NCPU": None, "MemTotal": None}
+        compose_version = None
     disk = shutil.disk_usage(ROOT)
     mem = None
     if sys.platform == "linux":
@@ -181,7 +298,9 @@ def host_info() -> dict:
             "workspace_disk_total_bytes": disk.total, "workspace_disk_free_bytes": disk.free,
             "docker_engine": runtime["ServerVersion"], "docker_os": runtime["OperatingSystem"],
             "docker_cpu_count": runtime["NCPU"], "docker_memory_bytes": runtime["MemTotal"],
-            "docker_compose": docker("compose", "version", "--short"), "git_commit": commit, "git_dirty": dirty}
+            "docker_compose": compose_version, "git_commit": commit, "git_dirty": dirty,
+            "mode": "remote" if nodes is not None else "docker", "db_host": db_host(),
+            "remote_nodes": nodes}
 
 
 def source_hashes() -> dict[str, str]:

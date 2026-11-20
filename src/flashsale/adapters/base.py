@@ -12,6 +12,7 @@ class Endpoint:
     engine: str
     port: int
     database: str
+    host: str = "127.0.0.1"
 
     def __post_init__(self) -> None:
         prefix, _, token = self.database.partition("_")

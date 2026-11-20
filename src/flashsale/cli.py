@@ -13,7 +13,7 @@ from flashsale.benchmark.runner import run_one
 from flashsale.config import Settings, read_settings
 from flashsale.data.loader import fingerprint, load, reset
 from flashsale.infra import (BUDGET_CPUS, BUDGET_MEMORY_BYTES, ENGINES, ROOT, active_engines, container_limits, endpoint, enforce_one,
-                            host_info, pd_status, project_lock, ready, source_hashes, start, stop)
+                            host_info, pd_status, project_lock, ready, remote_nodes, source_hashes, start, stop)
 from flashsale.validation.checks import validate
 
 RESULTS = ROOT / "results"
@@ -80,10 +80,28 @@ def assert_baseline(db, cfg: Settings, state: dict) -> None:
         raise RuntimeError("Dataset khác tồn đầu hoặc có dòng benchmark trước khi đo")
 
 
+MYSQL_BASELINES = {"baseline", "baseline-tuned"}
+# Điểm θ=0 uniform (8 client) và 1 client cho từng hệ: tài liệu yêu cầu "một điểm θ = 0 với 1 client cho mỗi hệ".
+CROSS_ENGINE_BASELINES = {"baseline-cross"}
+DEFAULT_BUFFER_POOL_BYTES = 128 * 1024 ** 2
+
+
+def check_mysql_variant(cfg: Settings, server: dict) -> None:
+    """'MySQL-mặc-định' (nhãn baseline) phải chạy buffer pool mặc định, còn 'MySQL-chỉnh'
+    (baseline-tuned) phải lớn hơn mặc định; tránh gắn nhầm nhãn so với cấu hình thật."""
+    pool = server.get("buffer_pool_bytes")
+    if cfg.label == "baseline" and pool != DEFAULT_BUFFER_POOL_BYTES:
+        raise ValueError(f"Baseline MySQL-mặc-định cần buffer pool {DEFAULT_BUFFER_POOL_BYTES}, đang là {pool}")
+    if cfg.label == "baseline-tuned" and (pool is None or pool <= DEFAULT_BUFFER_POOL_BYTES):
+        raise ValueError("baseline-tuned cần đặt FLASHSALE_MYSQL_BUFFER_POOL_BYTES lớn hơn mặc định rồi start lại MySQL")
+
+
 def run(target: Endpoint, cfg: Settings, config_path: Path, *, reset_between: bool) -> list[dict]:
     if cfg.repetitions > 1 and not reset_between:
         raise ValueError("Thêm --reset-between để cho phép khôi phục dataset giữa các lần lặp")
-    if cfg.label == "baseline" and (target.engine != "mysql" or cfg.theta != 0 or cfg.hot_item):
+    if cfg.label in CROSS_ENGINE_BASELINES and (cfg.theta != 0 or cfg.hot_item):
+        raise ValueError("baseline-cross dùng theta=0 và tắt hot_item")
+    if cfg.label in MYSQL_BASELINES and (target.engine != "mysql" or cfg.theta != 0 or cfg.hot_item):
         raise ValueError("Baseline dùng MySQL, theta=0 và tắt hot_item")
     state = dataset_state(target, cfg)
     environment = host_info()
@@ -91,7 +109,8 @@ def run(target: Endpoint, cfg: Settings, config_path: Path, *, reset_between: bo
     if target.engine == "tidb":
         environment["pd"] = pd_status()
     limits = container_limits(target.engine)
-    if environment["docker_cpu_count"] < BUDGET_CPUS or environment["docker_memory_bytes"] < BUDGET_MEMORY_BYTES:
+    if remote_nodes() is None and (environment["docker_cpu_count"] < BUDGET_CPUS
+                                   or environment["docker_memory_bytes"] < BUDGET_MEMORY_BYTES):
         raise RuntimeError(f"Docker cần ít nhất {BUDGET_CPUS} CPU và {BUDGET_MEMORY_BYTES // 1024 ** 3} GiB RAM "
                            "cho ngân sách container")
     reports = []
@@ -100,7 +119,7 @@ def run(target: Endpoint, cfg: Settings, config_path: Path, *, reset_between: bo
             state = restore(target, cfg, state)
         with connect(target) as db:
             assert_baseline(db, cfg, state)
-            db.ping(cfg.concurrency)
+            check_mysql_variant(cfg, db.ping(cfg.concurrency))
             write_json(state_path(target), {**state, "status": "dirty"})
             reports.append(run_one(target, cfg, db, repetition, RESULTS, environment,
                                    limits, str(config_path), state))
