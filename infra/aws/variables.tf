@@ -80,7 +80,17 @@ variable "single_node_mem_gb" {
   default     = 24
 }
 
-# EBS gp3 co dinh, GIONG NHAU cho moi he. Mac dinh 3000 IOPS / 125 MB/s la muc co ban (khong tinh them phi).
+# EBS gp3 co dinh, GIONG NHAU cho moi he. Mac dinh 3000 IOPS / 125 MB/s (muc co ban, khong tinh them phi).
+#
+# LUU Y QUAN TRONG: instance cung co tran EBS rieng (AWS describe-instance-types, da kiem tra):
+#   c6i.large   : 3.600 IOPS co ban, 650 Mbps  (toi da 40.000 IOPS chi trong dot ngan, tin chi tieu ~30 phut/ngay)
+#   c6i.xlarge  : 6.000 IOPS co ban, 1.250 Mbps
+#   c6i.2xlarge : 12.000 IOPS co ban, 2.500 Mbps
+#   c6i.4xlarge : 20.000 IOPS co ban, 5.000 Mbps
+# TiKV tren c6i.large (2 vCPU) khong the duy tri qua ~3.600 IOPS, nen dat volume 10.000 IOPS cho cum TiDB chi co
+# tac dung trong dot burst roi bi giam, lam so do khong lap lai duoc. Vi vay mac dinh giu 3000 (duoi co ban cua moi loai
+# instance). Chi tang IOPS cho thi nghiem "do nhay cua dia" tren MOT he (vi du MySQL tren c6i.2xlarge voi 10.000),
+# va ghi ro la thi nghiem rieng, khong so sanh cheo giua cac he.
 variable "data_volume_gb" {
   type    = number
   default = 100
@@ -89,11 +99,19 @@ variable "data_volume_gb" {
 variable "data_volume_iops" {
   type    = number
   default = 3000
+  validation {
+    condition     = var.data_volume_iops >= 3000 && var.data_volume_iops <= 16000
+    error_message = "gp3: 3000-16000 IOPS."
+  }
 }
 
 variable "data_volume_throughput" {
   type    = number
   default = 125
+  validation {
+    condition     = var.data_volume_throughput >= 125 && var.data_volume_throughput <= 1000
+    error_message = "gp3: 125-1000 MB/s."
+  }
 }
 
 variable "data_snapshot_id" {

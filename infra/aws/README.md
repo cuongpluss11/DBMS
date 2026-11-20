@@ -18,6 +18,8 @@ Chỉ một `stack` DBMS tồn tại tại một thời điểm. Quota hiện xi
 
 Mặc định: một VPC, một subnet ở một AZ, cluster placement group, security group chỉ cho SSH từ IP của bạn và mọi lưu lượng nội bộ trong nhóm. Mọi VM có IP công cộng (không dùng NAT gateway vì đắt hơn); SSH bị giới hạn bằng security group. Mỗi VM dữ liệu có một EBS gp3 riêng (100 GiB, 3000 IOPS, 125 MB/s là mức cơ bản, giống nhau ở mọi hệ).
 
+**Giới hạn EBS của instance (đã kiểm tra bằng `aws ec2 describe-instance-types`):** `c6i.large` 3.600 IOPS cơ bản (650 Mbps), `c6i.xlarge` 6.000, `c6i.2xlarge` 12.000, `c6i.4xlarge` 20.000. Mức tối đa 40.000 IOPS chỉ là đợt burst ngắn (tín chỉ cỡ 30 phút mỗi ngày). TiKV trên `c6i.large` không giữ được quá ~3.600 IOPS, nên đặt ổ 10.000 IOPS cho cụm TiDB chỉ có tác dụng trong đợt burst rồi bị giảm, làm số đo không lặp lại được. Vì vậy mặc định giữ **3.000 IOPS / 125 MB/s cho mọi ổ ở mọi hệ**. Mức 10.000 IOPS chỉ dùng cho thí nghiệm riêng "độ nhạy của đĩa" trên một hệ (MySQL trên `c6i.2xlarge` trở lên), ghi rõ là thí nghiệm riêng và không so chéo giữa các hệ. Manifest ghi `db_tcp_rtt_ms` (RTT TCP tới DBMS) khi chạy remote.
+
 **Điểm tương đương tài nguyên.** MySQL/MongoDB không có instance c6i đúng 12 vCPU, nên dùng c6i.4xlarge và giới hạn bằng cpuset `0-11` và 24 GiB. Đây là cách tài liệu cho phép, phải ghi vào báo cáo. VM monitor của TiDB và VM tải không tính vào ngân sách.
 
 ## Quy trình

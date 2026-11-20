@@ -278,3 +278,18 @@ def test_report_index_summary_and_warmup(tmp_path):
     index = (tmp_path / "out" / "INDEX.csv").read_text(encoding="utf-8").splitlines()
     assert len(index) == 4 and "warmup_drift_pct" in index[0]
     assert "TPS median" in (tmp_path / "out" / "SUMMARY.md").read_text(encoding="utf-8")
+
+
+def test_tcp_rtt_to_local_listener_and_unreachable():
+    import socket
+    from flashsale.infra import tcp_rtt_ms
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen(16)
+    port = server.getsockname()[1]
+    try:
+        rtt = tcp_rtt_ms("127.0.0.1", port, samples=5)
+        assert rtt["samples"] == 5 and 0 <= rtt["min"] <= rtt["median"] <= rtt["max"]
+    finally:
+        server.close()
+    assert tcp_rtt_ms("127.0.0.1", port, samples=2) is None  # cổng đã đóng

@@ -56,3 +56,20 @@ Trung bình TPS 10 giây cuối warmup so với 10 giây đầu đo: lệch −3
 - Chưa đo TiDB, nơi sự khác biệt (3 TiKV dùng chung CPU, đĩa và loopback trong Docker) được kỳ vọng lớn hơn nhiều; điểm này chưa kiểm chứng.
 - Chỉ một điểm đo, 3 lần lặp, một cấu hình đĩa. VM AWS ở đây (8 vCPU) khác ngân sách dự kiến cho đo chính thức (12 vCPU), và kết quả có thể thay đổi giữa các lần dựng VM. Không dùng bảng này để xếp hạng.
 - Chế độ remote lần đầu chạy trên máy thật: lỗi cấu hình override `ports` và `cpus` đã được sửa trong lúc chạy (xem commit); không có lỗi ở lõi benchmark.
+
+## Quyết định về IOPS của ổ dữ liệu (kết luận từ phép đo thử)
+
+Phép đo thử cho thấy đĩa gp3 3000 IOPS là nút thắt, nên có đề xuất nâng lên 10.000 IOPS. Kiểm tra giới hạn EBS của từng loại instance (`aws ec2 describe-instance-types`, đã chạy) cho thấy **cách đó không áp dụng đều cho cả ba hệ**:
+
+| Instance | IOPS cơ bản (duy trì được) | Tối đa (chỉ burst ngắn) |
+| --- | --- | --- |
+| `c6i.large` (TiKV, PD) | 3.600 | 40.000 |
+| `c6i.xlarge` | 6.000 | 40.000 |
+| `c6i.2xlarge` (MySQL/MongoDB thử) | 12.000 | 40.000 |
+| `c6i.4xlarge` (MySQL/MongoDB dự kiến) | 20.000 | 40.000 |
+
+TiKV đặt trên `c6i.large` chỉ giữ được khoảng 3.600 IOPS. Ổ 10.000 IOPS cho cụm TiDB chỉ hữu ích trong đợt burst (tín chỉ cỡ 30 phút mỗi ngày), rồi bị giảm; các lượt đo sau trong ngày sẽ chậm hơn các lượt đầu và **kết quả không lặp lại được**. Nâng cả cụm lên `c6i.xlarge` thì đổi tổng vCPU (18 so với 12), phá điều kiện "cùng tổng vCPU/RAM" của bản chốt.
+
+**Quyết định (đề xuất, chờ bạn xác nhận):** mọi ổ dữ liệu ở mọi hệ giữ 3000 IOPS / 125 MB/s (thấp hơn mức cơ bản của mọi instance, nên không phụ thuộc burst). Bản chốt cũng đã dự liệu trường hợp này: khi MySQL bị đĩa chặn thì báo cáo thêm thời gian chờ khóa và p99, không chỉ TPS. Để biết đĩa che bao nhiêu, chạy **một thí nghiệm riêng "độ nhạy của đĩa"**: MySQL trên `c6i.2xlarge` với 10.000 IOPS / 250 MB/s (bền vững vì cơ bản 12.000), ghi rõ là thí nghiệm riêng, không so chéo giữa các hệ. Biến Terraform `data_volume_iops` và `data_volume_throughput` đã có sẵn (mặc định 3000/125, có kiểm tra khoảng hợp lệ của gp3).
+
+RTT TCP giữa máy tải và DBMS được ghi vào manifest (`environment.db_tcp_rtt_ms`) ở các lượt remote từ nay; lần thử này chưa có số này.
