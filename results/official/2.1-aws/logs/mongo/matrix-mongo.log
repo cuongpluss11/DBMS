@@ -1,0 +1,14 @@
+18:02:36 Bắt đầu ma trận 2.1: engine=mongo grid=evidence dry=0 log=results/matrix-mongo
+18:05:02 Đã nạp dataset flashsale_b144cef317484702b510b12269cd13b7 từ configs/baseline.toml
+18:05:02 Điểm 1: baseline-cross (configs/baseline-cross.toml )
+18:10:38 Điểm 2: baseline-cross-1client (configs/baseline-cross-1client.toml )
+18:16:02 Điểm 3: payment-ytd (configs/payment-ytd.toml )
+18:21:33 Điểm 4: theta-0 (configs/performance.toml --theta 0)
+18:27:08 Điểm 5: theta-0.3 (configs/performance.toml --theta 0.3)
+18:32:42 Điểm 6: theta-0.5 (configs/performance.toml --theta 0.5)
+18:38:16 Điểm 7: theta-0.7 (configs/performance.toml --theta 0.7)
+18:43:48 Điểm 8: theta-0.9 (configs/performance.toml --theta 0.9)
+18:49:16 Điểm 9: theta-hot-item (configs/performance.toml --hot-item)
+18:54:34 Điểm 10: clients-32 (configs/performance.toml --theta 0 --concurrency 32)
+19:00:38 Điểm 11: clients-64 (configs/performance.toml --theta 0 --concurrency 64)
+19:02:59 LỖI hoặc INVALID ở điểm 11 (clients-64), mã 1. Xem results/matrix-mongo/point-11-clients-64/run.err và run.json

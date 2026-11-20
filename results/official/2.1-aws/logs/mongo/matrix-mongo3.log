@@ -1,0 +1,15 @@
+19:51:42 Bắt đầu ma trận 2.1: engine=mongo grid=evidence dry=0 log=results/matrix-mongo3
+19:51:42 Bỏ qua điểm 1 (baseline-cross): MATRIX_START_POINT=11
+19:51:42 Bỏ qua điểm 2 (baseline-cross-1client): MATRIX_START_POINT=11
+19:51:42 Bỏ qua điểm 3 (payment-ytd): MATRIX_START_POINT=11
+19:51:42 Bỏ qua điểm 4 (theta-0): MATRIX_START_POINT=11
+19:51:42 Bỏ qua điểm 5 (theta-0.3): MATRIX_START_POINT=11
+19:51:42 Bỏ qua điểm 6 (theta-0.5): MATRIX_START_POINT=11
+19:51:42 Bỏ qua điểm 7 (theta-0.7): MATRIX_START_POINT=11
+19:51:42 Bỏ qua điểm 8 (theta-0.9): MATRIX_START_POINT=11
+19:51:42 Bỏ qua điểm 9 (theta-hot-item): MATRIX_START_POINT=11
+19:51:42 Bỏ qua điểm 10 (clients-32): MATRIX_START_POINT=11
+19:51:42 Điểm 11: clients-64 (configs/performance.toml --theta 0 --concurrency 64)
+19:58:31 Điểm 12: clients-128 (configs/performance.toml --theta 0 --concurrency 128)
+20:05:51 Điểm 13: clients-256 (configs/performance.toml --theta 0 --concurrency 256)
+20:15:33 Dừng sau điểm 13 theo MATRIX_END_POINT

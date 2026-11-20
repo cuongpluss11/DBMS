@@ -4,6 +4,24 @@ Trung vị, min–max của TPS thành công và trung vị p99 trên các lần
 
 | engine | profile | client | kho | θ | hot | ytd | idem | ghi chú | lượt | valid | TPS median (min–max) | p99 median ms |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| mongo | baseline-cross | 8 | uniform | 0 | False | False | True |  | 3 | 3/3 | 447.6 (437.3–449.1) | 54.2 |
+| mongo | baseline-cross-1client | 1 | uniform | 0 | False | False | True |  | 3 | 3/3 | 189.8 (186.9–192.5) | 10.2 |
+| mongo | correctness | 8 | single-warehouse | 0 | True | False | True |  | 3 | 3/3 | 438.6 (438.4–440.5) | 10.7 |
+| mongo | idempotency-off | 64 | single-warehouse | 0 | True | False | False |  | 1 | 0/1 | 624.3 (624.3–624.3) | 340.9 |
+| mongo | payment-ytd | 8 | uniform | 0 | False | True | True |  | 3 | 3/3 | 409.5 (405.9–412.5) | 58.1 |
+| mongo | performance | 128 | uniform | 0.0 | False | False | True |  | 3 | 3/3 | 2506.6 (2481.2–2538.0) | 293.2 |
+| mongo | performance | 128 | uniform | 0.0 | False | False | True | loadgen_c6i.4xlarge | 3 | 3/3 | 3052.7 (2977.9–3170.2) | 245.1 |
+| mongo | performance | 256 | uniform | 0.0 | False | False | True |  | 3 | 3/3 | 2489.8 (2445.6–2532.2) | 239.7 |
+| mongo | performance | 256 | uniform | 0.0 | False | False | True | loadgen_c6i.4xlarge | 3 | 3/3 | 2968.3 (2937.6–3100.1) | 218.0 |
+| mongo | performance | 32 | uniform | 0.0 | False | False | True |  | 3 | 3/3 | 1186.2 (1135.9–1192.1) | 121.1 |
+| mongo | performance | 64 | uniform | 0.0 | False | False | True |  | 4 | 3/4 | 2164.0 (2014.7–2266.0) | 147.0 |
+| mongo | performance | 64 | uniform | 0.0 | False | False | True | loadgen_c6i.4xlarge | 3 | 3/3 | 2119.5 (2029.4–2172.5) | 157.9 |
+| mongo | performance | 8 | uniform | 0.0 | False | False | True |  | 3 | 3/3 | 457.7 (456.4–460.8) | 50.9 |
+| mongo | performance | 8 | uniform | 0.3 | False | False | True |  | 3 | 3/3 | 451.5 (449.8–456.2) | 52.7 |
+| mongo | performance | 8 | uniform | 0.5 | False | False | True |  | 3 | 3/3 | 452.0 (450.6–452.1) | 53.3 |
+| mongo | performance | 8 | uniform | 0.5 | True | False | True |  | 3 | 3/3 | 594.9 (575.5–595.8) | 73.0 |
+| mongo | performance | 8 | uniform | 0.7 | False | False | True |  | 3 | 3/3 | 456.1 (430.4–461.9) | 52.3 |
+| mongo | performance | 8 | uniform | 0.9 | False | False | True |  | 3 | 3/3 | 454.2 (446.4–458.9) | 57.8 |
 | mysql | baseline | 8 | uniform | 0 | False | False | True |  | 3 | 3/3 | 258.6 (256.6–261.4) | 149.7 |
 | mysql | baseline-1client | 1 | uniform | 0 | False | False | True |  | 3 | 3/3 | 184.7 (173.6–185.7) | 14.3 |
 | mysql | baseline-cross | 8 | uniform | 0 | False | False | True |  | 3 | 3/3 | 256.6 (256.4–259.6) | 150.8 |
@@ -26,12 +44,29 @@ Trung vị, min–max của TPS thành công và trung vị p99 trên các lần
 
 ## Kiểm tra warmup 30 giây
 
-55/55 lượt có chuỗi TPS theo giây; 3 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
+108/108 lượt có chuỗi TPS theo giây; 20 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
 
 | run_id | engine | profile | client | θ | drift % |
 | --- | --- | --- | --- | --- | --- |
-| 47a7024ae39f432aaa8d0b7e9f8805f5 | mysql | baseline-1client | 1 | 0 | -17.2 |
-| 5310e2b60bb646c5a540a8cd3425ce19 | mysql | performance | 64 | 0.0 | 13.0 |
-| 97f226abb1944632afd80aefaf323c29 | mysql | performance | 8 | 0.3 | -10.3 |
+| 04f41b4c43204bc6ad256d1f4922cef2 | mongo | performance | 8 | 0.7 | 10.3 |
+| 161879b98a9d4b0dadd10c216cdb89be | mongo | performance | 256 | 0.0 | 147.4 |
+| 1a8920800cbf4fdd87f7b24d07fcaefd | mongo | performance | 64 | 0.0 | 61.0 |
+| 1ac4ef8d55434bcc9618f00a4c7dd4c9 | mongo | performance | 256 | 0.0 | 172.7 |
+| 2306ac2548e64f9aad69c70b18381e90 | mongo | performance | 256 | 0.0 | 63.7 |
+| 3611b9e895264a54b846613576d9e479 | mongo | performance | 64 | 0.0 | 14.0 |
+| 47a7024ae39f432aaa8d0b7e9f8805f5 | mysql | baseline-1client | 1 | 0 | -16.9 |
+| 4e326852e3f04d12ba82a12402e6c19d | mongo | performance | 64 | 0.0 | 171.2 |
+| 519d5031f86545debe33e3e93b7c0b42 | mongo | performance | 64 | 0.0 | 54.9 |
+| 59e2432cac294ffdb5f82c1de94e4719 | mongo | performance | 128 | 0.0 | 30.9 |
+| 6317ed23c9d64efc8f88e3c31e72a3ae | mongo | performance | 256 | 0.0 | 94.4 |
+| 6967571641da41c991315414186a321b | mongo | performance | 256 | 0.0 | 96.6 |
+| 8a34965057984676a6db15948d351534 | mongo | performance | 128 | 0.0 | 80.1 |
+| 8c3a0529097143aa8ffcddc7e261dc5c | mongo | performance | 128 | 0.0 | 97.1 |
+| 97f226abb1944632afd80aefaf323c29 | mysql | performance | 8 | 0.3 | -10.7 |
+| a2000f8daffd490baa8324305a53add7 | mongo | performance | 128 | 0.0 | 65.4 |
+| abbfdf739f4e4c1592ecb9f41345c3b0 | mongo | performance | 64 | 0.0 | 85.5 |
+| ad0ec026ab884c9aa61c80e4c537de45 | mysql | performance | 256 | 0.0 | 16.7 |
+| c041c2bcc4e341f3a416d1c1a35d2083 | mongo | performance | 128 | 0.0 | 29.3 |
+| c8157c5bbd84409b9190f25fe3e9c750 | mongo | performance | 128 | 0.0 | 36.3 |
 
 Nếu có lượt lệch: kéo dài warmup cho MỌI hệ (đề, mục 2.1) rồi đo lại.
