@@ -1,0 +1,249 @@
+{
+  "schema_version": 3,
+  "run_id": "def875fefe32413994f31a43fffe1aee",
+  "engine": "mysql",
+  "database": "flashsale_6a36bf35171f411692283fa472bccf29",
+  "started_utc": "2026-11-20T16:51:11.704427+00:00",
+  "repetition": 3,
+  "config_path": "configs/performance.toml",
+  "config": {
+    "label": "performance",
+    "seed": 2026,
+    "workers_per_process": 8,
+    "concurrency": 8,
+    "warehouse_mode": "uniform",
+    "theta": 0.5,
+    "hot_item": true,
+    "warmup_seconds": 30,
+    "measurement_seconds": 60,
+    "repetitions": 3,
+    "payment_ytd": false,
+    "jitter": false,
+    "dataset": {
+      "warehouses": 10,
+      "districts": 10,
+      "items": 100000,
+      "customers": 3000,
+      "initial_orders": 3000,
+      "inventory": 1000000000
+    },
+    "idempotency": true,
+    "client_timeout_seconds": 15.0
+  },
+  "dataset_state": {
+    "engine": "mysql",
+    "database": "flashsale_6a36bf35171f411692283fa472bccf29",
+    "fingerprint": "78af525d085098488ac83ceebd934e314ef34899eb120f7ff6fd4c82febe6d6e",
+    "status": "ready",
+    "counts": {
+      "warehouse": 10,
+      "item": 100000,
+      "district": 100,
+      "stock": 1000000,
+      "customer": 300000,
+      "history": 300000,
+      "orders": 300000,
+      "new_order": 90000,
+      "order_line": 2998678
+    }
+  },
+  "environment": {
+    "python": "3.12.3",
+    "host_os": "Linux-7.0.0-1018-aws-x86_64-with-glibc2.39",
+    "host_cpu_count": 8,
+    "host_memory_bytes": 16462811136,
+    "machine": "x86_64",
+    "workspace_disk_total_bytes": 30083776512,
+    "workspace_disk_free_bytes": 27103379456,
+    "docker_engine": null,
+    "docker_os": null,
+    "docker_cpu_count": null,
+    "docker_memory_bytes": null,
+    "docker_compose": null,
+    "git_commit": null,
+    "git_dirty": null,
+    "mode": "remote",
+    "db_host": "10.20.1.32",
+    "remote_nodes": {
+      "mysql": {
+        "host": "10.20.1.32",
+        "cpus": 12,
+        "memory_bytes": 25769803776
+      }
+    },
+    "source_sha256": {
+      "docker/compose.mongo.yml": "247c1b4b1741accd144be8dd4b4d97abba8b406128f80d41d7a616b063047fb0",
+      "docker/compose.mysql.yml": "88eb17901eeaffadc25c2e801f75a33a3b28728e4f3790ffa912dd2e169f2bf7",
+      "docker/compose.tidb.yml": "e773f8840d57f93a7dea8e7274c0bb37761e90b9c238ccf021e48e4197b73ade",
+      "docker/pd.toml": "c39b21ae1a5fdc33684264796b7d684868c70afbeab0e3e8ee3043f3341ea5d4",
+      "docker/tikv.toml": "8cadae33a1f514162986070676c97d80637bfb331166abb302549cab7f97c3d9",
+      "requirements.txt": "f1322a120ad0e1eb945880bce218e402016f135c38e4444a278872fe28eeaa79",
+      "src/flashsale/__init__.py": "125ed1866c774d783d62dbbb3b25a5fd4869158b4728dacbc8eaea4971b55af9",
+      "src/flashsale/__main__.py": "d220d88dd9a25cd0629c5176dd6532a2db1da40eb014a8e80796b0ddeb134918",
+      "src/flashsale/adapters/base.py": "b7164d217016c9b361b75a1ffd989bb4dd465b091418ae63dc78e65983de0b29",
+      "src/flashsale/adapters/mongo.py": "83bcfa6f1d43c0dd968d7685cb3789d06e1e190772b9ec41dfdf1fcfc7ec7db5",
+      "src/flashsale/adapters/sql.py": "57d772369b7aa7de61c8f92a4db7fac24870c4c09cf7d944b8d027d64bc503c8",
+      "src/flashsale/benchmark/metrics.py": "fdd31144163cc0c0bf8e4f77784fea69be56979775f154aa8d8a2028224d0d76",
+      "src/flashsale/benchmark/report.py": "56d39b33f296e062177b91f1a2345d63021af5e72ee1675f2c6e726c7c882e15",
+      "src/flashsale/benchmark/runner.py": "f70d3277a3bae179bbbc5ced2ea890f7c196b493c838b591e1d6a9fe4a07e34a",
+      "src/flashsale/cli.py": "e492e36deb24532eb20c61b5d5a6c956b57b15b0845176e3f5ffa23311e9c215",
+      "src/flashsale/config.py": "83591ba3ffa7c15b1b9f561ca887f42a374ce3bfc43b204e8828523eed59a9b7",
+      "src/flashsale/data/loader.py": "3a30faaab095a6a4b3c202c556adcc06f76401952a7efcbe543076e9f74c6721",
+      "src/flashsale/data/schema.py": "49b16fff89b3f44903e450f2cfe077025c9fb4ef408b79e80d8967d131c79c79",
+      "src/flashsale/infra.py": "22da3060f39a3aaccaf5ffec98715ea36544e17e56fce750c56144319d8276d0",
+      "src/flashsale/transactions/core.py": "a86a1a1d55e7f996864ecc0fb8c027a2c60fd4b138fdcf5131f52ee75291b40c",
+      "src/flashsale/validation/checks.py": "8e2da457954f6533779ba1a4a8c6bd2beb62f5127c7da1867132c47bf6cd422f",
+      "src/flashsale/workload/generator.py": "92bf0c61f355c11aed07c2e9cce4420277716c4eed7a5313742c7b87f5cec179",
+      "src/flashsale/workload/retry.py": "76d19d130d9c26df52721ca70832ec5a9f082d1d92674b809a5963503a97b9ef"
+    },
+    "run_note": null,
+    "db_tcp_rtt_ms": {
+      "median": 0.14022800041857408,
+      "min": 0.1105069995901431,
+      "max": 1.1122120004074532,
+      "samples": 10
+    }
+  },
+  "dbms": {
+    "version": "8.4.8",
+    "isolation": "REPEATABLE-READ",
+    "max_connections": 400,
+    "foreign_key_checks": 1,
+    "buffer_pool_bytes": 134217728,
+    "flush_at_commit": 1,
+    "sync_binlog": 1,
+    "log_bin": 1,
+    "lock_wait_timeout": 50,
+    "storage_engine": "InnoDB"
+  },
+  "containers": {
+    "mysql": {
+      "id": null,
+      "image": null,
+      "image_id": null,
+      "repo_digests": null,
+      "remote": true,
+      "host": "10.20.1.32",
+      "cpus": 12.0,
+      "memory_bytes": 25769803776
+    }
+  },
+  "access_paths": {
+    "indexed": true,
+    "plans": {
+      "district": [
+        {
+          "id": 1,
+          "select_type": "SIMPLE",
+          "table": "district",
+          "partitions": null,
+          "type": "const",
+          "possible_keys": "PRIMARY",
+          "key": "PRIMARY",
+          "key_len": "8",
+          "ref": "const,const",
+          "rows": 1,
+          "filtered": 100.0,
+          "Extra": null
+        }
+      ],
+      "stock": [
+        {
+          "id": 1,
+          "select_type": "SIMPLE",
+          "table": "stock",
+          "partitions": null,
+          "type": "const",
+          "possible_keys": "PRIMARY",
+          "key": "PRIMARY",
+          "key_len": "8",
+          "ref": "const,const",
+          "rows": 1,
+          "filtered": 100.0,
+          "Extra": null
+        }
+      ],
+      "customer": [
+        {
+          "id": 1,
+          "select_type": "SIMPLE",
+          "table": "customer",
+          "partitions": null,
+          "type": "const",
+          "possible_keys": "PRIMARY,ix_c_w_id_c_d_id_c_last_c_first",
+          "key": "PRIMARY",
+          "key_len": "12",
+          "ref": "const,const,const",
+          "rows": 1,
+          "filtered": 100.0,
+          "Extra": null
+        }
+      ],
+      "orders": [
+        {
+          "id": 1,
+          "select_type": "SIMPLE",
+          "table": null,
+          "partitions": null,
+          "type": null,
+          "possible_keys": null,
+          "key": null,
+          "key_len": null,
+          "ref": null,
+          "rows": null,
+          "filtered": null,
+          "Extra": "no matching row in const table"
+        }
+      ],
+      "history": [
+        {
+          "id": 1,
+          "select_type": "SIMPLE",
+          "table": null,
+          "partitions": null,
+          "type": null,
+          "possible_keys": null,
+          "key": null,
+          "key_len": null,
+          "ref": null,
+          "rows": null,
+          "filtered": null,
+          "Extra": "no matching row in const table"
+        }
+      ],
+      "orders_range": [
+        {
+          "id": 1,
+          "select_type": "SIMPLE",
+          "table": "orders",
+          "partitions": null,
+          "type": "range",
+          "possible_keys": "uq_request_id",
+          "key": "uq_request_id",
+          "key_len": "259",
+          "ref": null,
+          "rows": 1,
+          "filtered": 100.0,
+          "Extra": "Using index condition"
+        }
+      ],
+      "history_range": [
+        {
+          "id": 1,
+          "select_type": "SIMPLE",
+          "table": "history",
+          "partitions": null,
+          "type": "range",
+          "possible_keys": "uq_request_id",
+          "key": "uq_request_id",
+          "key_len": "259",
+          "ref": null,
+          "rows": 1,
+          "filtered": 100.0,
+          "Extra": "Using index condition"
+        }
+      ]
+    }
+  },
+  "hot_item_id": 48748
+}
