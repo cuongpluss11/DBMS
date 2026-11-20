@@ -7,6 +7,7 @@
 # Biến môi trường:
 #   FLASHSALE_BIN          lệnh flashsale (mặc định: flashsale)
 #   FLASHSALE_IOSTAT_SSH   user@host của VM DBMS; nếu đặt, ghi iostat/vmstat của VM đó trong lúc đo
+#   MATRIX_START_POINT     số điểm bắt đầu (bỏ qua các điểm trước, dùng khi chạy lại sau lỗi)
 #   MATRIX_LOG_DIR         thư mục log (mặc định: results/matrix-<engine>-<giờ>)
 # MySQL-chỉnh (baseline-tuned) cần khởi động lại MySQL với buffer pool lớn hơn: chạy riêng, xem README.
 set -euo pipefail
@@ -61,9 +62,21 @@ point() {
     local dataset="$1" label="$2" config="$3"
     shift 3
     POINT_NO=$((POINT_NO + 1))
+    if ((POINT_NO < ${MATRIX_START_POINT:-1})); then
+        say "Bỏ qua điểm $POINT_NO ($label): MATRIX_START_POINT=${MATRIX_START_POINT}"
+        return
+    fi
     local out="$LOG/point-$(printf '%02d' "$POINT_NO")-$label"
     mkdir -p "$out"
     say "Điểm $POINT_NO: $label ($config $*)"
+    # Sau mỗi điểm dataset ở trạng thái "dirty"; khôi phục trước khi chạy điểm kế (xác nhận bằng tên dataset).
+    local reset_status=0
+    run_cmd "$FS" reset "$ENGINE" --config "$config" --dataset "$dataset" --confirm "$dataset" \
+        >"$out/reset.json" 2>"$out/reset.err" || reset_status=$?
+    if ((reset_status)); then
+        say "LỖI reset ở điểm $POINT_NO ($label), mã $reset_status. Xem $out/reset.err"
+        exit "$reset_status"
+    fi
     local iostat_pid=""
     if [[ -n "${FLASHSALE_IOSTAT_SSH:-}" ]] && ((!DRY)); then
         # Stream iostat/vmstat từ VM DBMS về file cục bộ; dừng khi điểm đo kết thúc.
