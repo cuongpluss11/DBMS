@@ -21,7 +21,9 @@ RESULTS = ROOT / "results"
 
 @contextmanager
 def connect(target: Endpoint, *, admin: bool = False):
-    db = open_adapter(target, admin=admin)
+    # Đối soát, nạp và reset dữ liệu có thể chạy hàng chục giây trên dataset lớn (vd. aggregation MongoDB sau lượt
+    # 2.000 TPS); timeout 15 giây của client đo gây NetworkTimeout giả. Client đo dùng timeout riêng ở runner.
+    db = open_adapter(target, admin=admin, timeout=float(setting("FLASHSALE_ADMIN_TIMEOUT_SECONDS", "900")))
     try:
         yield db
     finally:
