@@ -9,6 +9,8 @@ from pathlib import Path
 import statistics
 from typing import Any
 
+from .metrics import warmup_stability
+
 INDEX_COLUMNS = [
     "run_id", "engine", "version", "profile", "label", "repetition", "concurrency", "warehouse_mode", "theta",
     "hot_item", "inventory_mode", "payment_ytd", "idempotency", "client_timeout_seconds", "tps", "p50_ms",
@@ -28,7 +30,8 @@ def collect(results_dir: Path) -> list[dict[str, Any]]:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         result = json.loads(result_path.read_text(encoding="utf-8"))
         measurement = result["measurement"]
-        stability = result.get("warmup_stability") or {}
+        series = result.get("tps_series")
+        stability = (warmup_stability(**series) if series else result.get("warmup_stability")) or {}
         rows.append({
             "run_id": result["run_id"], "engine": result["engine"], "version": result["version"],
             "profile": Path(manifest.get("config_path", "")).stem or None, "label": result["label"],
