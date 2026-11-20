@@ -3,9 +3,9 @@
 # c6i.4xlarge (16 vCPU/32 GiB) bi gioi han con tong vCPU/RAM cua cum 3 TiKV (12 vCPU/24 GiB).
 services:
   mysql:
-    cpus: 12
+    cpus: ${FLASHSALE_AWS_CPUS:-12}
     cpuset: "${FLASHSALE_AWS_CPUSET:-0-11}"
     mem_limit: ${FLASHSALE_AWS_MEM:-24g}
     # Mo cong cho may tai qua mang noi bo (security group chi cho phep trong VPC).
-    ports:
+    ports: !override
       - "0.0.0.0:${FLASHSALE_MYSQL_PORT:-13306}:3306"

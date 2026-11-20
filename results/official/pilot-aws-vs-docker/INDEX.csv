@@ -1,0 +1,4 @@
+run_id,engine,version,profile,label,repetition,concurrency,warehouse_mode,theta,hot_item,inventory_mode,payment_ytd,idempotency,client_timeout_seconds,tps,p50_ms,p95_ms,p99_ms,abort_pct,out_of_stock_pct,retry_pct,validation,git_commit,warmup_drift_pct,loadgen_cpu_pct,environment_mode
+1f54c6fc465c4bfea15d9dff8da5f96f,mysql,8.4.8,baseline,baseline,2,8,uniform,0,False,performance,False,True,15.0,245.85,22.5,104.48,148.18,0.0,0.0,0.0,VALID,,-3.58,72.2,remote
+811e9f55f6e4434ab181e91fae6bb9b5,mysql,8.4.8,baseline,baseline,1,8,uniform,0,False,performance,False,True,15.0,251.07,22.28,101.31,150.41,0.0,0.0,0.0,VALID,,-7.14,75.96,remote
+f87d785fdd054a3ca42ff6e12e8ec935,mysql,8.4.8,baseline,baseline,3,8,uniform,0,False,performance,False,True,15.0,247.13,22.35,102.87,149.39,0.0,0.0,0.0,VALID,,-3.16,72.19,remote
