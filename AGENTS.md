@@ -29,6 +29,7 @@ Bạn là kỹ sư Python, hệ quản trị cơ sở dữ liệu (DBMS) và đ�
 ## 4. Nền tảng và quản lý phiên bản
 
 - Môi trường mục tiêu: máy ảo Ubuntu 24.04 LTS x86_64; Python 3.12, `venv`, Docker Engine và Docker Compose V2.
+- **Hai tầng môi trường (theo `bao_cao_DBMS_ban_chot.docx`, mục 2.1):** (1) **Số đo chính thức** lấy trên **AWS, mỗi thành phần một VM riêng** (MySQL, MongoDB, PD, TiDB, từng TiKV), cùng một region/AZ, instance hiệu năng cố định (không burstable), EBS gp3 IOPS/throughput cố định; một **VM riêng chạy script tải**, không dùng chung với DBMS. Dựng hạ tầng bằng Terraform hoặc AWS CLI, TiDB bằng TiUP (file topology lưu trong repo), dữ liệu nạp xong lưu snapshot EBS (đọc hết volume hoặc dùng Fast Snapshot Restore trước khi đo). Giám sát bằng Grafana của TiDB cùng `iostat`/node_exporter/CloudWatch trên từng VM. (2) **Docker Compose chỉ để phát triển và chạy thử** trên máy cá nhân hoặc một VM; số đo từ Docker một VM ghi nhãn **sơ bộ**, không đưa vào so sánh chính thức. Cho đến khi hạ tầng AWS được dựng và nghiệm thu, mọi kết quả hiện có đều là sơ bộ. Script tải: tài liệu ghi "Python hoặc Go" ở phần workload nhưng "Go" ở phần hạ tầng; **người dùng đã quyết định giữ Python (2026-11-20)**; ghi khác biệt này vào `docs/assumptions.md` khi báo cáo, và phải chứng minh load generator không là nút thắt (CPU máy tải dưới ~80%).
 - DBMS theo tài liệu đề xuất: **MySQL 8.4 LTS**, **MongoDB Community 8.0.x**, **TiDB/PD/TiKV cùng nhánh 8.5.x LTS**.
 - `requirements.txt` **chỉ quản lý thư viện Python**, không thay thế việc cài DBMS. Dùng Docker Compose để triển khai DBMS, dùng script shell cho thiết lập máy ảo và kiểm tra sẵn sàng.
 - Pin chính xác các bản vá Python dependency và image Docker sau khi xác minh image/tag thực sự tồn tại, tương thích kiến trúc và có thể chạy. Không sử dụng `latest` trong kết quả chuẩn.
@@ -80,10 +81,14 @@ Thiết kế CLI tối thiểu cho setup, doctor/status, start/stop, load, reset
 ## 8. Quy trình thí nghiệm và tính công bằng
 
 - Chỉ chạy **một DBMS tại một thời điểm**.
+- **Hai cấu hình MySQL:** "MySQL-mặc-định" (buffer pool mặc định, nhãn `baseline`) là mốc theo đề; "MySQL-chỉnh" (`baseline-tuned`, buffer pool tương đương cache TiKV/MongoDB, giữ nguyên độ bền) chạy thêm ở cùng điểm baseline. So sánh giữa các hệ ở 2.2–2.5 dùng MySQL-chỉnh.
+- **Độ bền ngang nhau, không hạ để tăng TPS:** MySQL `innodb_flush_log_at_trx_commit=1` + `sync_binlog=1`; MongoDB writeConcern `{w:"majority", j:true}`; TiKV giữ đồng bộ log Raft mặc định. Đặt tường minh `wiredTigerCacheSizeGB` và block cache TiKV, ghi vào manifest. Hạ độ bền chỉ ở lượt riêng có nhãn.
+- **Kiểm warmup:** vẽ TPS theo từng giây (`tps_per_second.csv`, `warmup_stability`) ở vài cấu hình đại diện; nếu chưa ổn định thì kéo dài warmup cho mọi hệ.
 - Mỗi điểm đo chạy **3 lần độc lập**, gồm **30 giây warmup + 60 giây measurement**. Không tính warmup vào TPS/p95/p99 của lượt đo.
 - **Baseline:** MySQL InnoDB cấu hình mặc định, θ = 0, chọn kho uniform; có thêm một điểm θ = 0 với single-warehouse; một điểm 1 client được dùng cho phân tích khi cần. Các điểm/lượt phụ của tài liệu có profile riêng: `baseline-single-warehouse`, `baseline-1client`, `payment-ytd` (Payment bật `w_ytd`/`d_ytd`), `idempotency-off`.
 - Reset hoặc khôi phục dataset đúng trạng thái quy định trước mỗi lần đo; không để lượt sau kế thừa tồn kho đã bị tiêu thụ hoặc lịch sử của lượt trước.
 - Mọi cấu hình so sánh phải ghi seed, client, θ, cách chọn kho, loại workload, tài nguyên VM/container, bản DBMS, giới hạn CPU/RAM, thời lượng và trạng thái dữ liệu.
+- Trên AWS (số đo chính thức): tổng vCPU/RAM của cụm TiDB (PD + TiDB + TiKV), của MySQL và của MongoDB bằng nhau, không tính VM script tải; ghi bảng loại instance vào báo cáo. Phần dưới đây áp dụng cho tầng Docker phát triển/sơ bộ.
 - Ở mục 2.1 và các lượt thông thường: mỗi hệ Docker Compose có **cùng tổng ngân sách CPU/RAM**; trường hợp 2.3 có ngoại lệ riêng theo đề. Giá trị hiện tại là hằng `BUDGET_CPUS`/`BUDGET_MEMORY_BYTES` trong `infra.py` (8 CPU / 16 GiB; lý do ở `docs/assumptions.md`: mỗi TiKV dùng ~1,85 GiB khi rảnh nên 6 GiB gây OOM). Đổi ngân sách phải đổi đồng thời cả ba file compose.
 - TiDB cấu hình mục 2.1: **1 PD + 1 TiDB server + 3 TiKV**, replica count **1** cho lượt chính; replica count **3** chỉ dành cho nhóm đo Raft riêng sau này. Không suy diễn rằng 3 container trên cùng VM tương đương cluster 3 máy vật lý.
 - Trước benchmark chính, dùng EXPLAIN hoặc công cụ tương đương xác minh truy vấn chính đi đúng chỉ mục; nếu không hỗ trợ cần ghi rõ.
@@ -174,6 +179,8 @@ Chỉ ghi nhận **DONE** khi:
 - Tự động kiểm tra ba luật sau mỗi lượt chạy.
 - Test trên các DBMS thật PASS; mọi mục chưa thử đều được ghi NOT TESTED.
 - Đã chạy các lượt phụ của tài liệu: baseline một kho và 1 client, `payment-ytd`, `idempotency-off`; có bằng chứng ở các mức θ và số client mà tài liệu liệt kê (hoặc ghi rõ NOT TESTED); kết quả chính thức nằm ở `results/official/` kèm `docs/acceptance-2.1.md`.
+
+- Số đo chính thức lấy trên hạ tầng AWS nhiều VM theo mục 4, có MySQL-mặc-định và MySQL-chỉnh, độ bền ngang nhau và kiểm warmup. Chỉ chạy Docker một VM thì tối đa **PARTIAL** (số đo sơ bộ).
 
 Nếu mới sinh mã nguồn hoặc chỉ chạy mock, báo cáo **PARTIAL**, tuyệt đối không tuyên bố mục 2.1 đã hoàn tất.
 

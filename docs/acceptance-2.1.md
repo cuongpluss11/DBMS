@@ -2,7 +2,10 @@
 
 Ngày chạy: 2026-11-19 và 2026-11-20. Môi trường: AWS EC2 `c6i.4xlarge` (16 vCPU, 32 GiB, đĩa gp3 100 GiB), Ubuntu 24.04 LTS x86_64, Docker 29.10.0, Compose 5.8.0, Python 3.12.3. Mỗi hệ chạy riêng một thời điểm với ngân sách container chung **8 CPU / 16 GiB** ([assumptions.md](assumptions.md)). Dữ liệu thô nằm ở [results/official/2.1/](../results/official/2.1/) (xem `INDEX.csv`, 51 lượt). Các lượt chạy ngày 2026-11-19 dùng Git commit `38dda58` (`main`); các lượt bổ sung ngày 2026-11-20 (profile `performance-theta*`, `performance-hot-item`, `baseline-concurrency`, idempotency-off trên MongoDB/TiDB, `validate-cli-output.json`) dùng commit `3a5aded` của nhánh `complete-2.1`, đã gồm phép kiểm chéo của tài liệu. Không có thay đổi chưa commit ở cả hai.
 
-## Kết luận: DONE theo tiêu chí AGENTS.md mục 14 và các lượt phụ của tài liệu
+## Cập nhật theo bản chốt `bao_cao_DBMS_ban_chot.docx` (2026-11-20): PARTIAL
+Các lượt bên dưới được chạy **trước** khi có bản chốt và chỉ là số đo **sơ bộ trên Docker**. Bản chốt thêm yêu cầu mà chưa được kiểm chứng trên DBMS thật: (1) MySQL-chỉnh (`configs/baseline-tuned.toml`) ở điểm baseline; (2) độ bền ngang nhau (`sync_binlog=1`, MongoDB `j:true`) và cache MongoDB đặt tường minh, nên các lượt MongoDB cũ cần chạy lại; (3) kiểm warmup bằng TPS theo giây; (4) baseline 1 client và baseline uniform trên mỗi hệ; (5) 3 lần lặp cho lưới θ × client; (6) hạ tầng AWS nhiều VM, script tải riêng, `iostat`, EBS snapshot. Mã và test đơn vị cho (1)–(3) đã có; (4)–(6) chưa làm. Chi tiết ở [assumptions.md](assumptions.md).
+
+## Kết luận (theo AGENTS.md trước bản chốt): DONE
 
 | Tiêu chí | Trạng thái | Bằng chứng |
 | --- | --- | --- |
