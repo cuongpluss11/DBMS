@@ -8,7 +8,7 @@ Theo bản chốt `bao_cao_DBMS_ban_chot.docx`: mỗi thành phần một VM ri�
 
 | `stack` | VM (mỗi cái một máy) | vCPU DBMS (không tính tải/monitor) |
 | --- | --- | --- |
-| `none` | `loadgen` (c6i.xlarge) | 0 |
+| `none` | `loadgen` (c6i.2xlarge) | 0 |
 | `mysql` | `loadgen` + `mysql` (c6i.4xlarge, giới hạn còn 12 vCPU/24 GiB bằng cpuset và mem_limit) | 12 |
 | `mongo` | `loadgen` + `mongo` (như `mysql`) | 12 |
 | `tidb3` | `loadgen`, `pd` (c6i.large), `tidb` (c6i.xlarge), 3 × `tikv` (c6i.large), `monitor` (c6i.large) | 2 + 4 + 6 = 12 |
@@ -20,7 +20,7 @@ Mặc định: một VPC, một subnet ở một AZ, cluster placement group, se
 
 **Giới hạn EBS của instance (đã kiểm tra bằng `aws ec2 describe-instance-types`):** `c6i.large` 3.600 IOPS cơ bản (650 Mbps), `c6i.xlarge` 6.000, `c6i.2xlarge` 12.000, `c6i.4xlarge` 20.000. Mức tối đa 40.000 IOPS chỉ là đợt burst ngắn (tín chỉ cỡ 30 phút mỗi ngày). TiKV trên `c6i.large` không giữ được quá ~3.600 IOPS, nên đặt ổ 10.000 IOPS cho cụm TiDB chỉ có tác dụng trong đợt burst rồi bị giảm, làm số đo không lặp lại được. Vì vậy mặc định giữ **3.000 IOPS / 125 MB/s cho mọi ổ ở mọi hệ**. Mức 10.000 IOPS chỉ dùng cho thí nghiệm riêng "độ nhạy của đĩa" trên một hệ (MySQL trên `c6i.2xlarge` trở lên), ghi rõ là thí nghiệm riêng và không so chéo giữa các hệ. Manifest ghi `db_tcp_rtt_ms` (RTT TCP tới DBMS) khi chạy remote.
 
-**Cỡ máy tải.** Thí nghiệm độ nhạy đĩa (`docs/pilot-disk-sensitivity.md`) cho thấy `c6i.xlarge` (4 vCPU) bão hòa ở 64 client khi DBMS không còn bị đĩa chặn (CPU máy tải 98–99%, runner cảnh báo `loadgen_cpu_*`). Với 64–256 client hãy đặt `loadgen_instance_type` lớn hơn (ví dụ `c6i.4xlarge`) và kiểm `loadgen_cpu_pct`. Terraform ghim AMI (`ignore_changes`) để `plan` sau này không thay thế VM đang đo.
+**Cỡ máy tải.** Thí nghiệm độ nhạy đĩa (`docs/pilot-disk-sensitivity.md`) cho thấy `c6i.xlarge` (4 vCPU) bão hòa ở 64 client khi DBMS không còn bị đĩa chặn (CPU máy tải 98–99%, runner cảnh báo `loadgen_cpu_*`). **Quyết định:** mặc định `c6i.2xlarge` (8 vCPU; ở 3000 IOPS máy tải cần ~1,9 vCPU cho mỗi 1.000 TPS, nên đủ ~4.000 TPS), đặt `FLASHSALE_LOADGEN_CPUS=8`; nếu vẫn có cảnh báo `loadgen_cpu_*` thì dùng `c6i.4xlarge`. Luôn kiểm `loadgen_cpu_pct`. Terraform ghim AMI (`ignore_changes`) để `plan` sau này không thay thế VM đang đo.
 
 **Điểm tương đương tài nguyên.** MySQL/MongoDB không có instance c6i đúng 12 vCPU, nên dùng c6i.4xlarge và giới hạn bằng cpuset `0-11` và 24 GiB. Đây là cách tài liệu cho phép, phải ghi vào báo cáo. VM monitor của TiDB và VM tải không tính vào ngân sách.
 
@@ -77,7 +77,7 @@ git clone <repo> && cd DBMS
 python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt && pip install -e .
 export FLASHSALE_DB_HOST=<IP nội bộ VM DBMS, hoặc IP TiDB server>
 export FLASHSALE_REMOTE_NODES='<đầu ra terraform: flashsale_remote_nodes>'   # host, vCPU, RAM từng VM DBMS
-export FLASHSALE_LOADGEN_CPUS=4          # để cảnh báo khi máy tải vượt 80% CPU
+export FLASHSALE_LOADGEN_CPUS=8          # để cảnh báo khi máy tải vượt 80% CPU
 # TiDB: export FLASHSALE_PD_PORT=2379 FLASHSALE_TIDB_PORT=4000 FLASHSALE_TIKV_COUNT=3 (hoặc 1)
 # MySQL/MongoDB: cổng theo compose override (FLASHSALE_MYSQL_PORT/FLASHSALE_MONGO_PORT, mặc định 13306/27018)
 flashsale load mysql --config configs/baseline.toml

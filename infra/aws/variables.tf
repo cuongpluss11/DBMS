@@ -51,9 +51,11 @@ variable "pd_instance_type" {
   default = "c6i.large"
 }
 
+# May tai Python: o 3000 IOPS can ~1,9 vCPU cho moi 1.000 TPS (do o 64 client); c6i.2xlarge (8 vCPU) du cho ~4.000 TPS,
+# gap doi muc da do. Neu runner canh bao loadgen_cpu_*pct_of_limit thi dung c6i.4xlarge. Dat FLASHSALE_LOADGEN_CPUS bang so vCPU.
 variable "loadgen_instance_type" {
   type    = string
-  default = "c6i.xlarge"
+  default = "c6i.2xlarge"
 }
 
 variable "monitor_instance_type" {
