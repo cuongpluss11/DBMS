@@ -31,7 +31,8 @@ LOG="${MATRIX_LOG_DIR:-results/matrix-$ENGINE-$(date -u +%Y%m%dT%H%M%SZ)}"
 mkdir -p "$LOG"
 POINT_NO=0
 
-say() { printf '%s %s\n' "$(date -u +%H:%M:%S)" "$*" | tee -a "$LOG/matrix.log"; }
+# say ghi ra stderr: load_dataset chạy trong $(...), nên stdout của nó chỉ được chứa tên dataset.
+say() { printf '%s %s\n' "$(date -u +%H:%M:%S)" "$*" | tee -a "$LOG/matrix.log" >&2; }
 
 run_cmd() {
     if ((DRY)); then
@@ -83,7 +84,7 @@ point() {
 say "Bắt đầu ma trận 2.1: engine=$ENGINE grid=$GRID dry=$DRY log=$LOG"
 
 # --- Dataset chính (tồn 10^9), dùng chung cho baseline, cross-engine, payment-ytd, lưới θ/client ---
-MAIN="$(load_dataset configs/baseline.toml)"
+MAIN="${MATRIX_MAIN_DATASET:-$(load_dataset configs/baseline.toml)}"
 
 if [[ "$ENGINE" == mysql ]]; then
     point "$MAIN" baseline-mysql-default configs/baseline.toml
@@ -115,11 +116,11 @@ else
 fi
 
 # --- Lượt kiểm luật: tồn đầu 1.000, dataset riêng ---
-CORRECT="$(load_dataset configs/correctness.toml)"
+CORRECT="${MATRIX_CORRECTNESS_DATASET:-$(load_dataset configs/correctness.toml)}"
 point "$CORRECT" correctness configs/correctness.toml
 
 # --- Lượt phụ tắt mã chống trùng: lược đồ không UNIQUE, dataset riêng; INVALID luật 3 là KẾT QUẢ DỰ KIẾN ---
-IDEM="$(load_dataset configs/idempotency-off.toml)"
+IDEM="${MATRIX_IDEMPOTENCY_DATASET:-$(load_dataset configs/idempotency-off.toml)}"
 POINT_NO=$((POINT_NO + 1))
 say "Điểm $POINT_NO: idempotency-off (INVALID luật 3 là kết quả dự kiến, không xếp hạng)"
 mkdir -p "$LOG/point-$(printf '%02d' "$POINT_NO")-idempotency-off"
