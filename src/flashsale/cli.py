@@ -13,7 +13,7 @@ from flashsale.benchmark.runner import run_one
 from flashsale.config import Settings, read_settings
 from flashsale.data.loader import fingerprint, load, reset
 from flashsale.infra import (BUDGET_CPUS, BUDGET_MEMORY_BYTES, ENGINES, ROOT, active_engines, container_limits, endpoint, enforce_one,
-                            host_info, pd_status, project_lock, ready, remote_nodes, source_hashes, start, stop, tcp_rtt_ms)
+                            host_info, pd_status, project_lock, ready, remote_nodes, source_hashes, setting, start, stop, tcp_rtt_ms)
 from flashsale.validation.checks import validate
 
 RESULTS = ROOT / "results"
@@ -106,6 +106,8 @@ def run(target: Endpoint, cfg: Settings, config_path: Path, *, reset_between: bo
     state = dataset_state(target, cfg)
     environment = host_info()
     environment["source_sha256"] = source_hashes()
+    # Ghi chú tự do của người vận hành cho lượt chạy (ví dụ "ebs_iops=10000"), để tách nhóm khi tổng hợp.
+    environment["run_note"] = setting("FLASHSALE_RUN_NOTE")
     # RTT mạng tới DBMS khi DBMS ở máy khác (AWS); null khi chạy cục bộ.
     environment["db_tcp_rtt_ms"] = None if target.host in ("127.0.0.1", "localhost") else tcp_rtt_ms(target.host, target.port)
     if target.engine == "tidb":

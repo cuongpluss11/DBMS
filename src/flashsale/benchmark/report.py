@@ -13,8 +13,9 @@ INDEX_COLUMNS = [
     "run_id", "engine", "version", "profile", "label", "repetition", "concurrency", "warehouse_mode", "theta",
     "hot_item", "inventory_mode", "payment_ytd", "idempotency", "client_timeout_seconds", "tps", "p50_ms",
     "p95_ms", "p99_ms", "abort_pct", "out_of_stock_pct", "retry_pct", "validation", "git_commit",
-    "warmup_drift_pct", "loadgen_cpu_pct", "environment_mode"]
-GROUP_KEYS = ("engine", "profile", "concurrency", "warehouse_mode", "theta", "hot_item", "payment_ytd", "idempotency")
+    "warmup_drift_pct", "loadgen_cpu_pct", "environment_mode", "run_note"]
+GROUP_KEYS = ("engine", "profile", "concurrency", "warehouse_mode", "theta", "hot_item", "payment_ytd", "idempotency",
+              "run_note")
 WARMUP_DRIFT_LIMIT_PCT = 10.0
 
 
@@ -44,6 +45,7 @@ def collect(results_dir: Path) -> list[dict[str, Any]]:
             "git_commit": manifest.get("environment", {}).get("git_commit"),
             "warmup_drift_pct": stability.get("drift_pct"), "loadgen_cpu_pct": result.get("loadgen_cpu_pct"),
             "environment_mode": manifest.get("environment", {}).get("mode", "docker"),
+            "run_note": manifest.get("environment", {}).get("run_note"),
         })
     return rows
 
@@ -85,12 +87,12 @@ def markdown(summary: list[dict[str, Any]], warmup: list[dict[str, Any]]) -> str
     lines = ["# Tổng hợp kết quả", "",
              "Trung vị, min–max của TPS thành công và trung vị p99 trên các lần lặp cùng cấu hình. "
              "`valid` là số lượt VALID trên tổng số lượt; lượt INVALID không được xếp hạng.", "",
-             "| engine | profile | client | kho | θ | hot | ytd | idem | lượt | valid | TPS median (min–max) | p99 median ms |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+             "| engine | profile | client | kho | θ | hot | ytd | idem | ghi chú | lượt | valid | TPS median (min–max) | p99 median ms |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for item in summary:
         lines.append(
             f"| {item['engine']} | {item['profile']} | {item['concurrency']} | {item['warehouse_mode']} | "
-            f"{item['theta']} | {item['hot_item']} | {item['payment_ytd']} | {item['idempotency']} | {item['runs']} | "
+            f"{item['theta']} | {item['hot_item']} | {item['payment_ytd']} | {item['idempotency']} | {item['run_note'] or ''} | {item['runs']} | "
             f"{item['valid']}/{item['runs']} | {_fmt(item['tps_median'])} ({_fmt(item['tps_min'])}–{_fmt(item['tps_max'])}) | "
             f"{_fmt(item['p99_median_ms'])} |")
     checked = [row for row in warmup if row["status"] != "no_series"]
