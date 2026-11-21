@@ -98,7 +98,7 @@ Cập nhật bảng mỗi ngày: `Chưa làm / Đang làm / Đã đo / Cắt`, g
 | 2.2 | T4 (5 đòn bẩy) | Lực | Chưa làm | |
 | 2.3 | Script đặt Region/leader, đơn nhiều kho, `AUTO_RANDOM` | Lực | Chưa làm | |
 | 2.3 | Nhóm A, B, C, D, E.a (1 và 3 TiKV) | Lực | Chưa làm | slot `tidb3` Ngày 6–10 |
-| 2.4 | Thiết kế (lược đồ đích, ba cách chuyển, kiểm tra đúng đắn) | Cường | Chưa làm | gửi nhóm xem trước khi code nhiều |
+| 2.4 | Thiết kế (lược đồ đích, ba cách chuyển, kiểm tra đúng đắn) | Cường | Đang làm | gửi nhóm xem trước khi code nhiều |
 | 2.4 | Giao dịch "Xem đơn cũ" | Cường | Chưa làm | mặc định tắt |
 | 2.4 | Eager, Batch nền, Lazy trên MySQL rồi MongoDB; kiểm tra đúng đắn | Cường | Chưa làm | |
 | 2.4 | Đo chính thức (q = 5% và 50%) | Cường | Chưa làm | slot `mysql` Ngày 10, `mongo` Ngày 11 |
