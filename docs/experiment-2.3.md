@@ -13,9 +13,13 @@ Chưa có số đo nào của mục 2.3 trong repo. Đối chiếu với `Btl_fi
 | C | B + chia món nóng N = 3, 9, 27 slot | `--variant p2 --slots N` (slot được tách Region theo từng slot và rải leader) |
 | D | khóa `orders` tự tăng so với `AUTO_RANDOM` (dataset riêng) | `configs/scaling-autoinc.toml`, `configs/scaling-autorandom.toml` (`orders_key`) |
 | E.a | θ=0, đơn 1 / 2 / 3–4 kho × vị trí leader {PD, tách, chung theo nhóm} | `--order-warehouses-min/max`, `--warehouse-groups 3`, `--placement none|spread|group --placement-scope all` |
-| MySQL mốc | A, B, C trên MySQL-chỉnh hai cỡ máy (8 vCPU/20 GiB và 12 vCPU/36 GiB) | xem đầu `run-matrix-2.3.sh` (`m6i.4xlarge`, `FLASHSALE_REMOTE_BUDGET_*`) |
+| MySQL mốc | A, B, C trên MySQL-chỉnh hai cỡ máy (20 vCPU/44 GiB và 24 vCPU/60 GiB, cùng tổng với cụm 1 và 3 TiKV khi TiDB server là c6i.4xlarge) | xem đầu `run-matrix-2.3.sh` (`m6i.8xlarge`, `FLASHSALE_REMOTE_BUDGET_*`) |
 
 Mọi điểm đều chạy ba luật tồn kho và đối soát của đề; đơn nhiều kho đối soát theo `ol_supply_w_id`.
+
+## Cấu hình hạ tầng đo chính thức của 2.3 (đã chốt 2026-11-21)
+
+TiDB server **c6i.4xlarge** (16 vCPU/32 GiB) dùng chung cho cụm 1 và 3 TiKV (smoke cho thấy 4 vCPU nghẽn ở tầng SQL), PD c6i.large, TiKV m6i.large (nếu AWS hết capacity m6i.large ở us-east-1c thì dùng loại khác nhưng **cùng loại ở cả hai cụm** và ghi vào báo cáo), máy tải c6i.4xlarge (`FLASHSALE_LOADGEN_CPUS=16`). Tổng cụm TiDB: 20 vCPU/44 GiB (1 TiKV) và 24 vCPU/60 GiB (3 TiKV); `FLASHSALE_REMOTE_BUDGET_*` đặt theo đúng tổng đó. Quota vCPU 64 đủ: `tidb3` dùng 16 + 2 + 16 + 6 + 2 = 42; MySQL (`m6i.8xlarge` 32) + máy tải 16 = 48.
 
 ## Đơn nhiều kho (nhóm E)
 
@@ -31,7 +35,7 @@ Chỉ TiDB. Trước warmup của mỗi lượt (ngoài thời gian đo): chia `
 
 ## Hệ số tăng tốc
 
-`flashsale report` có thêm mục "Hệ số tăng tốc": TPS trung vị của cụm 3 TiKV chia cho 1 TiKV (TiDB), hoặc 12 vCPU chia cho 8 vCPU (MySQL), ghép theo từng nhóm giống hệt nhau về mọi tham số khác; chỉ tính khi hai phía có lượt VALID. `INDEX.csv` có thêm `tikv_count`, `vcpus`, `orders_key`, `placement`, `placement_scope`, `order_warehouses`, `warehouse_groups`.
+`flashsale report` có thêm mục "Hệ số tăng tốc": TPS trung vị của cụm 3 TiKV chia cho 1 TiKV (TiDB), hoặc cỡ vCPU lớn chia cho cỡ nhỏ (MySQL, 24 ÷ 20), ghép theo từng nhóm giống hệt nhau về mọi tham số khác; chỉ tính khi hai phía có lượt VALID. `INDEX.csv` có thêm `tikv_count`, `vcpus`, `orders_key`, `placement`, `placement_scope`, `order_warehouses`, `warehouse_groups`.
 
 ## Đã kiểm thử / chưa kiểm thử
 

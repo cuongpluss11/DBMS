@@ -12,12 +12,14 @@
 # không đụng tới hạ tầng AWS. Ở TiDB mỗi lượt tự tách Region/đặt leader, tạm dừng bộ cân bằng của PD trong lúc đo và
 # khôi phục sau đó; nếu PD không làm đúng thì điểm bị INVALID (placement_failed) và script dừng.
 #
-# MySQL-chỉnh hai cỡ máy (mốc mở rộng dọc, đề 2.3): cùng tổng vCPU/RAM với cụm 1 TiKV (PD 2 + TiDB 4 + TiKV 2 = 8 vCPU,
-# 4 + 8 + 8 = 20 GiB) và cụm 3 TiKV (12 vCPU, 36 GiB). c6i.4xlarge chỉ có 32 GiB nên dùng single_node_instance_type =
-# "m6i.4xlarge" (16 vCPU / 64 GiB), single_node_cpus/mem_gb = 8/20 rồi 12/36 trong terraform.tfvars, và trên VM loadgen:
-#   FLASHSALE_REMOTE_BUDGET_CPUS=8  FLASHSALE_REMOTE_BUDGET_MEMORY_BYTES=21474836480    (cỡ nhỏ)
-#   FLASHSALE_REMOTE_BUDGET_CPUS=12 FLASHSALE_REMOTE_BUDGET_MEMORY_BYTES=38654705664    (cỡ lớn)
-# kèm FLASHSALE_MYSQL_BUFFER_POOL_BYTES tương ứng RAM và FLASHSALE_RUN_NOTE=mysql-8vcpu / mysql-12vcpu.
+# MySQL-chỉnh hai cỡ máy (mốc mở rộng dọc, đề 2.3): cùng tổng vCPU/RAM với cụm 1 TiKV và cụm 3 TiKV (PD + TiDB + TiKV,
+# không tính máy tải). TiDB server dùng c6i.4xlarge (16 vCPU/32 GiB, quyết định 2026-11-21 vì 4 vCPU bị nghẽn ở tầng SQL),
+# PD c6i.large (2/4 GiB), TiKV m6i.large (2/8 GiB): cụm 1 TiKV = 20 vCPU/44 GiB, cụm 3 TiKV = 24 vCPU/60 GiB. Không có c6i
+# đủ RAM nên MySQL dùng single_node_instance_type = "m6i.8xlarge" (32 vCPU/128 GiB), giới hạn bằng cpuset và mem_limit:
+# single_node_cpus/mem_gb = 20/44 rồi 24/60 trong terraform.tfvars, và trên VM loadgen:
+#   FLASHSALE_REMOTE_BUDGET_CPUS=20 FLASHSALE_REMOTE_BUDGET_MEMORY_BYTES=47244640256    (cỡ nhỏ)
+#   FLASHSALE_REMOTE_BUDGET_CPUS=24 FLASHSALE_REMOTE_BUDGET_MEMORY_BYTES=64424509440    (cỡ lớn)
+# kèm FLASHSALE_MYSQL_BUFFER_POOL_BYTES tương ứng RAM và FLASHSALE_RUN_NOTE=mysql-20vcpu / mysql-24vcpu.
 # Biến môi trường: FLASHSALE_BIN, FLASHSALE_IOSTAT_SSH, MATRIX_START_POINT, MATRIX_END_POINT, MATRIX_LOG_DIR,
 #   MATRIX_MAIN_DATASET, B (lô mã, mặc định 50), HOT_ITEMS (mặc định 100), SCALING_CONFIG (mặc định
 #   configs/scaling.toml), SCALING_CONFIG_AUTOINC / SCALING_CONFIG_AUTORANDOM (nhóm D).

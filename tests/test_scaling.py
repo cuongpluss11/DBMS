@@ -302,6 +302,8 @@ def test_mysql_vertical_speedup_pairs_8_and_12_vcpus():
 
     result = speedups([row(8.0, 500), row(12.0, 600)])
     assert len(result) == 1 and round(result[0]["speedup"], 2) == 1.2
+    result = speedups([row(24.0, 900), row(20.0, 600)])   # cỡ 20 và 24 vCPU (TiDB server lớn)
+    assert len(result) == 1 and result[0]["tps_1"] == 600 and result[0]["tps_3"] == 900
 
 
 def test_layout_evidence_records_load_base_split_config():

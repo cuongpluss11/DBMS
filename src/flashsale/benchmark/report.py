@@ -105,12 +105,18 @@ def speedups(summary: list[dict[str, Any]]) -> list[dict[str, Any]]:
     12 vCPU / 8 vCPU (mốc mở rộng dọc), cho từng cặp nhóm giống hệt nhau về mọi tham số khác. Chỉ tính khi cả hai phía có
     ít nhất một lượt VALID. Khóa 1 = cấu hình nhỏ, 3 = cấu hình lớn."""
     pairs: dict[tuple, dict[int, dict]] = defaultdict(dict)
+    by_vcpus: dict[tuple, dict[float, dict]] = defaultdict(dict)
     for item in summary:
-        size = ({1: 1, 3: 3}.get(item.get("tikv_count")) if item["engine"] == "tidb"
-                else {8.0: 1, 12.0: 3}.get(item.get("vcpus")) if item["engine"] == "mysql" else None)
-        if size and item["valid"]:
-            key = tuple(item[name] for name in GROUP_KEYS if name not in SPEEDUP_EXCLUDE)
-            pairs[key][size] = item
+        if not item["valid"]:
+            continue
+        key = tuple(item[name] for name in GROUP_KEYS if name not in SPEEDUP_EXCLUDE)
+        if item["engine"] == "tidb" and item.get("tikv_count") in (1, 3):
+            pairs[key][item["tikv_count"]] = item
+        elif item["engine"] == "mysql" and item.get("vcpus"):
+            by_vcpus[key][float(item["vcpus"])] = item
+    for key, sizes in by_vcpus.items():       # MySQL: hai cỡ máy khác nhau; nhỏ nhất = 1, lớn nhất = 3
+        if len(sizes) >= 2:
+            pairs[key] = {1: sizes[min(sizes)], 3: sizes[max(sizes)]}
     result = []
     for key, sides in sorted(pairs.items(), key=lambda pair: tuple(str(part) for part in pair[0])):
         if 1 in sides and 3 in sides and sides[1]["tps_median"]:
