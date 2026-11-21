@@ -30,6 +30,8 @@ def collect(results_dir: Path) -> list[dict[str, Any]]:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         result = json.loads(result_path.read_text(encoding="utf-8"))
         measurement = result["measurement"]
+        if "out_of_stock_pct" not in measurement:  # thư mục mẫu/lược đồ cũ (ví dụ results/examples): bỏ qua
+            continue
         series = result.get("tps_series")
         stability = (warmup_stability(**series) if series else result.get("warmup_stability")) or {}
         rows.append({

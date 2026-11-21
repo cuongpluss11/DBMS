@@ -33,6 +33,10 @@ flashsale run mysql --config configs/hotspot.toml --dataset <ten-dataset> --rese
 
 Smoke nhỏ (cần DBMS đang chạy): `flashsale smoke mysql --start --variant p2 --slots 3 --hot-items 5` (profile `smoke.toml`, tồn 20, có hết hàng). Lượt kiểm luật có hết hàng thực: `--config configs/correctness.toml --variant p2 --slots 9`.
 
+## Ma trận Tầng 1
+
+`scripts/run-matrix-2.2.sh <mysql|mongo|tidb> [--tier t1|t2|t3|c|all] [--dry-run]` chạy trên VM `loadgen` (chế độ remote), cùng cách dùng như `run-matrix-2.1.sh`: T1 (P1 ở 15 điểm θ × client, P0 ở 6 điểm; P0 được phép INVALID), T2 (P2 N = 1, 3, 9, 27 có lô mã, đối chứng không lô ở N = 1 và 9, θ = 0,9 và "1 món", 64 client), T3 (P2 so với P3 ở 128/256 client, tải vòng mở; **chỉ chạy khi đặt `T3_RATES`** sau khi xem T1/T2), `c` (lượt kiểm luật có hết hàng thực). Tổng 37 điểm không kể T3, mỗi điểm 3 lần × (30 s + 60 s). Điểm P1 không lô mã của T2 lấy từ T1 (64 client). Đã `--dry-run` đủ tier và chạy thật thu nhỏ trên Docker MySQL (tier `c` và 3 điểm `t2`, remote mode giả lập): script, reset giữa điểm, P0 INVALID dự kiến và báo cáo tổng hợp hoạt động.
+
 ## Kết quả và trường mới
 
 `result.json`/`INDEX.csv` có thêm `variant`, `slots`, `order_id_batch` (lượt 2.1 cũ đọc là `legacy`, không slot, lô 0); `SCHEMA_VERSION = 4`. `measurement.slot_attempts_per_item` = số lần thử slot trung bình mỗi lần trừ một món nóng qua slot, kể cả lần hết hàng và lần retry (`null` nếu không phải p2). `variant_setup` trong `result.json` ghi số dòng slot và thời gian chuẩn bị. Báo cáo gộp (`flashsale report`) tách nhóm theo variant/slot/lô mã.
