@@ -26,7 +26,7 @@ remote() { local host="$1"; shift; timeout "${REMOTE_TIMEOUT:-300}" ssh "${SSH_O
 
 wait_boot() {
     local host="$1"
-    for _ in $(seq 1 40); do
+    for _ in $(seq 1 120); do
         if remote "$host" 'test -f /var/lib/flashsale-bootstrap-done' 2>/dev/null; then return 0; fi
         sleep 8
     done
