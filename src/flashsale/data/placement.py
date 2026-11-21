@@ -8,6 +8,7 @@ from collections.abc import Callable
 import json
 import os
 import time
+from urllib.error import HTTPError
 from urllib.request import Request as HttpRequest, urlopen
 
 from flashsale.config import Settings
@@ -22,6 +23,10 @@ LIMITS = ("leader-schedule-limit", "region-schedule-limit", "hot-region-schedule
 PAUSE_SECONDS = 6 * 3600
 
 
+class PDError(RuntimeError):
+    pass
+
+
 class PD:
     """PD HTTP API tối thiểu. `transport(method, path, body)` có thể thay thế khi kiểm thử."""
 
@@ -33,8 +38,12 @@ class PD:
         data = None if body is None else json.dumps(body).encode()
         request = HttpRequest(self.base + path, data=data, method=method,
                               headers={"Content-Type": "application/json"})
-        with urlopen(request, timeout=10) as response:
-            raw = response.read()
+        try:
+            with urlopen(request, timeout=10) as response:
+                raw = response.read()
+        except HTTPError as exc:
+            # PD giải thích lỗi trong thân phản hồi (ví dụ "no operator step is built", Region đang có operator khác).
+            raise PDError(f"PD {method} {path} -> HTTP {exc.code}: {exc.read().decode(errors='replace')[:200]}") from exc
         return json.loads(raw) if raw else None
 
     def stores(self) -> list[dict]:
@@ -125,6 +134,7 @@ def settle(db, table: str, boundaries: list[tuple], destination: Callable[[tuple
     về store `destination(khóa bắt đầu của Region)` và chờ tới khi SHOW TABLE REGIONS xác nhận."""
     deadline = clock() + timeout
     asked: set[int] = set()
+    last_error = ""
     while True:
         rows = regions(db, table)
         starts = {region_key(row["START_KEY"]) for row in rows}
@@ -139,11 +149,16 @@ def settle(db, table: str, boundaries: list[tuple], destination: Callable[[tuple
         if clock() > deadline:
             raise RuntimeError(f"{table}: {len(pending)} Region chưa về đúng TiKV sau {timeout:.0f} giây; "
                                f"ví dụ Region {pending[0][0]['REGION_ID']} đang ở store "
-                               f"{pending[0][0]['LEADER_STORE_ID']}, cần {pending[0][1]}")
+                               f"{pending[0][0]['LEADER_STORE_ID']}, cần {pending[0][1]}"
+                               + (f"; lỗi PD gần nhất: {last_error}" if last_error else ""))
         for row, store in pending:
             if int(row["REGION_ID"]) not in asked:
-                asked.add(int(row["REGION_ID"]))
-                pd.move_leader(int(row["REGION_ID"]), int(row["LEADER_STORE_ID"]), store, replicas)
+                try:
+                    pd.move_leader(int(row["REGION_ID"]), int(row["LEADER_STORE_ID"]), store, replicas)
+                    asked.add(int(row["REGION_ID"]))
+                except PDError as exc:
+                    # Region đang có operator khác hoặc vừa đổi leader: thử lại ở vòng sau cho tới hết thời hạn.
+                    last_error = str(exc)
         sleep(1)
 
 

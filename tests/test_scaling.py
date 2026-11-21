@@ -265,6 +265,37 @@ def test_layout_fails_loudly_when_pd_does_not_move_the_leader_or_regions_differ(
             del os.environ["FLASHSALE_TIKV_COUNT"]
 
 
+def test_transient_pd_errors_are_retried_until_the_leader_moves():
+    cluster = FakeCluster()
+    failures = {"left": 3}
+    original = cluster.transport
+
+    def flaky(method, path, body):
+        if path == "/operators" and failures["left"] > 0:
+            failures["left"] -= 1
+            raise placement.PDError("PD POST /operators -> HTTP 500: region has an operator")
+        return original(method, path, body)
+
+    pd = PD("http://pd", flaky)
+    placement.apply_layout(cluster, pd, settings(placement="spread"), [1], None, timeout=60, sleep=lambda s: None)
+    assert leaders(cluster, "stock") == [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3] and failures["left"] == 0
+
+
+def test_persistent_pd_error_is_reported_with_pd_message():
+    cluster = FakeCluster()
+    original = cluster.transport
+
+    def broken(method, path, body):
+        if path == "/operators":
+            raise placement.PDError("PD POST /operators -> HTTP 500: no operator step is built")
+        return original(method, path, body)
+
+    clock = iter(range(0, 1000, 2))
+    with pytest.raises(RuntimeError, match="no operator step is built"):
+        placement.apply_layout(cluster, PD("http://pd", broken), settings(placement="spread"), [1], None, timeout=5,
+                               sleep=lambda s: None, clock=lambda: next(clock))
+
+
 def test_unfreeze_restores_the_previous_scheduling_limits():
     cluster = FakeCluster()
     pd = PD("http://pd", cluster.transport)
