@@ -3,6 +3,7 @@ khi chỉ có một bản sao) bằng PD HTTP API, tạm dừng bộ cân bằng
 SHOW TABLE ... REGIONS. Mọi bước đều đọc lại trạng thái: nếu PD không làm đúng thì ném lỗi, không chạy tiếp một
 lượt với bố trí sai. Chưa kiểm chứng trên PD thật (xem docs/experiment-2.3.md): các lệnh phụ thuộc phiên bản PD.
 """
+from bisect import bisect_right
 from collections.abc import Callable
 import json
 import os
@@ -101,17 +102,38 @@ def split(db, table: str, keys: list[tuple]) -> None:
     db.query(f"SPLIT TABLE {table} BY {values}")
 
 
-def settle(db, table: str, wanted: list[int], pd: PD, replicas: int, timeout: float, sleep=time.sleep,
-           clock=time.monotonic) -> list[dict]:
-    """Chuyển leader của Region thứ i về store wanted[i] rồi chờ tới khi SHOW TABLE REGIONS xác nhận."""
+def region_key(start_key: str) -> tuple[int, ...] | None:
+    """Giải mã START_KEY của SHOW TABLE ... REGIONS thành bộ giá trị khóa chính (số nguyên).
+    Dạng đã quan sát trên TiDB v8.5.7: `t_<id>_r_` + mỗi cột là `03` + 8 byte big-endian đã lật bit dấu (hex).
+    Trả về None cho Region đầu của bảng (START_KEY chỉ là `t_<id>_`, tức khóa nhỏ nhất) hoặc khóa không phải số nguyên."""
+    marker = "_r_"
+    if marker not in start_key:
+        return None
+    digits = start_key.split(marker, 1)[1]
+    values = []
+    while digits:
+        if len(digits) < 18 or digits[:2] != "03":
+            return None
+        values.append(int(digits[2:18], 16) ^ (1 << 63))
+        digits = digits[18:]
+    return tuple(values)
+
+
+def settle(db, table: str, boundaries: list[tuple], destination: Callable[[tuple | None], int], pd: PD,
+           replicas: int, timeout: float, sleep=time.sleep, clock=time.monotonic) -> list[dict]:
+    """Xác nhận các ranh giới tách có thật, rồi chuyển leader của MỌI Region (kể cả Region TiDB tự tách theo kích thước)
+    về store `destination(khóa bắt đầu của Region)` và chờ tới khi SHOW TABLE REGIONS xác nhận."""
     deadline = clock() + timeout
     asked: set[int] = set()
     while True:
         rows = regions(db, table)
-        if len(rows) != len(wanted):
-            raise RuntimeError(f"{table}: có {len(rows)} Region, kỳ vọng {len(wanted)} sau khi tách "
-                               "(bảng đã bị tách trước đó hoặc PD đã gộp/tách thêm); tạo lại dataset")
-        pending = [(row, store) for row, store in zip(rows, wanted) if int(row["LEADER_STORE_ID"]) != store]
+        starts = {region_key(row["START_KEY"]) for row in rows}
+        missing = [key for key in boundaries if key not in starts]
+        if missing:
+            raise RuntimeError(f"{table}: thiếu ranh giới Region {missing[:3]} sau SPLIT TABLE "
+                               f"(có {len(rows)} Region); PD đã gộp lại hoặc SPLIT không có hiệu lực")
+        pending = [(row, destination(region_key(row["START_KEY"]))) for row in rows]
+        pending = [(row, store) for row, store in pending if int(row["LEADER_STORE_ID"]) != store]
         if not pending:
             return rows
         if clock() > deadline:
@@ -169,15 +191,23 @@ def apply_layout(db, pd: PD, cfg: Settings, hot_ids: list[int], slots: int | Non
         if cfg.orders_key != "composite" and "orders" in tables:
             tables.remove("orders")  # khóa chính o_seq: không bắt đầu bằng mã kho nên không tách theo kho
         for table in tables:
-            split(db, table, split_keys(table, cfg))
-            rows = settle(db, table, [leaders[w] for w in range(1, cfg.dataset.warehouses + 1)], pd, replicas,
-                          timeout, sleep, clock)
+            keys = split_keys(table, cfg)
+            split(db, table, keys)
+            # Region nằm trong kho `w` (khóa bắt đầu có thành phần đầu là w); Region đầu bảng thuộc kho 1.
+            rows = settle(db, table, keys, lambda key: leaders[key[0] if key else 1], pd, replicas, timeout, sleep,
+                          clock)
             evidence["tables"][table] = _leaders(rows)
         if slots:
             keys = slot_keys(cfg, hot_ids, slots)
             split(db, SLOT_TABLE, keys)
-            wanted = [stores[0]["id"]] + [stores[key[2] % len(stores)]["id"] for key in keys]
-            evidence["tables"][SLOT_TABLE] = _leaders(settle(db, SLOT_TABLE, wanted, pd, replicas, timeout, sleep, clock))
+
+            def slot_store(key: tuple | None) -> int:
+                # Region thuộc về slot lớn nhất không vượt quá khóa bắt đầu của nó (Region đầu: TiKV đầu tiên).
+                index = bisect_right(keys, key) - 1 if key else -1
+                return stores[keys[index][2] % len(stores)]["id"] if index >= 0 else stores[0]["id"]
+
+            evidence["tables"][SLOT_TABLE] = _leaders(settle(db, SLOT_TABLE, keys, slot_store, pd, replicas, timeout,
+                                                             sleep, clock))
     except BaseException:
         unfreeze_scheduling(pd, previous)
         raise

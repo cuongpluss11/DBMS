@@ -98,6 +98,11 @@ def test_orders_primary_key_variants_for_group_d():
     assert len({fingerprint(cfg, 1, True, key) for key in ("composite", "autoinc", "auto_random")}) == 3
 
 
+def encode(key):
+    """START_KEY như TiDB v8.5.7 hiển thị: t_<id>_r_ + (03 + 8 byte big-endian lật bit dấu) cho từng cột."""
+    return "t_120_r_" + "".join("03" + f"{(v ^ (1 << 63)) & (2**64 - 1):016x}" for v in key)
+
+
 class FakeCluster:
     """PD + TiDB giả: SHOW TABLE REGIONS trả Region theo thứ tự khóa; operator đổi leader ngay lập tức."""
 
@@ -112,6 +117,7 @@ class FakeCluster:
         self.operators: list[dict] = []
         self.statements: list[str] = []
         self.ignore_operators = False
+        self.size_split = False
 
     # --- PD transport
     def transport(self, method, path, body):
@@ -141,10 +147,17 @@ class FakeCluster:
         self.statements.append(statement)
         if statement.startswith("SPLIT TABLE"):
             table = statement.split()[2]
-            count = statement.count("(")
-            self.regions[table] = [{"REGION_ID": self.alloc(), "LEADER_STORE_ID": self.stores[0]}
-                                   for _ in range(count + 1)]
-            return [{"TOTAL_SPLIT_REGION": count}]
+            import re
+            keys = [tuple(int(x) for x in group.split(",")) for group in re.findall(r"\(([^)]*)\)", statement)]
+            rows = [{"REGION_ID": self.alloc(), "START_KEY": "t_120_", "LEADER_STORE_ID": self.stores[0]}]
+            for key in keys:
+                rows.append({"REGION_ID": self.alloc(), "START_KEY": encode(key), "LEADER_STORE_ID": self.stores[0]})
+            if self.size_split and table == "stock":      # Region TiDB tự tách theo kích thước trong kho 7
+                rows.append({"REGION_ID": self.alloc(), "START_KEY": encode((7, 15679)),
+                             "LEADER_STORE_ID": self.stores[0]})
+                rows.sort(key=lambda row: (row["START_KEY"] != "t_120_", row["START_KEY"]))
+            self.regions[table] = rows
+            return [{"TOTAL_SPLIT_REGION": len(keys)}]
         if statement.startswith("SHOW CONFIG"):
             return [{"Instance": "tikv1", "Name": "split.qps-threshold", "Value": "3000"}]
         if statement.startswith("SHOW TABLE"):
@@ -177,6 +190,25 @@ def test_spread_layout_splits_by_warehouse_boundary_and_round_robins_leaders():
                                                                    if k in placement.LIMITS)
 
 
+def test_size_split_regions_follow_their_warehouse_leader():
+    cluster = FakeCluster()
+    cluster.size_split = True
+    run_layout(cluster, settings(placement="spread"))
+    rows = cluster.regions["stock"]
+    assert len(rows) == 13
+    in_seven = [row["LEADER_STORE_ID"] for row in rows if row["START_KEY"] in (encode((7, 0)), encode((7, 15679)))]
+    assert in_seven == [1, 1]                                # kho 7 -> TiKV (7-1) mod 3 + 1 = 1, cả hai Region
+
+
+def test_region_key_decoding_matches_the_observed_tidb_format():
+    from flashsale.data.placement import region_key
+    assert region_key("t_120_") is None
+    assert region_key("t_120_r_038000000000000002038000000000000000") == (2, 0)
+    assert region_key("t_120_r_038000000000000007038000000000003d3f") == (7, 15679)
+    assert region_key("t_120_r_0380000000000000010380000000000000030380000000000000ff") == (1, 3, 255)
+    assert region_key("t_120_r_0bxyz") is None
+
+
 def test_group_layout_puts_a_whole_warehouse_group_on_one_tikv_and_uses_transfer_leader_with_replicas():
     cluster = FakeCluster(replicas=3)
     cfg = settings(placement="group", warehouse_groups=3, placement_scope="all")
@@ -202,7 +234,7 @@ def test_slot_regions_are_split_per_slot_and_spread_across_tikv():
     assert leaders(cluster, "stock_slot") == [1, 1, 2, 3, 1, 2, 3]    # Region đầu + mỗi slot s về TiKV s mod 3
 
 
-def test_layout_fails_loudly_when_pd_does_not_move_the_leader_or_regions_differ():
+def test_layout_fails_loudly_when_pd_does_not_move_the_leader_or_regions_differ():  # noqa: C901
     stuck = FakeCluster()
     stuck.ignore_operators = True
     clock = iter(range(0, 1000, 2))
@@ -211,18 +243,18 @@ def test_layout_fails_loudly_when_pd_does_not_move_the_leader_or_regions_differ(
         placement.apply_layout(stuck, pd, settings(placement="spread"), [1], None, timeout=5, sleep=lambda s: None,
                                clock=lambda: next(clock))
     assert stuck.paused and stuck.paused[placement.SCHEDULERS[0]] == 0      # lỗi thì bộ lập lịch được trả lại
-    extra = FakeCluster()
-    original = extra.query
+    merged = FakeCluster()
+    original = merged.query
 
-    def odd(statement, values=()):
+    def drop_boundary(statement, values=()):
         rows = original(statement, values)
         if statement.startswith("SHOW"):
-            rows.append({"REGION_ID": 999, "LEADER_STORE_ID": 1})
+            rows = [row for row in rows if row["START_KEY"] != encode((5, 0))]   # PD đã gộp Region lại
         return rows
 
-    extra.query = odd
-    with pytest.raises(RuntimeError, match="kỳ vọng"):
-        run_layout(extra, settings(placement="spread"))
+    merged.query = drop_boundary
+    with pytest.raises(RuntimeError, match="thiếu ranh giới"):
+        run_layout(merged, settings(placement="spread"))
     wrong = FakeCluster(stores=(1, 2))
     with pytest.raises(RuntimeError, match="kỳ vọng 3"):
         import os
