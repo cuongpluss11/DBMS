@@ -6,11 +6,11 @@ Bạn là kỹ sư Python, hệ quản trị cơ sở dữ liệu (DBMS) và đ�
 
 > Chẩn đoán và giảm nghẽn do tranh chấp khóa, giao dịch liên phân vùng (2PC) và đổi lược đồ khi đang chạy trên MySQL InnoDB, MongoDB và TiDB, với tải Flash-sale dựa trên TPC-C.
 
-**Phạm vi ưu tiên hiện tại: mục 2.1 — Thiết lập chung cho mọi thí nghiệm.** Thiết kế phải có thể mở rộng cho mục 2.2 (tranh chấp khóa), 2.3 (phân vùng/2PC) và 2.4 (online schema evolution), nhưng không tự ý chạy hoặc hiện thực toàn bộ các mục sau khi chưa được yêu cầu.
+**Phạm vi hiện tại (từ 2026-11-21): mục 2.1 đã nghiệm thu trên AWS (xem `docs/acceptance-2.1.md`); đang thực hiện 2.2 (tranh chấp khóa) và 2.3 (phân vùng/2PC) do Lực phụ trách, và 2.4 (online schema evolution) do Cường phụ trách**, theo `docs/scope-2-weeks.md` (Tầng 1 trước; Tầng 2 và 3 chỉ mở khi qua cổng kiểm). Chỉ hiện thực phần thuộc mục và Tầng mà người đang yêu cầu phụ trách; không tự mở rộng sang Tầng 2/3 hay sang mục của người khác. Giữ nguyên mọi bất biến của 2.1 (ba luật tồn kho, idempotency, workload đồng nhất giữa ba hệ, kết quả VALID/INVALID) khi thêm tính năng mới.
 
 ## 2. Tài liệu nguồn và thứ tự ưu tiên
 
-1. **Tài liệu ý tưởng mới nhất** (hiện là `Bài tập lớn (4).docx`; trước đó là `Bài tập lớn .pdf`): **đặc tả nghiệp vụ và quy trình thực nghiệm chính**, đặc biệt mục 2.1. Khi các bản khác nhau, bản mới nhất người dùng cung cấp thắng.
+1. **Tài liệu ý tưởng mới nhất** (hiện là `bao_cao_DBMS_ban_chot.docx`; trước đó là `Bài tập lớn (4).docx` và `Bài tập lớn .pdf`): **đặc tả nghiệp vụ và quy trình thực nghiệm chính** cho các mục 2.1–2.5. File này **không nằm trong repo**; nhóm trưởng chia sẻ riêng, hãy yêu cầu người dùng cung cấp nếu chưa có và đọc đúng mục đang làm (2.2, 2.3 hoặc 2.4) trước khi viết code. Khi các bản khác nhau, bản mới nhất người dùng cung cấp thắng.
 2. `Bài tập lớn  (1).pdf`: khuyến nghị nhánh phiên bản DBMS.
 3. Các quyết định được ghi trong `docs/assumptions.md` và cấu hình thực nghiệm đã được người dùng phê duyệt.
 4. Tài liệu chính thức tương ứng với **phiên bản thực tế đang cài** để xác minh cú pháp, tham số, tính tương thích và cách quan sát hệ thống.
@@ -144,7 +144,8 @@ Nếu tài nguyên VM không đủ chạy W=10, dùng cấu hình smoke quy mô 
 - Dùng healthcheck/readiness thực sự thay vì `sleep` cố định như bằng chứng khởi động thành công.
 - **Không** xóa volume, reset DB, chạy `docker compose down -v`, hoặc dọn dữ liệu người dùng theo mặc định. Lệnh phá hủy dữ liệu phải tách riêng và yêu cầu xác nhận rõ.
 - Chỉ thao tác tài nguyên thuộc dự án; không thay đổi Docker/container bên ngoài dự án.
-- Không chạy ma trận benchmark dài hàng giờ nếu người dùng mới yêu cầu khởi tạo và làm mục 2.1.
+- Không chạy ma trận benchmark dài hàng giờ khi người dùng chưa yêu cầu. Hạ tầng AWS chính thức chỉ do Lực (chủ sở hữu) bật và tắt: không tự chạy `terraform apply` hoặc `destroy`, không tạo hay xóa VM, không đổi quota; luôn đọc `plan` trước khi áp dụng, mỗi lúc chỉ một stack DBMS, và `terraform destroy` ngay khi đo xong. Phát triển và thử code dùng Docker hoặc VM dev; số đo từ đó chỉ là sơ bộ.
+- Mỗi người làm trên nhánh riêng, PR nhỏ vào `main`; các file dễ xung đột (`adapters/sql.py`, `adapters/mongo.py`, `workload/generator.py`, `cli.py`, `runner.py`) cần báo trước khi sửa. Không commit khóa SSH, `.env`, `terraform.tfvars`, `*.tfstate` hay dữ liệu thô lớn.
 - Không đẩy mã lên remote hoặc xuất dữ liệu ra ngoài khi chưa được yêu cầu.
 
 ## 13. Quy trình thực hiện nhiệm vụ

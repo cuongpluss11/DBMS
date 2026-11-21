@@ -1,18 +1,21 @@
 # Flash-sale DBMS Benchmark
 
-Mục 2.1 của bài tập lớn DBMS. Dự án nạp cùng dữ liệu TPC-C, chạy New-Order và Payment trên MySQL InnoDB, MongoDB mode A và TiDB, rồi xuất bằng chứng để tái hiện phép đo và đối soát tồn kho.
+Bài tập lớn DBMS: chẩn đoán và giảm nghẽn do tranh chấp khóa, 2PC và đổi lược đồ khi đang chạy trên MySQL InnoDB, MongoDB và TiDB, với tải Flash-sale dựa trên TPC-C. Dự án nạp cùng dữ liệu TPC-C, chạy New-Order và Payment trên ba hệ, rồi xuất bằng chứng để tái hiện phép đo và đối soát tồn kho.
 
-## Bắt đầu cùng nhóm
+## Trạng thái và điểm vào (cập nhật 2026-11-21)
 
-**[Hướng dẫn triển khai mục 2.1 cho 3 thành viên](docs/trien-khai-2.1.md)** có phân công, cách checkout cùng Git commit trên ba VM và checklist nghiệm thu.
+- **Mục 2.1 đã nghiệm thu trên AWS** (3 hệ, 152 lượt đo): [acceptance-2.1.md](docs/acceptance-2.1.md), kết quả ở `results/official/2.1-aws/`.
+- **Đang làm 2.2, 2.3 và 2.4** theo [docs/scope-2-weeks.md](docs/scope-2-weeks.md): phạm vi theo tầng, cổng kiểm, lịch 14 ngày, phân công và bảng trạng thái.
+- Quy tắc cho người và AI viết code: [AGENTS.md](AGENTS.md). Khác biệt so với tài liệu ý tưởng: [docs/assumptions.md](docs/assumptions.md).
+- Tài liệu ý tưởng bản chốt (`bao_cao_DBMS_ban_chot.docx`) **không nằm trong repo**; nhóm trưởng chia sẻ riêng.
 
-| Thành viên | DBMS phụ trách | Phần bàn giao chính |
+| Phụ trách | Phạm vi | Đọc trước |
 | --- | --- | --- |
-| TV1 | MySQL 8.4.8 | Chốt Git commit và cấu hình VM, chạy baseline uniform và single-warehouse |
-| TV2 | MongoDB 8.0.20 | Replica set một nút, giao dịch nhiều tài liệu, bằng chứng rollback và replay |
-| TV3 | TiDB, PD và TiKV v8.5.7 | Một PD, một TiDB, ba TiKV, replica count 1 và bằng chứng Region |
+| Lực | 2.2, 2.3, vận hành AWS | `docs/scope-2-weeks.md`, `docs/acceptance-2.1.md`, `infra/aws/README.md` |
+| Cường | 2.4 | `docs/scope-2-weeks.md` (mục "Ghi chú thiết kế 2.4"), mục 2.4 trong tài liệu ý tưởng |
+| Duy Anh | Hỗ trợ 2.2 và 2.3, báo cáo | `docs/scope-2-weeks.md`, `docs/citation-check.md`, `docs/acceptance-2.1.md` |
 
-Mỗi người dùng một VM Ubuntu có cùng cấu hình và checkout cùng một Git commit. Mỗi VM chỉ chạy DBMS được giao, với tổng ngân sách container 8 CPU và 16 GiB RAM. Nếu nhiều VM nằm trên cùng một máy vật lý, nhóm đo lần lượt để tránh tranh tài nguyên. Kết quả kiểm chứng cục bộ được ghi trong [giao thức thực nghiệm](docs/experiment-2.1.md).
+Số đo chính thức lấy trên AWS nhiều VM ([infra/aws/README.md](infra/aws/README.md)); Docker một VM chỉ để phát triển và thử. Chỉ `terraform apply` và `destroy` do Lực thực hiện. Hướng dẫn triển khai Docker ba VM của giai đoạn 2.1 còn lưu ở [docs/trien-khai-2.1.md](docs/trien-khai-2.1.md) (đã hoàn thành, chỉ để tham khảo); giao thức thực nghiệm 2.1 ở [docs/experiment-2.1.md](docs/experiment-2.1.md).
 
 ## Cài đặt trên Ubuntu 24.04 LTS
 
