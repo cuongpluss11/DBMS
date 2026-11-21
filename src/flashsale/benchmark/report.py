@@ -13,11 +13,13 @@ from .metrics import warmup_stability
 
 INDEX_COLUMNS = [
     "run_id", "engine", "version", "profile", "label", "repetition", "concurrency", "warehouse_mode", "theta",
-    "hot_item", "variant", "slots", "order_id_batch", "arrival_rate", "inventory_mode", "payment_ytd", "idempotency", "client_timeout_seconds", "tps", "p50_ms",
-    "p95_ms", "p99_ms", "abort_pct", "out_of_stock_pct", "retry_pct", "validation", "git_commit",
+    "hot_item", "variant", "slots", "order_id_batch", "arrival_rate", "migration_strategy", "old_order_read_pct",
+    "migration_duration_seconds", "inventory_mode", "payment_ytd", "idempotency", "client_timeout_seconds",
+    "tps", "p50_ms", "p95_ms", "p99_ms", "abort_pct", "out_of_stock_pct", "retry_pct", "validation", "git_commit",
     "warmup_drift_pct", "loadgen_cpu_pct", "environment_mode", "run_note"]
 GROUP_KEYS = ("engine", "profile", "concurrency", "warehouse_mode", "theta", "hot_item", "variant", "slots",
-              "order_id_batch", "arrival_rate", "payment_ytd", "idempotency", "run_note")
+              "order_id_batch", "arrival_rate", "migration_strategy", "old_order_read_pct", "payment_ytd",
+              "idempotency", "run_note")
 WARMUP_DRIFT_LIMIT_PCT = 10.0
 
 
@@ -41,6 +43,9 @@ def collect(results_dir: Path) -> list[dict[str, Any]]:
             # Lượt 2.1 cũ không có các trường này: coi là legacy (cách trừ kho của 2.1), không có slot, không cấp mã theo lô.
             "variant": result.get("variant", "legacy"), "slots": result.get("slots"),
             "order_id_batch": result.get("order_id_batch", 0), "arrival_rate": result.get("arrival_rate", 0.0),
+            "migration_strategy": result.get("migration_strategy", "none"),
+            "old_order_read_pct": result.get("old_order_read_pct", 0.0),
+            "migration_duration_seconds": (result.get("migration") or {}).get("duration_seconds"),
             "payment_ytd": manifest.get("config", {}).get("payment_ytd"),
             "idempotency": result.get("idempotency", True),
             "client_timeout_seconds": result.get("client_timeout_seconds"),

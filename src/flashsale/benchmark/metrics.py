@@ -44,9 +44,15 @@ class Phase:
     successful_orders: list[str] = field(default_factory=list)
     # Số request thành công mỗi giây của phase (giây 0 = đầu phase); dùng kiểm tra warmup đã ổn định chưa.
     series: Counter[int] = field(default_factory=Counter)
+    # Mục 2.4: độ trễ theo từng giây (vẽ p99 mỗi giây của Biểu đồ 6), độ trễ "Xem đơn cũ" có/không chuyển lười (E3).
+    latency_by_second: dict[int, list[float]] = field(default_factory=dict)
+    read_migrated_latency: list[float] = field(default_factory=list)
+    read_clean_latency: list[float] = field(default_factory=list)
+    migrated_on_demand: int = 0
+    migration_conflicts: int = 0
 
     def record(self, req: Request, outcome: Outcome, in_window: bool, second: int | None = None,
-               queue_wait_ms: float | None = None) -> None:
+               queue_wait_ms: float | None = None, read_migrated: bool = False) -> None:
         success = outcome.status == "success"
         if success and req.kind == "new_order":
             self.successful_orders.append(req.request_id)
@@ -60,6 +66,10 @@ class Phase:
             self.latency.append(outcome.latency_ms)
             if second is not None:
                 self.series[second] += 1
+                self.latency_by_second.setdefault(second, []).append(outcome.latency_ms)
+            if req.kind == "old_order":
+                target = self.read_migrated_latency if read_migrated else self.read_clean_latency
+                target.append(outcome.latency_ms)
         else:
             self.failures[outcome.status] += 1
         if queue_wait_ms is not None:
@@ -79,13 +89,20 @@ class Phase:
         self.latency.extend(part.latency)
         self.queue_waits.extend(part.queue_waits)
         self.successful_orders.extend(part.successful_orders)
+        for sec, values in part.latency_by_second.items():
+            self.latency_by_second.setdefault(sec, []).extend(values)
+        self.read_migrated_latency.extend(part.read_migrated_latency)
+        self.read_clean_latency.extend(part.read_clean_latency)
         for key in ("retry_requests", "retry_attempts", "draws", "top100", "top1", "drained",
                     "out_of_stock_all", "unknown_commits", "slot_attempts", "slot_items", "rejected",
-                    "unserved"):
+                    "unserved", "migrated_on_demand", "migration_conflicts"):
             setattr(self, key, getattr(self, key) + getattr(part, key))
 
     def series_list(self, seconds: float) -> list[int]:
         return [self.series[i] for i in range(int(seconds))]
+
+    def p99_series_list(self, seconds: float) -> list[float | None]:
+        return [percentile(sorted(self.latency_by_second.get(i, ())), 99) for i in range(int(seconds))]
 
     def summary(self, seconds: float) -> dict[str, Any]:
         success, failed = self.successes.total(), self.failures.total()
@@ -99,6 +116,7 @@ class Phase:
             "seconds": seconds, "tps": success / seconds if seconds else None,
             "success": success, "failed": failed, "drained_requests": self.drained,
             "new_order_success": self.successes["new_order"], "payment_success": self.successes["payment"],
+            "old_order_success": self.successes["old_order"],
             "p50_ms": percentile(latency, 50), "p95_ms": percentile(latency, 95),
             "p99_ms": percentile(latency, 99), "abort_pct": percent(failed - self.failures["out_of_stock"] - self.failures["busy"], requests),
             "rejected": self.rejected, "rejected_pct": percent(self.failures["busy"], requests),
@@ -117,6 +135,11 @@ class Phase:
             # Chỉ có nghĩa với variant p2 (null khi không có lần thử slot nào); đếm cả warmup-drain và lần retry.
             "slot_attempts": self.slot_attempts or None,
             "slot_attempts_per_item": self.slot_attempts / self.slot_items if self.slot_items else None,
+            # Mục 2.4: p99 tách riêng cho "Xem đơn cũ" cần/không cần chuyển lười (E3) và số dòng chuyển theo yêu cầu.
+            "read_migrated_p99_ms": percentile(sorted(self.read_migrated_latency), 99),
+            "read_clean_p99_ms": percentile(sorted(self.read_clean_latency), 99),
+            "migrated_on_demand": self.migrated_on_demand or None,
+            "migration_conflicts": self.migration_conflicts or None,
         }
 
 
@@ -133,13 +156,28 @@ def warmup_stability(warmup: list[int], measurement: list[int], window: int = 10
             "drift_pct": 100 * (head - tail) / tail if tail else None}
 
 
-def write_series(path: Path, series: dict[str, list[int]]) -> None:
+def write_series(path: Path, series: dict[str, list[int]],
+                 p99_series: dict[str, list[float | None]] | None = None,
+                 migration_window: tuple[int | None, int | None] | None = None) -> None:
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.writer(stream)
-        writer.writerow(["phase", "second", "successes"])
-        for phase, values in series.items():
-            for second, count in enumerate(values):
-                writer.writerow([phase, second, count])
+        if p99_series is None:
+            writer.writerow(["phase", "second", "successes"])
+            for phase, values in series.items():
+                for second, count in enumerate(values):
+                    writer.writerow([phase, second, count])
+        else:
+            writer.writerow(["phase", "second", "successes", "p99_ms", "migrating"])
+            start_sec, end_sec = migration_window or (None, None)
+            for phase, values in series.items():
+                p99_list = p99_series.get(phase, [])
+                for second, count in enumerate(values):
+                    p99 = p99_list[second] if second < len(p99_list) else None
+                    migrating = int(
+                        phase == "measurement" and start_sec is not None and end_sec is not None
+                        and start_sec <= second <= end_sec
+                    )
+                    writer.writerow([phase, second, count, "null" if p99 is None else round(p99, 3), migrating])
 
 
 def write_json(path: Path, data: Any) -> None:
@@ -159,6 +197,10 @@ def write_result(directory: Path, result: dict) -> None:
                                             "warehouse_mode", "theta", "hot_item", "resource_limits")},
             "idempotency": result.get("idempotency", True),
             "variant": result.get("variant", "legacy"), "slots": result.get("slots"),
+            "migration_strategy": result.get("migration_strategy", "none"),
+            "old_order_read_pct": result.get("old_order_read_pct", 0.0),
+            "migration_duration_seconds": (result.get("migration") or {}).get("duration_seconds")
+            if phase == "measurement" else None,
             "arrival_rate": result.get("arrival_rate", 0.0),
             "order_id_batch": result.get("order_id_batch", 0),
             "client_timeout_seconds": result.get("client_timeout_seconds"),

@@ -101,7 +101,8 @@ def check(dataset: Dataset, run_id: str, expected_requests: Iterable[str],
 
 
 def validate(db: Adapter, dataset: Dataset, run_id: str, expected_requests: Iterable[str],
-             baseline_counts: dict[str, int] | None = None, slots: bool = False) -> dict:
+             baseline_counts: dict[str, int] | None = None, slots: bool = False,
+             migration: bool = False) -> dict:
     report = check(dataset, run_id, expected_requests, db.rows("stock", STOCK_FIELDS),
                    db.rows("orders", ORDER_FIELDS, tagged=True), db.rows("order_line", LINE_FIELDS, tagged=True),
                    db.rows("stock_slot", SLOT_FIELDS) if slots else ())
@@ -123,5 +124,14 @@ def validate(db: Adapter, dataset: Dataset, run_id: str, expected_requests: Iter
         if violations:
             report["errors"]["reconciliation"].append({"doc_sql_check": violations[:5]})
             report["rules"]["reconciliation"] = False
+            report["status"] = "INVALID"
+    if migration:
+        from flashsale.migration import validate_migration
+
+        mig_check = validate_migration(db, dataset, baseline_counts, report["tagged_rows"]["order_line"])
+        report["migration_check"] = mig_check
+        report["rules"]["migration"] = mig_check["valid"]
+        report["errors"]["migration"] = mig_check["errors"]
+        if not mig_check["valid"]:
             report["status"] = "INVALID"
     return report

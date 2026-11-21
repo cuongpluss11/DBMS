@@ -4,11 +4,17 @@ import tomllib
 
 
 VARIANTS = ("legacy", "p0", "p1", "p2", "p3")
+MIGRATION_STRATEGIES = ("none", "eager", "batch", "lazy")
 
 
 def uses_slots(variant: str) -> bool:
     """P2 và P3 chia tồn kho thành slot (P3 = P2 + điều tiết thích ứng)."""
     return variant in ("p2", "p3")
+
+
+def uses_migration(strategy: str) -> bool:
+    """Mục 2.4: bật lược đồ đích order_line (ol_discount, ol_mig_state) và kiểm tra đúng đắn migration."""
+    return strategy != "none"
 
 
 @dataclass(frozen=True)
@@ -61,12 +67,23 @@ class Settings:
     p99_limit_ms: float = 500.0
     abort_limit_pct: float = 10.0
     limit_min: int = 1
+    # Mục 2.4 (Online Schema Evolution): mặc định tắt ("none", 0%) để mọi số đo 2.1–2.3 không đổi.
+    migration_strategy: str = "none"
+    old_order_read_pct: float = 0.0
+    migration_batch_size: int = 1000
+    migration_sleep_ms: float = 20.0
+    migration_delay_seconds: float = 2.0
 
     def __post_init__(self) -> None:
         if self.idempotency == (self.label == "idempotency_off"):
             raise ValueError("Chỉ profile có nhãn idempotency_off mới được đặt idempotency=false (và ngược lại)")
         if self.variant not in VARIANTS:
             raise ValueError(f"variant phải thuộc {VARIANTS}")
+        if self.migration_strategy not in MIGRATION_STRATEGIES:
+            raise ValueError(f"migration_strategy phải thuộc {MIGRATION_STRATEGIES}")
+        if (not 0 <= self.old_order_read_pct <= 100 or self.migration_batch_size < 1
+                or self.migration_sleep_ms < 0 or self.migration_delay_seconds < 0):
+            raise ValueError("Tham số migration hoặc tỉ lệ Xem đơn cũ không hợp lệ")
         if self.slots < 1 or self.hot_items < 1 or self.order_id_batch < 0:
             raise ValueError("slots và hot_items phải dương, order_id_batch không âm")
         if (self.arrival_rate < 0 or self.queue_size < 1 or self.p99_limit_ms <= 0

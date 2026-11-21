@@ -1,0 +1,29 @@
+# Mục 2.4 (Online Schema Evolution: thêm ol_discount vào order_line).
+# Mặc định theo tài liệu (trang 21): tải nền θ = 0,5, 64 client, giao dịch "Xem đơn cũ" q = 25%, chiến lược Eager (P1).
+# Đổi chiến lược và tỉ lệ q qua CLI: --migration-strategy eager|batch|lazy --old-order-read-pct 5|25|50 --migration-batch-size 1000|5000.
+label = "migration"
+workers_per_process = 8
+concurrency = 64
+warehouse_mode = "uniform"
+theta = 0.5
+hot_item = false
+warmup_seconds = 30
+measurement_seconds = 60
+repetitions = 3
+seed = 2026
+payment_ytd = false
+jitter = false
+variant = "p1"
+migration_strategy = "eager"
+old_order_read_pct = 25.0
+migration_batch_size = 1000
+migration_sleep_ms = 20.0
+migration_delay_seconds = 2.0
+
+[dataset]
+warehouses = 10
+districts = 10
+items = 100000
+customers = 3000
+initial_orders = 3000
+inventory = 1000000000
