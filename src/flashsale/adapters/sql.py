@@ -103,7 +103,8 @@ class SQLAdapter:
 
     def query(self, statement: str, values: tuple = ()) -> list[Row]:
         with self.connection.cursor() as cursor:
-            cursor.execute(statement, values)
+            # Không truyền tham số rỗng: pymysql sẽ định dạng chuỗi với `%` và làm hỏng câu có `LIKE 'x.%'`.
+            cursor.execute(statement, values or None)
             return list(cursor.fetchall())
 
     def ping(self, concurrency: int = 1) -> dict[str, Any]:
