@@ -15,7 +15,7 @@ SSH_OPTS=(-i "$KEY" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o Conn
 TIDB_VERSION="${TIDB_VERSION:-v8.5.7}"
 
 say() { printf '%s %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
-json() { python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print($1)" "$OUT"; }
+json() { python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print($1)" "$OUT" | tr -d ''; }
 
 LOADGEN="$(json "d['public_ips']['value']['loadgen']")"
 mapfile -t NODES < <(json "'\n'.join(k+' '+v for k,v in d['public_ips']['value'].items() if k!='loadgen')")
