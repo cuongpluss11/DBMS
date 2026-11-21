@@ -42,3 +42,17 @@ Smoke nhỏ (cần DBMS đang chạy): `flashsale smoke mysql --start --variant 
 - Đã chạy: unit test (`tests/test_hotspot.py`, `tests/test_throttle.py`) PASS; `pytest -m integration` trên **MySQL 8.4.8 thật (Docker máy dev, nhãn sơ bộ)**: 4 test PASS gồm `test_hotspot_variants_p1_p2_contract`; smoke ngoài chương trình (ngân sách RAM Docker bị bỏ qua cho smoke) trên MySQL: legacy, P1 + lô mã, P2 N=1 và N=3 VALID, P0 INVALID đúng như dự kiến (mất cập nhật, đối soát của đề báo 1 dòng lệch), P3 và tải vòng mở VALID với giới hạn L giảm 8→1 khi đặt ngưỡng p99 = 1 ms.
 - Đã chạy thêm trên **MongoDB 8.0.20 thật (Docker máy dev, sơ bộ)**: 4 test integration PASS (gồm `test_hotspot_variants_p1_p2_contract`, tức aggregation đối soát có slot hoạt động); smoke legacy, P0, P1 + lô mã, P2 N=1 và N=3, P3, tải vòng mở đều VALID. **P0 trên MongoDB VALID, không bán vượt**: giao dịch snapshot hủy khi xung đột ghi nên không mất cập nhật (đề dự đoán trước điều này: "nếu ra vậy thì đó là kết quả"); smoke nhỏ chưa đủ để kết luận ở tải cao.
 - **NOT TESTED:** TiDB thật (DDL `stock_slot` với `CLUSTERED`, `EXPLAIN UPDATE`, đối soát có slot, chế độ lạc quan/bi quan) vì Docker máy dev chỉ có 3,9 GiB RAM; `test_smoke_exports` vẫn cần Docker đủ 8 CPU/16 GiB; truy vấn `stock_slot` chưa có EXPLAIN; ngưỡng P3 mặc định (500 ms, 10%) chưa được chỉnh bằng số đo.
+
+## Smoke G1 trên AWS (2026-11-21, sơ bộ, không phải số đo chính thức)
+
+Stack `mysql` (MySQL-chỉnh, buffer pool 3 GiB, c6i.4xlarge giới hạn 12 vCPU/24 GiB; máy tải c6i.xlarge, CPU máy tải ≤ 154% trên 400%), W=10, tồn 10^9, một kho, θ=0,9, 32 client, warmup 10 s + đo 20 s, **1 lần lặp** (không đạt định nghĩa "Đã đo": thiếu 3 lần lặp, warmup/đo ngắn). Đã `terraform destroy`.
+
+| Điểm | TPS (đo) | p99 ms | Kết quả |
+| --- | --- | --- | --- |
+| P0, 1 món | 429 | 292 | **INVALID** (luật 2: mất cập nhật) |
+| P1, 1 món | 422 | 293 | VALID |
+| P2 N=9 + lô mã 50, 1 món | 1.801 | 176 | VALID (1,0 lần thử slot/lần trừ) |
+| P3 N=9 + lô mã 50, 1 món | 1.766 | 201 | VALID; L không giảm (32→32), vì p99 dịch vụ < 500 ms |
+| P1, θ=0,9 (không "1 món") | 1.167 | 277 | VALID |
+
+Chỉ chứng minh mã chạy đúng trên AWS; chưa kết luận về hiệu quả (cần T1/T2 đủ 3 lần lặp 30 + 60 s). Bằng chứng lưu ở `.work/g1-smoke-aws/` (không đưa lên Git).
