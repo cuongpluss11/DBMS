@@ -186,6 +186,9 @@ class SQLAdapter:
             "district": ("SELECT * FROM district WHERE d_w_id=1 AND d_id=1 FOR UPDATE", ()),
             "stock": ("SELECT * FROM stock WHERE s_w_id=1 AND s_i_id=%s FOR UPDATE", (hot_item,)),
             "customer": ("SELECT * FROM customer WHERE c_w_id=1 AND c_d_id=1 AND c_id=1", ()),
+            # Câu P1 (mục 2.2): cập nhật có điều kiện theo khóa chính; EXPLAIN không thực thi câu lệnh.
+            "stock_update": ("UPDATE stock SET s_quantity = s_quantity - 1 WHERE s_w_id=1 AND s_i_id=%s "
+                             "AND s_quantity >= 1", (hot_item,)),
             "orders": ("SELECT * FROM orders WHERE request_id=%s", ("probe",)),
             "history": ("SELECT * FROM history WHERE request_id=%s", ("probe",)),
         }

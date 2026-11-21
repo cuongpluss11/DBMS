@@ -153,10 +153,12 @@ class MongoAdapter:
             "district": {"d_w_id": 1, "d_id": 1},
             "stock": {"s_w_id": 1, "s_i_id": hot_item},
             "customer": {"c_w_id": 1, "c_d_id": 1, "c_id": 1},
+            # Bộ lọc của lệnh P1 (cập nhật có điều kiện, mục 2.2).
+            "stock_conditional": {"s_w_id": 1, "s_i_id": hot_item, "s_quantity": {"$gte": 1}},
         }
         plans = {}
         for table, where in probes.items():
-            plans[table] = self.db[table].find(where).explain()
+            plans[table] = self.db["stock" if table == "stock_conditional" else table].find(where).explain()
         for table in ("orders", "history"):
             # Eq on a string logically implies the partial index filter. Explicit
             # type condition also makes the implication visible to the planner.
