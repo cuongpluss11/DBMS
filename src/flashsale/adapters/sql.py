@@ -6,7 +6,7 @@ import pymysql
 from pymysql.cursors import DictCursor, SSDictCursor
 
 from .base import DBError, Endpoint, Row
-from flashsale.data.schema import TABLES, ddl
+from flashsale.data.schema import SLOT_TABLE, TABLES, ddl
 
 
 def classify(exc: pymysql.MySQLError, committing: bool = False) -> DBError:
@@ -110,6 +110,13 @@ class SQLAdapter:
     def drop(self) -> None:
         self.query(f"DROP DATABASE IF EXISTS {self.endpoint.database}")
 
+    def create_slots(self) -> None:
+        self.drop_slots()
+        self.query(ddl(SLOT_TABLE, self.tidb))
+
+    def drop_slots(self) -> None:
+        self.query(f"DROP TABLE IF EXISTS {SLOT_TABLE}")
+
     def insert(self, table: str, row: Row) -> None:
         self.insert_many(table, [row])
 
@@ -135,7 +142,10 @@ class SQLAdapter:
 
     def change(self, table: str, key: Row, *, set_values: Row | None = None,
                increment: Row | None = None, changed_only: bool = False,
-               between: dict[str, tuple[int, int]] | None = None) -> int:
+               between: dict[str, tuple[int, int]] | None = None,
+               at_least: Row | None = None) -> int:
+        """UPDATE; `at_least` thêm điều kiện `cột >= giá trị` vào cùng câu lệnh (P1: kiểm tra và trừ kho
+        nguyên tử). Trả về số dòng bị ảnh hưởng."""
         assignments = [f"{name}=%s" for name in (set_values or {})]
         assignments.extend(f"{name}={name}+%s" for name in (increment or {}))
         where, values = keys(key)
@@ -143,6 +153,9 @@ class SQLAdapter:
         for name, (low, high) in (between or {}).items():
             where += (" AND " if where else " WHERE ") + f"{name} BETWEEN %s AND %s"
             params += (low, high)
+        for name, minimum in (at_least or {}).items():
+            where += (" AND " if where else " WHERE ") + f"{name} >= %s"
+            params += (minimum,)
         if changed_only and set_values:
             conditions = " OR ".join(f"NOT ({name} <=> %s)" for name in set_values)
             where += (" AND " if where else " WHERE ") + f"({conditions})"
@@ -173,6 +186,9 @@ class SQLAdapter:
             "district": ("SELECT * FROM district WHERE d_w_id=1 AND d_id=1 FOR UPDATE", ()),
             "stock": ("SELECT * FROM stock WHERE s_w_id=1 AND s_i_id=%s FOR UPDATE", (hot_item,)),
             "customer": ("SELECT * FROM customer WHERE c_w_id=1 AND c_d_id=1 AND c_id=1", ()),
+            # Câu P1 (mục 2.2): cập nhật có điều kiện theo khóa chính; EXPLAIN không thực thi câu lệnh.
+            "stock_update": ("UPDATE stock SET s_quantity = s_quantity - 1 WHERE s_w_id=1 AND s_i_id=%s "
+                             "AND s_quantity >= 1", (hot_item,)),
             "orders": ("SELECT * FROM orders WHERE request_id=%s", ("probe",)),
             "history": ("SELECT * FROM history WHERE request_id=%s", ("probe",)),
         }
@@ -203,7 +219,7 @@ class SQLAdapter:
             result["history_ddl"] = self.query("SHOW CREATE TABLE history")
         return result
 
-    def doc_reconciliation(self, inventory: int, initial_orders: int) -> list[dict]:
+    def doc_reconciliation(self, inventory: int, initial_orders: int, slots: bool = False) -> list[dict]:
         """Câu SQL kiểm luật 1 và 2 của đề (mục 2.1), mở rộng cho mọi kho. Kết quả rỗng là đạt.
         Chỉ đếm dòng đơn tạo trong lượt chạy bằng ol_o_id > initial_orders: đúng vì d_next_o_id nạp
         ban đầu là initial_orders + 1 và reset khôi phục lại giá trị đó."""
@@ -212,6 +228,17 @@ class SQLAdapter:
             "LEFT JOIN (SELECT ol_supply_w_id AS w, ol_i_id AS i, SUM(ol_quantity) AS sold FROM order_line "
             "WHERE ol_o_id > %s GROUP BY ol_supply_w_id, ol_i_id) o ON o.w = s.s_w_id AND o.i = s.s_i_id "
             "WHERE s.s_quantity < 0 OR %s - s.s_quantity <> COALESCE(o.sold, 0) LIMIT 10")
+        if slots:
+            # Mục 2.2 (nhóm C): luật 2 tính trên tổng tồn của các dòng con; luật 1 kiểm từng dòng con.
+            statement = (
+                "SELECT s.s_w_id, s.s_i_id, s.total AS s_quantity, COALESCE(o.sold, 0) AS sold FROM "
+                "(SELECT st.s_w_id, st.s_i_id, st.s_quantity AS own, st.s_quantity + COALESCE(sl.q, 0) AS total, "
+                "sl.m AS min_slot FROM stock st LEFT JOIN (SELECT ss_w_id, ss_i_id, SUM(ss_quantity) AS q, "
+                "MIN(ss_quantity) AS m FROM stock_slot GROUP BY ss_w_id, ss_i_id) sl "
+                "ON sl.ss_w_id = st.s_w_id AND sl.ss_i_id = st.s_i_id) s "
+                "LEFT JOIN (SELECT ol_supply_w_id AS w, ol_i_id AS i, SUM(ol_quantity) AS sold FROM order_line "
+                "WHERE ol_o_id > %s GROUP BY ol_supply_w_id, ol_i_id) o ON o.w = s.s_w_id AND o.i = s.s_i_id "
+                "WHERE s.own < 0 OR s.min_slot < 0 OR %s - s.total <> COALESCE(o.sold, 0) LIMIT 10")
         return self.query(statement, (initial_orders, inventory))
 
     def counters(self) -> dict[str, int | None]:

@@ -13,11 +13,11 @@ from .metrics import warmup_stability
 
 INDEX_COLUMNS = [
     "run_id", "engine", "version", "profile", "label", "repetition", "concurrency", "warehouse_mode", "theta",
-    "hot_item", "inventory_mode", "payment_ytd", "idempotency", "client_timeout_seconds", "tps", "p50_ms",
+    "hot_item", "variant", "slots", "order_id_batch", "arrival_rate", "inventory_mode", "payment_ytd", "idempotency", "client_timeout_seconds", "tps", "p50_ms",
     "p95_ms", "p99_ms", "abort_pct", "out_of_stock_pct", "retry_pct", "validation", "git_commit",
     "warmup_drift_pct", "loadgen_cpu_pct", "environment_mode", "run_note"]
-GROUP_KEYS = ("engine", "profile", "concurrency", "warehouse_mode", "theta", "hot_item", "payment_ytd", "idempotency",
-              "run_note")
+GROUP_KEYS = ("engine", "profile", "concurrency", "warehouse_mode", "theta", "hot_item", "variant", "slots",
+              "order_id_batch", "arrival_rate", "payment_ytd", "idempotency", "run_note")
 WARMUP_DRIFT_LIMIT_PCT = 10.0
 
 
@@ -38,6 +38,9 @@ def collect(results_dir: Path) -> list[dict[str, Any]]:
             "repetition": result["repetition"], "concurrency": result["concurrency"],
             "warehouse_mode": result["warehouse_mode"], "theta": result["theta"], "hot_item": result["hot_item"],
             "inventory_mode": result["inventory_mode"],
+            # Lượt 2.1 cũ không có các trường này: coi là legacy (cách trừ kho của 2.1), không có slot, không cấp mã theo lô.
+            "variant": result.get("variant", "legacy"), "slots": result.get("slots"),
+            "order_id_batch": result.get("order_id_batch", 0), "arrival_rate": result.get("arrival_rate", 0.0),
             "payment_ytd": manifest.get("config", {}).get("payment_ytd"),
             "idempotency": result.get("idempotency", True),
             "client_timeout_seconds": result.get("client_timeout_seconds"),
@@ -90,12 +93,12 @@ def markdown(summary: list[dict[str, Any]], warmup: list[dict[str, Any]]) -> str
     lines = ["# Tổng hợp kết quả", "",
              "Trung vị, min–max của TPS thành công và trung vị p99 trên các lần lặp cùng cấu hình. "
              "`valid` là số lượt VALID trên tổng số lượt; lượt INVALID không được xếp hạng.", "",
-             "| engine | profile | client | kho | θ | hot | ytd | idem | ghi chú | lượt | valid | TPS median (min–max) | p99 median ms |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+             "| engine | profile | client | kho | θ | hot | biến thể | slot | lô mã | tốc độ đến | ytd | idem | ghi chú | lượt | valid | TPS median (min–max) | p99 median ms |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for item in summary:
         lines.append(
             f"| {item['engine']} | {item['profile']} | {item['concurrency']} | {item['warehouse_mode']} | "
-            f"{item['theta']} | {item['hot_item']} | {item['payment_ytd']} | {item['idempotency']} | {item['run_note'] or ''} | {item['runs']} | "
+            f"{item['theta']} | {item['hot_item']} | {item['variant']} | {item['slots'] or ''} | {item['order_id_batch']} | {item['arrival_rate'] or 'kín'} | {item['payment_ytd']} | {item['idempotency']} | {item['run_note'] or ''} | {item['runs']} | "
             f"{item['valid']}/{item['runs']} | {_fmt(item['tps_median'])} ({_fmt(item['tps_min'])}–{_fmt(item['tps_max'])}) | "
             f"{_fmt(item['p99_median_ms'])} |")
     checked = [row for row in warmup if row["status"] != "no_series"]

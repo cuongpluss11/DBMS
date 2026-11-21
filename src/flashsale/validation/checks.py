@@ -8,10 +8,12 @@ ORDER_FIELDS = ("o_w_id", "o_d_id", "o_id", "o_ol_cnt", "request_id", "run_id")
 LINE_FIELDS = ("ol_w_id", "ol_d_id", "ol_o_id", "ol_number", "ol_supply_w_id",
                "ol_i_id", "ol_quantity", "run_id")
 STOCK_FIELDS = ("s_w_id", "s_i_id", "s_quantity")
+SLOT_FIELDS = ("ss_w_id", "ss_i_id", "ss_slot", "ss_quantity")
 
 
 def check(dataset: Dataset, run_id: str, expected_requests: Iterable[str],
-          stock: Iterable[Row], orders: Iterable[Row], lines: Iterable[Row]) -> dict:
+          stock: Iterable[Row], orders: Iterable[Row], lines: Iterable[Row],
+          slots: Iterable[Row] = ()) -> dict:
     failures: dict[str, list] = {"nonnegative": [], "reconciliation": [], "idempotency": []}
     accounting = failures["reconciliation"]
     identity = failures["idempotency"]
@@ -56,6 +58,14 @@ def check(dataset: Dataset, run_id: str, expected_requests: Iterable[str],
             accounting.append({"order_key": key, "expected_lines": count,
                                "line_numbers": sorted(line_numbers.get(key, ()))})
 
+    # Mục 2.2 (P2): tồn của món nóng nằm ở các dòng con; luật 1 kiểm từng dòng con, luật 2 kiểm trên tổng.
+    slot_total: Counter[tuple[int, int]] = Counter()
+    for row in slots:
+        w, i, slot, quantity = (row[field] for field in SLOT_FIELDS)
+        if quantity < 0:
+            failures["nonnegative"].append({"warehouse": w, "item": i, "slot": slot, "slot_final": quantity})
+        slot_total[w, i] += quantity
+
     present = bytearray(dataset.warehouses * dataset.items)
     for row in stock:
         w, i, quantity = (row[field] for field in STOCK_FIELDS)
@@ -70,6 +80,7 @@ def check(dataset: Dataset, run_id: str, expected_requests: Iterable[str],
             continue
         present[offset] = 1
         units = sold.pop((w, i), 0)
+        quantity += slot_total.pop((w, i), 0)
         delta = dataset.inventory - quantity - units
         if delta:
             accounting.append({"warehouse": w, "item": i, "stock_initial": dataset.inventory,
@@ -80,6 +91,8 @@ def check(dataset: Dataset, run_id: str, expected_requests: Iterable[str],
             accounting.append({"missing_stock_key": (w + 1, i + 1), "sold": sold.pop((w + 1, i + 1), 0)})
     for key, quantity in sold.items():
         accounting.append({"sold_without_stock_key": key, "sold": quantity})
+    for key, quantity in slot_total.items():
+        accounting.append({"slot_without_stock_key": key, "slot_quantity": quantity})
 
     return {"status": "INVALID" if any(failures.values()) else "VALID",
             "rules": {rule: not errors for rule, errors in failures.items()},
@@ -88,9 +101,10 @@ def check(dataset: Dataset, run_id: str, expected_requests: Iterable[str],
 
 
 def validate(db: Adapter, dataset: Dataset, run_id: str, expected_requests: Iterable[str],
-             baseline_counts: dict[str, int] | None = None) -> dict:
+             baseline_counts: dict[str, int] | None = None, slots: bool = False) -> dict:
     report = check(dataset, run_id, expected_requests, db.rows("stock", STOCK_FIELDS),
-                   db.rows("orders", ORDER_FIELDS, tagged=True), db.rows("order_line", LINE_FIELDS, tagged=True))
+                   db.rows("orders", ORDER_FIELDS, tagged=True), db.rows("order_line", LINE_FIELDS, tagged=True),
+                   db.rows("stock_slot", SLOT_FIELDS) if slots else ())
     if baseline_counts is not None:
         for table, rule in (("orders", "idempotency"), ("order_line", "reconciliation"),
                             ("new_order", "idempotency")):
@@ -103,7 +117,8 @@ def validate(db: Adapter, dataset: Dataset, run_id: str, expected_requests: Iter
                 report["status"] = "INVALID"
     cross_check = getattr(db, "doc_reconciliation", None)
     if cross_check is not None:
-        violations = cross_check(dataset.inventory, dataset.initial_orders)
+        violations = (cross_check(dataset.inventory, dataset.initial_orders, slots=True) if slots
+                      else cross_check(dataset.inventory, dataset.initial_orders))
         report["doc_check"] = {"violations": len(violations), "sample": violations[:5]}
         if violations:
             report["errors"]["reconciliation"].append({"doc_sql_check": violations[:5]})
