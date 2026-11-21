@@ -10,7 +10,7 @@ import sys
 from flashsale.adapters.base import Endpoint, open_adapter
 from flashsale.benchmark.metrics import write_json
 from flashsale.benchmark.runner import run_one
-from flashsale.config import Settings, read_settings
+from flashsale.config import VARIANTS, Settings, read_settings
 from flashsale.data.loader import fingerprint, load, reset
 from flashsale.infra import (BUDGET_CPUS, BUDGET_MEMORY_BYTES, ENGINES, ROOT, active_engines, container_limits, endpoint, enforce_one,
                             host_info, pd_status, project_lock, ready, remote_nodes, source_hashes, setting, start, stop, tcp_rtt_ms)
@@ -183,11 +183,26 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--theta", type=float, choices=(0, 0.3, 0.5, 0.7, 0.9))
             command.add_argument("--hot-item", action=argparse.BooleanOptionalAction, default=None,
                                  help="Mọi yêu cầu chọn đúng một món (mức cực đoan của đề)")
+            add_variant_arguments(command)
         if name == "validate":
             command.add_argument("--run-id", required=True)
         if name == "smoke":
             command.add_argument("--start", action="store_true")
+            add_variant_arguments(command)
     return cli
+
+
+VARIANT_FIELDS = ("variant", "slots", "hot_items", "order_id_batch")
+
+
+def add_variant_arguments(command) -> None:
+    """Biến thể trừ kho của mục 2.2 (mặc định `legacy` = 2.1, không đổi)."""
+    command.add_argument("--variant", choices=VARIANTS,
+                         help="legacy (2.1), p0 đọc rồi ghi, p1 cập nhật có điều kiện, p2 chia tồn kho thành slot")
+    command.add_argument("--slots", type=int, help="p2: số slot N mỗi món nóng mỗi kho")
+    command.add_argument("--hot-items", type=int, dest="hot_items", help="p2: số món đầu bảng hạng Zipf được chia slot")
+    command.add_argument("--order-id-batch", type=int, dest="order_id_batch",
+                         help="0 = tăng d_next_o_id mỗi đơn; B > 0 = mỗi worker xin lô B mã đơn")
 
 
 def execute_command(args) -> dict | list:
@@ -203,7 +218,10 @@ def execute_command(args) -> dict | list:
     if command == "status":
         return ready(engine, timeout=0) if active_engines()[engine] else {"status": "stopped"}
     if command == "smoke":
-        return project_smoke(engine, read_settings(args.config), args.config, manage=args.start)
+        smoke = read_settings(args.config)
+        smoke = replace(smoke, **{name: getattr(args, name) for name in VARIANT_FIELDS
+                                  if getattr(args, name) is not None})
+        return project_smoke(engine, smoke, args.config, manage=args.start)
     enforce_one(engine)
     if command == "validate":
         from uuid import UUID
@@ -218,7 +236,8 @@ def execute_command(args) -> dict | list:
         expected = json.loads((folder / "successful_new_orders.json").read_text(encoding="utf-8"))
         with connect(target) as db:
             return validate(db, Dataset(**manifest["config"]["dataset"]), args.run_id, expected,
-                            manifest["dataset_state"]["counts"])
+                            manifest["dataset_state"]["counts"],
+                            slots=manifest["config"].get("variant") == "p2")
 
     target = endpoint(engine, getattr(args, "dataset", None))
     if command in {"reset", "drop"} and target.database != args.confirm:
@@ -235,7 +254,8 @@ def execute_command(args) -> dict | list:
         return load_dataset(target, cfg)
     if command == "reset":
         return restore(target, cfg, dataset_state(target, cfg))
-    cfg = replace(cfg, **{name: getattr(args, name) for name in ("concurrency", "warehouse_mode", "repetitions", "theta", "hot_item")
+    cfg = replace(cfg, **{name: getattr(args, name) for name in ("concurrency", "warehouse_mode", "repetitions", "theta", "hot_item",
+                                                                 *VARIANT_FIELDS)
                           if getattr(args, name) is not None})
     return run(target, cfg, args.config, reset_between=args.reset_between)
 

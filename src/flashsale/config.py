@@ -3,6 +3,9 @@ from pathlib import Path
 import tomllib
 
 
+VARIANTS = ("legacy", "p0", "p1", "p2")
+
+
 @dataclass(frozen=True)
 class Dataset:
     warehouses: int
@@ -39,10 +42,21 @@ class Settings:
     # (lượt phụ theo mục 2.1 của đề) mới tắt.
     idempotency: bool = True
     client_timeout_seconds: float = 15.0
+    # Mục 2.2. `legacy` = cách trừ kho của 2.1 (khóa dòng bằng FOR UPDATE rồi ghi), giữ nguyên để số 2.1 không đổi.
+    # p0 = đọc rồi ghi; p1 = cập nhật có điều kiện; p2 = p1 trên `slots` dòng con cho `hot_items` món đầu bảng hạng.
+    variant: str = "legacy"
+    slots: int = 1
+    hot_items: int = 100
+    # 0 = mỗi đơn tăng d_next_o_id (như 2.1); B > 0 = mỗi worker xin một lô B mã đơn cho mỗi (kho, quận).
+    order_id_batch: int = 0
 
     def __post_init__(self) -> None:
         if self.idempotency == (self.label == "idempotency_off"):
             raise ValueError("Chỉ profile có nhãn idempotency_off mới được đặt idempotency=false (và ngược lại)")
+        if self.variant not in VARIANTS:
+            raise ValueError(f"variant phải thuộc {VARIANTS}")
+        if self.slots < 1 or self.hot_items < 1 or self.order_id_batch < 0:
+            raise ValueError("slots và hot_items phải dương, order_id_batch không âm")
         if self.client_timeout_seconds <= 0:
             raise ValueError("client_timeout_seconds phải dương")
         if self.warehouse_mode not in {"uniform", "single-warehouse"}:

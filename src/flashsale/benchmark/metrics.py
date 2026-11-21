@@ -9,7 +9,7 @@ from typing import Any
 from flashsale.workload.generator import Request
 from flashsale.workload.retry import ERRORS, Outcome
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def percentile(sorted_values: list[float], pct: int) -> float | None:
@@ -33,6 +33,9 @@ class Phase:
     drained: int = 0
     out_of_stock_all: int = 0
     unknown_commits: int = 0
+    # P2: số lần thử slot và số dòng hàng trừ được qua slot (đếm cả giao dịch sau đó bị hủy/retry).
+    slot_attempts: int = 0
+    slot_items: int = 0
     successful_orders: list[str] = field(default_factory=list)
     # Số request thành công mỗi giây của phase (giây 0 = đầu phase); dùng kiểm tra warmup đã ổn định chưa.
     series: Counter[int] = field(default_factory=Counter)
@@ -67,7 +70,7 @@ class Phase:
         self.latency.extend(part.latency)
         self.successful_orders.extend(part.successful_orders)
         for key in ("retry_requests", "retry_attempts", "draws", "top100", "top1", "drained",
-                    "out_of_stock_all", "unknown_commits"):
+                    "out_of_stock_all", "unknown_commits", "slot_attempts", "slot_items"):
             setattr(self, key, getattr(self, key) + getattr(part, key))
 
     def series_list(self, seconds: float) -> list[int]:
@@ -96,6 +99,9 @@ class Phase:
             "rank_draws": self.draws, "observed_rank1_pct": percent(self.top1, self.draws),
             "observed_top100_pct": percent(self.top100, self.draws),
             "out_of_stock_all": self.out_of_stock_all, "unknown_commits_all": self.unknown_commits,
+            # Chỉ có nghĩa với variant p2 (null khi không có lần thử slot nào); đếm cả warmup-drain và lần retry.
+            "slot_attempts": self.slot_attempts or None,
+            "slot_attempts_per_item": self.slot_attempts / self.slot_items if self.slot_items else None,
         }
 
 
@@ -137,6 +143,8 @@ def write_result(directory: Path, result: dict) -> None:
                                             "inventory_mode", "repetition", "seed", "concurrency",
                                             "warehouse_mode", "theta", "hot_item", "resource_limits")},
             "idempotency": result.get("idempotency", True),
+            "variant": result.get("variant", "legacy"), "slots": result.get("slots"),
+            "order_id_batch": result.get("order_id_batch", 0),
             "client_timeout_seconds": result.get("client_timeout_seconds"),
             "phase": phase, **result[phase], **result["theoretical_selection"],
             "lock_wait_ms": result["lock_wait_ms"] if phase == "measurement" else None,

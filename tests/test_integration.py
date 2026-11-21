@@ -6,8 +6,9 @@ import pytest
 from flashsale.adapters.base import open_adapter
 from flashsale.cli import project_smoke
 from flashsale.config import read_settings
-from flashsale.data.loader import load, reset
+from flashsale.data.loader import load, prepare_slots, reset
 from flashsale.infra import ENGINES, enforce_one, endpoint, project_lock
+from flashsale.transactions.core import TxnContext
 from flashsale.validation.checks import validate
 from flashsale.workload.generator import Request
 from flashsale.workload.retry import run_request
@@ -85,6 +86,40 @@ def test_transaction_contract_and_validator(dataset):
     assert validate(db, config, "", [])["status"] == "VALID"
     assert {table: db.count(table) for table in counts} == counts
     assert db.one("customer", customer)["c_balance"] == -1000
+
+
+def test_hotspot_variants_p1_p2_contract(dataset):
+    """Mục 2.2: P1 (cập nhật có điều kiện), lô mã đơn và P2 (slot) trên DBMS thật, rồi validator/đối soát của đề."""
+    db, config, counts = dataset
+    run_id = "b" * 32
+    district = {"d_w_id": 1, "d_id": 1}
+    p1 = TxnContext("p1", order_id_batch=3)
+    ok = Request(run_id + "-p1", run_id, "new_order", 1, 1, 1, ((1, 4), (2, 5)))
+    assert run_request(db, ok, ctx=p1).status == "success"
+    assert db.one("stock", {"s_w_id": 1, "s_i_id": 1})["s_quantity"] == 16
+    short = Request(run_id + "-p1-short", run_id, "new_order", 1, 1, 1, ((1, 7), (2, 16)))
+    assert run_request(db, short, ctx=p1).status == "out_of_stock"
+    assert db.one("stock", {"s_w_id": 1, "s_i_id": 1})["s_quantity"] == 16
+    assert db.one("district", district)["d_next_o_id"] == config.initial_orders + 1 + 3  # một lô 3 mã
+
+    assert prepare_slots(db, config, [3], 3)["slot_rows"] == config.warehouses * 3
+    p2 = TxnContext("p2", 3, frozenset({3}), order_id_batch=3)
+    sold = []
+    for n in range(3):  # slot 7/7/6: mỗi đơn 6 cái vét đúng một slot, bất kể slot được chọn đầu tiên
+        req = Request(f"{run_id}-p2-{n}", run_id, "new_order", 1, 1, 1, ((3, 6),))
+        assert run_request(db, req, ctx=p2).status == "success"
+        sold.append(req.request_id)
+    over = Request(run_id + "-p2-over", run_id, "new_order", 1, 1, 1, ((3, 6),))
+    assert run_request(db, over, ctx=p2).status == "out_of_stock"
+    assert db.one("stock", {"s_w_id": 1, "s_i_id": 3})["s_quantity"] == 0
+    report = validate(db, config, run_id, [ok.request_id, *sold], slots=True)
+    assert report["status"] == "VALID", report["errors"]
+    assert db.doc_reconciliation(config.inventory, config.initial_orders, slots=True) == []
+    # Quên cộng slot (validate không slots) phải bị phát hiện: tồn nằm ngoài dòng stock.
+    assert validate(db, config, run_id, [ok.request_id, *sold])["status"] == "INVALID"
+    reset(db, config)
+    assert validate(db, config, "", [])["status"] == "VALID"
+    assert {table: db.count(table) for table in counts} == counts
 
 
 def test_smoke_exports(engine):

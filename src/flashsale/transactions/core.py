@@ -1,7 +1,30 @@
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import random
 
 from flashsale.adapters.base import Adapter, DBError, Row
 from flashsale.workload.generator import Request
+
+# ol_dist_info của P0/P1/P2 là hằng: không đọc dòng stock chỉ để lấy chuỗi đệm (đọc thêm sẽ giữ khóa lâu hơn
+# trên dòng nóng). Khác loader TPC-C chuẩn và khác `legacy`; ghi trong docs/assumptions.md.
+DIST_FILLER = "FLASHSALE-NO-DIST-INFO"
+
+
+@dataclass
+class TxnContext:
+    """Trạng thái của MỘT worker cho các biến thể mục 2.2 (mỗi worker có adapter riêng nên không chia sẻ)."""
+    variant: str = "legacy"
+    slots: int = 1
+    hot_items: frozenset[int] = frozenset()
+    order_id_batch: int = 0
+    rng: random.Random = field(default_factory=random.Random)
+    blocks: dict[tuple[int, int], list[int]] = field(default_factory=dict)
+    slot_attempts: int = 0
+    slot_items: int = 0
+
+    @property
+    def is_2_1(self) -> bool:
+        return self.variant == "legacy" and self.order_id_batch == 0
 
 
 def lookup(db: Adapter, req: Request) -> Row | None:
@@ -15,34 +38,99 @@ def required(row: Row | None) -> Row:
     return row
 
 
-def execute(db: Adapter, req: Request) -> None:
+def execute(db: Adapter, req: Request, ctx: TxnContext | None = None) -> None:
+    if ctx is not None and ctx.order_id_batch > 0 and req.kind == "new_order":
+        # Xin lô mã đơn TRƯỚC khi mở giao dịch của đơn (giao dịch riêng, commit ngay): BEGIN lồng trong một
+        # giao dịch đang mở sẽ chốt giao dịch đó.
+        ensure_order_ids(db, ctx, req.warehouse, req.district)
     with db.atomic():
         if req.idempotent and lookup(db, req) is not None:
             return
         if req.kind == "new_order":
-            new_order(db, req)
+            if ctx is None or ctx.is_2_1:
+                new_order(db, req)
+            else:
+                new_order(db, req, ctx)
         else:
             payment(db, req)
 
 
-def new_order(db: Adapter, req: Request) -> None:
+def ensure_order_ids(db: Adapter, ctx: TxnContext, w: int, d: int) -> None:
+    block = ctx.blocks.get((w, d))
+    if block is not None and block[0] < block[1]:
+        return
+    key = {"d_w_id": w, "d_id": d}
+    with db.atomic():
+        first = required(db.one("district", key, lock=True))["d_next_o_id"]
+        db.change("district", key, increment={"d_next_o_id": ctx.order_id_batch})
+    # Chỉ ghi nhận lô sau khi commit thành công; lỗi thì ném DBError ra cho vòng retry của runner.
+    ctx.blocks[(w, d)] = [first, first + ctx.order_id_batch]
+
+
+def take_order_id(db: Adapter, req: Request, ctx: TxnContext | None) -> int:
+    if ctx is not None and ctx.order_id_batch > 0:
+        block = ctx.blocks[(req.warehouse, req.district)]
+        order_id = block[0]
+        # Mã đã lấy không trả lại nếu giao dịch bị hủy: chấp nhận khoảng trống mã, không bao giờ trùng mã.
+        block[0] += 1
+        return order_id
+    key = {"d_w_id": req.warehouse, "d_id": req.district}
+    order_id = required(db.one("district", key, lock=True))["d_next_o_id"]
+    db.change("district", key, increment={"d_next_o_id": 1})
+    return order_id
+
+
+def take_stock(db: Adapter, req: Request, ctx: TxnContext, item: int, quantity: int) -> None:
+    """Trừ kho theo variant; hết hàng thì ném DBError('out_of_stock') để cả giao dịch rollback."""
+    w, key = req.warehouse, {"s_w_id": req.warehouse, "s_i_id": item}
+    stats = {"s_ytd": quantity, "s_order_cnt": 1}
+    if ctx.variant == "p0":
+        # Đọc rồi ghi: giá trị tuyệt đối tính ở ứng dụng, không khóa lúc đọc, nên hai giao dịch đồng thời
+        # có thể ghi đè nhau (mất cập nhật) trên hệ không phát hiện được xung đột.
+        current = required(db.one("stock", key))["s_quantity"]
+        if current < quantity:
+            raise DBError("out_of_stock")
+        db.change("stock", key, set_values={"s_quantity": current - quantity}, increment=stats)
+    elif ctx.variant == "p1" or item not in ctx.hot_items:
+        if db.change("stock", key, increment={"s_quantity": -quantity, **stats},
+                     at_least={"s_quantity": quantity}) != 1:
+            raise DBError("out_of_stock")
+    else:
+        # P2, món nóng: chọn ngẫu nhiên một slot; slot không đủ thì thử lần lượt các slot còn lại.
+        first = ctx.rng.randrange(ctx.slots)
+        for step in range(ctx.slots):
+            ctx.slot_attempts += 1
+            slot = {"ss_w_id": w, "ss_i_id": item, "ss_slot": (first + step) % ctx.slots}
+            if db.change("stock_slot", slot, increment={"ss_quantity": -quantity, "ss_ytd": quantity,
+                                                        "ss_order_cnt": 1},
+                         at_least={"ss_quantity": quantity}) == 1:
+                ctx.slot_items += 1
+                return
+        raise DBError("out_of_stock")
+
+
+def new_order(db: Adapter, req: Request, ctx: TxnContext | None = None) -> None:
     w, d = req.warehouse, req.district
-    district_key = {"d_w_id": w, "d_id": d}
-    district = required(db.one("district", district_key, lock=True))
-    order_id = district["d_next_o_id"]
-    db.change("district", district_key, increment={"d_next_o_id": 1})
+    legacy = ctx is None or ctx.variant == "legacy"
+    order_id = take_order_id(db, req, ctx)
     lines = []
     for line_number, (item, quantity) in enumerate(req.items, 1):
-        key = {"s_w_id": w, "s_i_id": item}
-        stock = required(db.one("stock", key, lock=True))
-        if stock["s_quantity"] < quantity:
-            raise DBError("out_of_stock")
-        price = required(db.one("item", {"i_id": item}))["i_price"]
-        db.change("stock", key, increment={"s_quantity": -quantity,
-                                           "s_ytd": quantity, "s_order_cnt": 1})
+        if legacy:
+            key = {"s_w_id": w, "s_i_id": item}
+            stock = required(db.one("stock", key, lock=True))
+            if stock["s_quantity"] < quantity:
+                raise DBError("out_of_stock")
+            price = required(db.one("item", {"i_id": item}))["i_price"]
+            db.change("stock", key, increment={"s_quantity": -quantity,
+                                               "s_ytd": quantity, "s_order_cnt": 1})
+            dist_info = stock[f"s_dist_{d:02d}"]
+        else:
+            take_stock(db, req, ctx, item, quantity)
+            price = required(db.one("item", {"i_id": item}))["i_price"]
+            dist_info = DIST_FILLER
         lines.append(dict(ol_w_id=w, ol_d_id=d, ol_o_id=order_id, ol_number=line_number,
                           ol_i_id=item, ol_supply_w_id=w, ol_quantity=quantity, ol_delivery_d=None,
-                          ol_amount=quantity * price, ol_dist_info=stock[f"s_dist_{d:02d}"],
+                          ol_amount=quantity * price, ol_dist_info=dist_info,
                           run_id=req.run_id))
     db.insert("orders", dict(o_w_id=w, o_d_id=d, o_id=order_id, o_c_id=req.customer,
                             o_entry_d=datetime.now(timezone.utc).replace(tzinfo=None),

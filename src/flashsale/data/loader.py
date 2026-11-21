@@ -141,6 +141,7 @@ def load(db: Adapter, cfg: Dataset, seed: int, batch_size: int = 1000) -> dict[s
 
 
 def reset(db: Adapter, cfg: Dataset) -> None:
+    db.drop_slots()  # bảng phụ của P2; dòng stock đã chuyển tồn sang slot được khôi phục ngay bên dưới
     for table in ("order_line", "new_order", "orders"):
         db.delete_tagged(table, "run_id")
     db.delete_tagged("history", "request_id")
@@ -154,3 +155,35 @@ def reset(db: Adapter, cfg: Dataset) -> None:
     db.change("district", {}, set_values={"d_next_o_id": cfg.initial_orders + 1, "d_ytd": DISTRICT_YTD},
               changed_only=True)
     db.change("warehouse", {}, set_values={"w_ytd": WAREHOUSE_YTD}, changed_only=True)
+
+
+def slot_quantities(inventory: int, slots: int) -> list[int]:
+    """Chia S0 thành `slots` phần nguyên, phần dư dồn vào các slot đầu; tổng luôn bằng S0."""
+    base, extra = divmod(inventory, slots)
+    return [base + (1 if slot < extra else 0) for slot in range(slots)]
+
+
+def prepare_slots(db: Adapter, cfg: Dataset, hot_items: list[int], slots: int, batch_size: int = 1000) -> dict:
+    """P2: với mỗi kho và mỗi món nóng, chuyển toàn bộ tồn của dòng stock sang `slots` dòng con (stock.s_quantity
+    về 0). Tổng tồn (stock + slot) vẫn bằng S0 nên luật 2 tính trên tổng. Chạy trước warmup, ngoài thời gian đo."""
+    db.create_slots()
+    parts = slot_quantities(cfg.inventory, slots)
+    rows = 0
+    for warehouse in range(1, cfg.warehouses + 1):
+        batch = []
+        for item in hot_items:
+            for slot, quantity in enumerate(parts):
+                batch.append(dict(ss_w_id=warehouse, ss_i_id=item, ss_slot=slot, ss_quantity=quantity,
+                                  ss_ytd=0, ss_order_cnt=0))
+            db.change("stock", {"s_w_id": warehouse, "s_i_id": item}, set_values={"s_quantity": 0})
+            if len(batch) >= batch_size:
+                db.insert_many("stock_slot", batch)
+                rows += len(batch)
+                batch = []
+        if batch:
+            db.insert_many("stock_slot", batch)
+            rows += len(batch)
+    expected = cfg.warehouses * len(hot_items) * slots
+    if rows != expected or db.count("stock_slot") != expected:
+        raise RuntimeError(f"Sai số dòng stock_slot: kỳ vọng {expected}, đã chèn {rows}, DB có {db.count('stock_slot')}")
+    return {"slot_rows": rows, "hot_items": len(hot_items), "slots": slots}

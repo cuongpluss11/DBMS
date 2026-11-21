@@ -1,0 +1,26 @@
+# Mục 2.2 (Flash-sale: tranh chấp khóa). Mặc định: P1, một kho, θ = 0,9, 64 client, tồn lớn (lượt đo tốc độ).
+# Biến thể và điểm đo đổi bằng tùy chọn CLI: --variant p0|p1|p2 --slots N --order-id-batch B --theta --hot-item --concurrency.
+label = "hotspot"
+workers_per_process = 8
+concurrency = 64
+warehouse_mode = "single-warehouse"
+theta = 0.9
+hot_item = false
+warmup_seconds = 30
+measurement_seconds = 60
+repetitions = 3
+seed = 2026
+payment_ytd = false
+jitter = false
+variant = "p1"
+slots = 1
+hot_items = 100
+order_id_batch = 0
+
+[dataset]
+warehouses = 10
+districts = 10
+items = 100000
+customers = 3000
+initial_orders = 3000
+inventory = 1000000000

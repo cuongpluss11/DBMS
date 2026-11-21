@@ -70,11 +70,21 @@ TABLES = {
 }
 
 
+# Bảng phụ của mục 2.2 (P2 chia tồn kho): KHÔNG thuộc 9 bảng TPC-C, chỉ được tạo khi lượt chạy
+# dùng variant p2 và được xóa khi reset. Giữ ngoài TABLES để mọi kiểm đếm 9 bảng của 2.1 không đổi.
+SLOT_TABLE = "stock_slot"
+EXTRA_TABLES = {
+    SLOT_TABLE: Table(
+        "ss_w_id INT NOT NULL, ss_i_id INT NOT NULL, ss_slot INT NOT NULL, ss_quantity BIGINT NOT NULL, "
+        "ss_ytd BIGINT NOT NULL, ss_order_cnt BIGINT NOT NULL", ("ss_w_id", "ss_i_id", "ss_slot")),
+}
+
+
 def ddl(name: str, tidb: bool, foreign_keys: bool = False, idempotency: bool = True) -> str:
     # FK mặc định TẮT: InnoDB lấy khóa S trên dòng cha khi insert dòng con, làm
     # district/customer thành điểm nóng ngầm và sinh deadlock New-Order/Payment.
     # MongoDB không có FK, nên tắt để ba hệ cùng điều kiện (xem docs/assumptions.md).
-    table = TABLES[name]
+    table = {**TABLES, **EXTRA_TABLES}[name]
     definitions = [table.columns]
     if table.key:
         clustered = " CLUSTERED" if tidb else ""

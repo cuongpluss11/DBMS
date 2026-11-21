@@ -5,7 +5,7 @@ import random
 import time
 
 from flashsale.adapters.base import Adapter, DBError
-from flashsale.transactions.core import execute, lookup
+from flashsale.transactions.core import TxnContext, execute, lookup
 from .generator import Request
 
 MAX_RETRIES = 5
@@ -23,7 +23,7 @@ class Outcome:
 
 
 def run_request(db: Adapter, req: Request, *, jitter: random.Random | None = None,
-                sleep: Callable[[float], None] = time.sleep) -> Outcome:
+                sleep: Callable[[float], None] = time.sleep, ctx: TxnContext | None = None) -> Outcome:
     start = time.monotonic()
     errors: Counter[str] = Counter()
 
@@ -35,7 +35,8 @@ def run_request(db: Adapter, req: Request, *, jitter: random.Random | None = Non
         try:
             # After an ambiguous commit, require a successful read before resubmission.
             if not unresolved or lookup(db, req) is None:
-                execute(db, req)
+                # ctx=None giữ nguyên đường chạy của 2.1 (và chữ ký execute mà test thay thế).
+                execute(db, req) if ctx is None else execute(db, req, ctx)
             return finish("success", retry)
         except DBError as exc:
             errors[exc.category] += 1

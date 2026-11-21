@@ -14,11 +14,23 @@ from uuid import uuid4
 
 from flashsale.adapters.base import Adapter, Endpoint, open_adapter
 from flashsale.config import Settings
+from flashsale.data.loader import prepare_slots
 from flashsale.infra import cpu_sampler, setting
 from flashsale.validation.checks import validate
 from flashsale.workload.generator import Generator, Zipf
+from flashsale.transactions.core import TxnContext
 from flashsale.workload.retry import run_request
 from .metrics import Phase, SCHEMA_VERSION, warmup_stability, write_json, write_result, write_series
+
+
+def make_context(cfg: Settings, zipf: Zipf, repetition: int, worker: int) -> TxnContext | None:
+    """None = đường chạy của 2.1 (legacy, không cấp mã theo lô): giữ nguyên hành vi và số đo cũ."""
+    from random import Random
+
+    ctx = TxnContext(cfg.variant, cfg.slots,
+                     frozenset(zipf.item_ids[:cfg.hot_items]) if cfg.variant == "p2" else frozenset(),
+                     cfg.order_id_batch, rng=Random(f"{cfg.seed}:{repetition}:{worker}:slots"))
+    return None if ctx.is_2_1 else ctx
 
 
 def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetition: int,
@@ -29,6 +41,7 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
     try:
         db = open_adapter(endpoint, timeout=cfg.client_timeout_seconds)
         jitter = Random(f"{cfg.seed}:{repetition}:{worker}:jitter") if cfg.jitter else None
+        ctx = make_context(cfg, zipf, repetition, worker)
         phases = []
         for i, name in enumerate(("warmup", "measurement")):
             phase = Phase()
@@ -38,11 +51,14 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
             barrier.wait()
             deadline = deadlines[i]
             start = deadline - seconds
+            attempts, items = (ctx.slot_attempts, ctx.slot_items) if ctx else (0, 0)
             while time.monotonic() < deadline:
                 req = gen.next()
-                outcome = run_request(db, req, jitter=jitter)
+                outcome = run_request(db, req, jitter=jitter, ctx=ctx)
                 now = time.monotonic()
                 phase.record(req, outcome, now <= deadline, int(now - start))
+            if ctx:
+                phase.slot_attempts, phase.slot_items = ctx.slot_attempts - attempts, ctx.slot_items - items
             phases.append(phase)
             barrier.wait()
         return phases[0], phases[1]
@@ -184,6 +200,17 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
     measurement = unavailable_phase(cfg.measurement_seconds)
     expected = None
     tps_series = None
+    variant_setup = {"variant": cfg.variant, "slots": cfg.slots if cfg.variant == "p2" else None,
+                     "hot_items": cfg.hot_items if cfg.variant == "p2" else None,
+                     "order_id_batch": cfg.order_id_batch, "prepare_seconds": None}
+    if evidence["indexed"] and cfg.variant == "p2":
+        began = time.monotonic()
+        try:
+            variant_setup.update(prepare_slots(db, cfg.dataset, zipf.item_ids[:cfg.hot_items], cfg.slots))
+            variant_setup["prepare_seconds"] = time.monotonic() - began
+        except Exception as exc:
+            evidence = {**evidence, "indexed": False}
+            protocol_errors.append(f"slot_prepare_failed: {type(exc).__name__}: {exc}")
     if evidence["indexed"]:
         try:
             warm, measured, counters, cpu = phases(endpoint, cfg, db, run_id, repetition, limits)
@@ -203,7 +230,7 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
                 protocol_errors.append("no_success_in_measurement")
             if warm.unknown_commits + measured.unknown_commits:
                 protocol_errors.append("unresolved_commit")
-    else:
+    elif not protocol_errors:
         protocol_errors.append("indexed_access_not_confirmed")
     validation = {"status": "INVALID", "rules": dict.fromkeys(
         ("nonnegative", "reconciliation", "idempotency")), "errors": {}, "committed_orders": None}
@@ -211,7 +238,8 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
     # unexpected DB rows retained as evidence. Exact client reconciliation is unavailable.
     if evidence["indexed"]:
         try:
-            validation = validate(db, cfg.dataset, run_id, expected or (), dataset_state["counts"])
+            validation = validate(db, cfg.dataset, run_id, expected or (), dataset_state["counts"],
+                                  slots=cfg.variant == "p2")
             if expected is None:
                 validation["rules"]["idempotency"] = None
         except Exception as exc:
@@ -223,7 +251,8 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
     result = {
         "schema_version": SCHEMA_VERSION, "run_id": run_id, "engine": endpoint.engine,
         "version": server["version"], "label": cfg.label, "repetition": repetition,
-        "seed": cfg.seed, "idempotency": cfg.idempotency,
+        "seed": cfg.seed, "idempotency": cfg.idempotency, "variant": cfg.variant, "slots": variant_setup["slots"],
+        "hot_items": variant_setup["hot_items"], "order_id_batch": cfg.order_id_batch, "variant_setup": variant_setup,
         "client_timeout_seconds": cfg.client_timeout_seconds, "concurrency": cfg.concurrency, "warehouse_mode": cfg.warehouse_mode,
         "theta": cfg.theta, "hot_item": cfg.hot_item,
         "inventory_mode": "performance" if cfg.dataset.inventory == 1_000_000_000 else cfg.label,
