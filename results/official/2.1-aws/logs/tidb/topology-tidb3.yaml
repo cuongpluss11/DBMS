@@ -1,0 +1,33 @@
+# TiUP topology (TiDB v8.5.7, cung nhanh voi docker/compose.tidb.yml). Render boi Terraform.
+global:
+  user: "tidb"
+  ssh_port: 22
+  deploy_dir: "/tidb-deploy"
+  data_dir: "/tidb-data"
+
+monitored:
+  node_exporter_port: 9100
+
+server_configs:
+  pd:
+    replication.max-replicas: 1 # luot chinh: 1 ban sao (nhom R moi dung 3)
+  tikv:
+    storage.block-cache.capacity: "1GiB" # cung gia tri o moi cum; ghi vao bao cao
+    # Do ben Raft: giu mac dinh cua phien ban (khong tat dong bo log).
+
+pd_servers:
+  - host: 10.20.1.49
+
+tidb_servers:
+  - host: 10.20.1.117
+
+tikv_servers:
+  - host: 10.20.1.174
+  - host: 10.20.1.241
+  - host: 10.20.1.25
+
+monitoring_servers:
+  - host: 10.20.1.39
+
+grafana_servers:
+  - host: 10.20.1.39

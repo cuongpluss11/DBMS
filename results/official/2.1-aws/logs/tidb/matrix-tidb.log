@@ -1,0 +1,20 @@
+20:53:37 Bắt đầu ma trận 2.1: engine=tidb grid=evidence dry=0 log=results/matrix-tidb
+20:59:24 Đã nạp dataset flashsale_76b035a10fed45faa184a435f7f7c728 từ configs/baseline.toml
+20:59:24 Điểm 1: baseline-cross (configs/baseline-cross.toml )
+21:05:30 Điểm 2: baseline-cross-1client (configs/baseline-cross-1client.toml )
+21:11:42 Điểm 3: payment-ytd (configs/payment-ytd.toml )
+21:18:18 Điểm 4: theta-0 (configs/performance.toml --theta 0)
+21:24:58 Điểm 5: theta-0.3 (configs/performance.toml --theta 0.3)
+21:31:54 Điểm 6: theta-0.5 (configs/performance.toml --theta 0.5)
+21:38:45 Điểm 7: theta-0.7 (configs/performance.toml --theta 0.7)
+21:45:38 Điểm 8: theta-0.9 (configs/performance.toml --theta 0.9)
+21:52:37 Điểm 9: theta-hot-item (configs/performance.toml --hot-item)
+21:59:04 Điểm 10: clients-32 (configs/performance.toml --theta 0 --concurrency 32)
+22:06:10 Điểm 11: clients-64 (configs/performance.toml --theta 0 --concurrency 64)
+22:13:36 Điểm 12: clients-128 (configs/performance.toml --theta 0 --concurrency 128)
+22:20:47 Điểm 13: clients-256 (configs/performance.toml --theta 0 --concurrency 256)
+22:34:16 Đã nạp dataset flashsale_72ba52747f7343f5a5e27e9181d3391c từ configs/correctness.toml
+22:34:16 Điểm 14: correctness (configs/correctness.toml )
+22:45:27 Đã nạp dataset flashsale_4436d816df534533a554285e4407ac21 từ configs/idempotency-off.toml
+22:45:27 Điểm 15: idempotency-off (INVALID luật 3 là kết quả dự kiến, không xếp hạng)
+22:47:15 Xong 15 điểm. Tổng hợp: flashsale report --results-dir results --out results/matrix-tidb/report

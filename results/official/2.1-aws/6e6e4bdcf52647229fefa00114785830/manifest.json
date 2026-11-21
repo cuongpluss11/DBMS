@@ -1,0 +1,590 @@
+{
+  "schema_version": 3,
+  "run_id": "6e6e4bdcf52647229fefa00114785830",
+  "engine": "tidb",
+  "database": "flashsale_76b035a10fed45faa184a435f7f7c728",
+  "started_utc": "2026-11-20T22:24:12.472090+00:00",
+  "repetition": 2,
+  "config_path": "configs/performance.toml",
+  "config": {
+    "label": "performance",
+    "seed": 2026,
+    "workers_per_process": 8,
+    "concurrency": 256,
+    "warehouse_mode": "uniform",
+    "theta": 0.0,
+    "hot_item": false,
+    "warmup_seconds": 30,
+    "measurement_seconds": 60,
+    "repetitions": 3,
+    "payment_ytd": false,
+    "jitter": false,
+    "dataset": {
+      "warehouses": 10,
+      "districts": 10,
+      "items": 100000,
+      "customers": 3000,
+      "initial_orders": 3000,
+      "inventory": 1000000000
+    },
+    "idempotency": true,
+    "client_timeout_seconds": 15.0
+  },
+  "dataset_state": {
+    "engine": "tidb",
+    "database": "flashsale_76b035a10fed45faa184a435f7f7c728",
+    "fingerprint": "78af525d085098488ac83ceebd934e314ef34899eb120f7ff6fd4c82febe6d6e",
+    "status": "ready",
+    "counts": {
+      "warehouse": 10,
+      "item": 100000,
+      "district": 100,
+      "stock": 1000000,
+      "customer": 300000,
+      "history": 300000,
+      "orders": 300000,
+      "new_order": 90000,
+      "order_line": 2998678
+    }
+  },
+  "environment": {
+    "python": "3.12.3",
+    "host_os": "Linux-7.0.0-1018-aws-x86_64-with-glibc2.39",
+    "host_cpu_count": 16,
+    "host_memory_bytes": 33081966592,
+    "machine": "x86_64",
+    "workspace_disk_total_bytes": 30083776512,
+    "workspace_disk_free_bytes": 26038546432,
+    "docker_engine": null,
+    "docker_os": null,
+    "docker_cpu_count": null,
+    "docker_memory_bytes": null,
+    "docker_compose": null,
+    "git_commit": null,
+    "git_dirty": null,
+    "mode": "remote",
+    "db_host": "10.20.1.117",
+    "remote_nodes": {
+      "pd": {
+        "cpus": 2,
+        "host": "10.20.1.49",
+        "memory_bytes": 4294967296
+      },
+      "tidb": {
+        "cpus": 4,
+        "host": "10.20.1.117",
+        "memory_bytes": 8589934592
+      },
+      "tikv1": {
+        "cpus": 2,
+        "host": "10.20.1.174",
+        "memory_bytes": 8589934592
+      },
+      "tikv2": {
+        "cpus": 2,
+        "host": "10.20.1.241",
+        "memory_bytes": 8589934592
+      },
+      "tikv3": {
+        "cpus": 2,
+        "host": "10.20.1.25",
+        "memory_bytes": 8589934592
+      }
+    },
+    "source_sha256": {
+      "docker/compose.mongo.yml": "247c1b4b1741accd144be8dd4b4d97abba8b406128f80d41d7a616b063047fb0",
+      "docker/compose.mysql.yml": "88eb17901eeaffadc25c2e801f75a33a3b28728e4f3790ffa912dd2e169f2bf7",
+      "docker/compose.tidb.yml": "e773f8840d57f93a7dea8e7274c0bb37761e90b9c238ccf021e48e4197b73ade",
+      "docker/pd.toml": "c39b21ae1a5fdc33684264796b7d684868c70afbeab0e3e8ee3043f3341ea5d4",
+      "docker/tikv.toml": "8cadae33a1f514162986070676c97d80637bfb331166abb302549cab7f97c3d9",
+      "requirements.txt": "f1322a120ad0e1eb945880bce218e402016f135c38e4444a278872fe28eeaa79",
+      "src/flashsale/__init__.py": "125ed1866c774d783d62dbbb3b25a5fd4869158b4728dacbc8eaea4971b55af9",
+      "src/flashsale/__main__.py": "d220d88dd9a25cd0629c5176dd6532a2db1da40eb014a8e80796b0ddeb134918",
+      "src/flashsale/adapters/base.py": "b7164d217016c9b361b75a1ffd989bb4dd465b091418ae63dc78e65983de0b29",
+      "src/flashsale/adapters/mongo.py": "83bcfa6f1d43c0dd968d7685cb3789d06e1e190772b9ec41dfdf1fcfc7ec7db5",
+      "src/flashsale/adapters/sql.py": "57d772369b7aa7de61c8f92a4db7fac24870c4c09cf7d944b8d027d64bc503c8",
+      "src/flashsale/benchmark/metrics.py": "836f153052c4c63da4f08be6f2bb411bcf2ddd0d4b67038d0fcff5fb00fbc572",
+      "src/flashsale/benchmark/report.py": "cf834efc35367fd30dcf42942e160d29d82c22690a51f0f2aafeb53bd2f5236f",
+      "src/flashsale/benchmark/runner.py": "f70d3277a3bae179bbbc5ced2ea890f7c196b493c838b591e1d6a9fe4a07e34a",
+      "src/flashsale/cli.py": "c7267fd07141ed194c65e118a054f2f9bd11b66551a79ad7cfdd15e3c57a2e7d",
+      "src/flashsale/config.py": "83591ba3ffa7c15b1b9f561ca887f42a374ce3bfc43b204e8828523eed59a9b7",
+      "src/flashsale/data/loader.py": "3a30faaab095a6a4b3c202c556adcc06f76401952a7efcbe543076e9f74c6721",
+      "src/flashsale/data/schema.py": "49b16fff89b3f44903e450f2cfe077025c9fb4ef408b79e80d8967d131c79c79",
+      "src/flashsale/infra.py": "22da3060f39a3aaccaf5ffec98715ea36544e17e56fce750c56144319d8276d0",
+      "src/flashsale/transactions/core.py": "a86a1a1d55e7f996864ecc0fb8c027a2c60fd4b138fdcf5131f52ee75291b40c",
+      "src/flashsale/validation/checks.py": "8e2da457954f6533779ba1a4a8c6bd2beb62f5127c7da1867132c47bf6cd422f",
+      "src/flashsale/workload/generator.py": "92bf0c61f355c11aed07c2e9cce4420277716c4eed7a5313742c7b87f5cec179",
+      "src/flashsale/workload/retry.py": "76d19d130d9c26df52721ca70832ec5a9f082d1d92674b809a5963503a97b9ef"
+    },
+    "run_note": null,
+    "db_tcp_rtt_ms": {
+      "median": 0.12205149960209383,
+      "min": 0.10907800060522277,
+      "max": 1.121014000091236,
+      "samples": 10
+    },
+    "pd": {
+      "store_versions": {
+        "10.20.1.174:20160": "8.5.7",
+        "10.20.1.25:20160": "8.5.7",
+        "10.20.1.241:20160": "8.5.7"
+      },
+      "max_replicas": 1
+    }
+  },
+  "dbms": {
+    "version": "8.0.11-TiDB-v8.5.7",
+    "isolation": "REPEATABLE-READ",
+    "max_connections": 0,
+    "foreign_key_checks": 1,
+    "build": "Release Version: v8.5.7\nEdition: Community\nGit Commit Hash: 202b7f47286a1109b5c957401d34c9358d130ae0\nGit Branch: HEAD\nUTC Build Time: 2026-08-19 04:12:51\nGoVersion: go1.25.10\nRace Enabled: false\nCheck Table Before Drop: false\nStore: tikv",
+    "transaction_mode": "pessimistic",
+    "tikv_durability_config": [
+      [
+        "10.20.1.174:20160",
+        "storage.block-cache.capacity",
+        "1GiB"
+      ],
+      [
+        "10.20.1.241:20160",
+        "storage.block-cache.capacity",
+        "1GiB"
+      ],
+      [
+        "10.20.1.25:20160",
+        "storage.block-cache.capacity",
+        "1GiB"
+      ]
+    ]
+  },
+  "containers": {
+    "pd": {
+      "id": null,
+      "image": null,
+      "image_id": null,
+      "repo_digests": null,
+      "remote": true,
+      "host": "10.20.1.49",
+      "cpus": 2.0,
+      "memory_bytes": 4294967296
+    },
+    "tidb": {
+      "id": null,
+      "image": null,
+      "image_id": null,
+      "repo_digests": null,
+      "remote": true,
+      "host": "10.20.1.117",
+      "cpus": 4.0,
+      "memory_bytes": 8589934592
+    },
+    "tikv1": {
+      "id": null,
+      "image": null,
+      "image_id": null,
+      "repo_digests": null,
+      "remote": true,
+      "host": "10.20.1.174",
+      "cpus": 2.0,
+      "memory_bytes": 8589934592
+    },
+    "tikv2": {
+      "id": null,
+      "image": null,
+      "image_id": null,
+      "repo_digests": null,
+      "remote": true,
+      "host": "10.20.1.241",
+      "cpus": 2.0,
+      "memory_bytes": 8589934592
+    },
+    "tikv3": {
+      "id": null,
+      "image": null,
+      "image_id": null,
+      "repo_digests": null,
+      "remote": true,
+      "host": "10.20.1.25",
+      "cpus": 2.0,
+      "memory_bytes": 8589934592
+    }
+  },
+  "access_paths": {
+    "indexed": true,
+    "plans": {
+      "district": [
+        {
+          "id": "Point_Get_1",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:district, clustered index:PRIMARY(d_w_id, d_id)",
+          "operator info": ""
+        }
+      ],
+      "stock": [
+        {
+          "id": "Point_Get_1",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:stock, clustered index:PRIMARY(s_w_id, s_i_id)",
+          "operator info": ""
+        }
+      ],
+      "customer": [
+        {
+          "id": "Point_Get_1",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:customer, clustered index:PRIMARY(c_w_id, c_d_id, c_id)",
+          "operator info": ""
+        }
+      ],
+      "orders": [
+        {
+          "id": "Point_Get_1",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:orders, index:uq_request_id(request_id)",
+          "operator info": ""
+        }
+      ],
+      "history": [
+        {
+          "id": "Point_Get_1",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:history, index:uq_request_id(request_id)",
+          "operator info": ""
+        }
+      ]
+    },
+    "regions": {
+      "stock": [
+        {
+          "REGION_ID": 5382,
+          "START_KEY": "t_120_",
+          "END_KEY": "t_120_r_03800000000000000303800000000000f323",
+          "LEADER_ID": 5384,
+          "LEADER_STORE_ID": 2,
+          "PEERS": "5384",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 12440266,
+          "READ_BYTES": 71932096,
+          "APPROXIMATE_SIZE(MB)": 345,
+          "APPROXIMATE_KEYS": 1659428,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 1785,
+          "START_KEY": "t_120_r_03800000000000000303800000000000f323",
+          "END_KEY": "t_120_r_0380000000000000040380000000000176ef",
+          "LEADER_ID": 2537,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "2537",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 6179335,
+          "READ_BYTES": 412791,
+          "APPROXIMATE_SIZE(MB)": 181,
+          "APPROXIMATE_KEYS": 435317,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 388,
+          "START_KEY": "t_120_r_0380000000000000040380000000000176ef",
+          "END_KEY": "t_120_r_038000000000000007038000000000003d3f",
+          "LEADER_ID": 879,
+          "LEADER_STORE_ID": 2,
+          "PEERS": "879",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 9548020,
+          "READ_BYTES": 130215842,
+          "APPROXIMATE_SIZE(MB)": 306,
+          "APPROXIMATE_KEYS": 702789,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 5386,
+          "START_KEY": "t_120_r_038000000000000007038000000000003d3f",
+          "END_KEY": "t_120_r_038000000000000009038000000000010697",
+          "LEADER_ID": 5387,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "5387",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 10360674,
+          "READ_BYTES": 149234761,
+          "APPROXIMATE_SIZE(MB)": 332,
+          "APPROXIMATE_KEYS": 773295,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 191,
+          "START_KEY": "t_120_r_038000000000000009038000000000010697",
+          "END_KEY": "t_122_",
+          "LEADER_ID": 5368,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "5368",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 5242550,
+          "READ_BYTES": 78713356,
+          "APPROXIMATE_SIZE(MB)": 168,
+          "APPROXIMATE_KEYS": 419441,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        }
+      ],
+      "history": [
+        {
+          "REGION_ID": 195,
+          "START_KEY": "t_124_i_1_",
+          "END_KEY": "t_124_r_576460752303423488",
+          "LEADER_ID": 830,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "830",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 14292749,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 112,
+          "APPROXIMATE_KEYS": 1033681,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 197,
+          "START_KEY": "t_124_r_576460752303423488",
+          "END_KEY": "t_124_r_1152921504606846976",
+          "LEADER_ID": 615,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "615",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 551194,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 40960,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 199,
+          "START_KEY": "t_124_r_1152921504606846976",
+          "END_KEY": "t_124_r_1729382256910270464",
+          "LEADER_ID": 787,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "787",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 722608,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 40960,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 201,
+          "START_KEY": "t_124_r_1729382256910270464",
+          "END_KEY": "t_124_r_2305843009213693952",
+          "LEADER_ID": 1806,
+          "LEADER_STORE_ID": 2,
+          "PEERS": "1806",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 604926,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 3,
+          "APPROXIMATE_KEYS": 40960,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 203,
+          "START_KEY": "t_124_r_2305843009213693952",
+          "END_KEY": "t_124_r_2882303761517117440",
+          "LEADER_ID": 756,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "756",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 317484,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 44359,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 205,
+          "START_KEY": "t_124_r_2882303761517117440",
+          "END_KEY": "t_124_r_3458764513820540928",
+          "LEADER_ID": 825,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "825",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 762616,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 8,
+          "APPROXIMATE_KEYS": 80224,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 207,
+          "START_KEY": "t_124_r_3458764513820540928",
+          "END_KEY": "t_124_r_4035225266123964416",
+          "LEADER_ID": 1242,
+          "LEADER_STORE_ID": 2,
+          "PEERS": "1242",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 760603,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 8,
+          "APPROXIMATE_KEYS": 70263,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 209,
+          "START_KEY": "t_124_r_4035225266123964416",
+          "END_KEY": "t_124_r_4611686018427387904",
+          "LEADER_ID": 771,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "771",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 382534,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 45409,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 211,
+          "START_KEY": "t_124_r_4611686018427387904",
+          "END_KEY": "t_124_r_5188146770730811392",
+          "LEADER_ID": 773,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "773",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 383562,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 3,
+          "APPROXIMATE_KEYS": 40961,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 213,
+          "START_KEY": "t_124_r_5188146770730811392",
+          "END_KEY": "t_124_r_5764607523034234880",
+          "LEADER_ID": 764,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "764",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 543803,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 45349,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 215,
+          "START_KEY": "t_124_r_5764607523034234880",
+          "END_KEY": "t_124_r_6341068275337658368",
+          "LEADER_ID": 5440,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "5440",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 643008,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 18,
+          "APPROXIMATE_KEYS": 179115,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 217,
+          "START_KEY": "t_124_r_6341068275337658368",
+          "END_KEY": "t_124_r_6917529027641081856",
+          "LEADER_ID": 2298,
+          "LEADER_STORE_ID": 1,
+          "PEERS": "2298",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 587091,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 6,
+          "APPROXIMATE_KEYS": 56492,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 219,
+          "START_KEY": "t_124_r_6917529027641081856",
+          "END_KEY": "t_124_r_7493989779944505344",
+          "LEADER_ID": 1603,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "1603",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 572490,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 39662,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 221,
+          "START_KEY": "t_124_r_7493989779944505344",
+          "END_KEY": "t_124_r_8070450532247928832",
+          "LEADER_ID": 5439,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "5439",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 604169,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 22,
+          "APPROXIMATE_KEYS": 218417,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 223,
+          "START_KEY": "t_124_r_8070450532247928832",
+          "END_KEY": "t_124_r_8646911284551352320",
+          "LEADER_ID": 1422,
+          "LEADER_STORE_ID": 2,
+          "PEERS": "1422",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 423102,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 42140,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 227,
+          "START_KEY": "t_124_r_8646911284551352320",
+          "END_KEY": "t_126_",
+          "LEADER_ID": 682,
+          "LEADER_STORE_ID": 7,
+          "PEERS": "682",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 577986,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 5,
+          "APPROXIMATE_KEYS": 48841,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        }
+      ]
+    },
+    "history_ddl": [
+      {
+        "Table": "history",
+        "Create Table": "CREATE TABLE `history` (\n  `h_c_w_id` int NOT NULL,\n  `h_c_d_id` int NOT NULL,\n  `h_c_id` int NOT NULL,\n  `h_w_id` int NOT NULL,\n  `h_d_id` int NOT NULL,\n  `h_date` datetime NOT NULL,\n  `h_amount` bigint NOT NULL,\n  `h_data` varchar(24) NOT NULL,\n  `request_id` varchar(64) DEFAULT NULL,\n  UNIQUE KEY `uq_request_id` (`request_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin /*T! SHARD_ROW_ID_BITS=4 PRE_SPLIT_REGIONS=4 */"
+      }
+    ]
+  },
+  "hot_item_id": 48748
+}
