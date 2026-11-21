@@ -23,30 +23,52 @@ Lý do giữ từng phần Tầng 1: T1 với θ=0,7 vì tài liệu dự đoán
 
 ## Cổng kiểm (go/no-go)
 
-| Cổng | Khi nào | Điều kiện | Nếu không đạt |
+Ngày 1 là ngày bắt đầu 2.2 (2.1 đã nghiệm thu trên AWS); Ngày 14 là hạn nộp. Hạn nộp còn khoảng 14 ngày tính từ lúc 2.1 xong.
+
+| Cổng | Khi nào | Điều kiện đạt | Nếu không đạt | Phụ trách |
+| --- | --- | --- | --- | --- |
+| **G0** | Đã xong | Quota AWS đã được duyệt (64 vCPU) | — | Lực |
+| **G1** | Cuối Ngày 3 | Stack `mysql` dựng lại được và smoke P0–P2 chạy được trên AWS | Chậm 1 ngày chấp nhận được; chậm hơn thì cắt Tầng 2 sớm | Lực |
+| **G2** | Cuối Ngày 7 | Code 2.2 chạy mức smoke trên AWS (Lực); code 2.4 trên MySQL chạy mức smoke trên môi trường dev Docker (Cường) | Bỏ toàn bộ Tầng 2. **Nếu tiến độ 2.2 chậm so với kế hoạch, Cường nhận P3, tải vòng mở và T3 của 2.2 (chỉ khi cần, đã thống nhất trước)** | Lực, Cường |
+| **G3** | Cuối Ngày 9 | 2.2 T1 và T2 xong và VALID; 2.3 nhóm A, B, C xong | Cắt T3 và T4 xuống đòn bẩy rẻ nhất (NOWAIT, khóa theo thứ tự) | Lực |
+| **G4** | Ngày 12 | **Chốt số đo** | Không đo thêm; chỉ chạy lại lỗi nhỏ nếu cần | Cả ba |
+
+## Lịch 14 ngày
+
+**Slot AWS (một stack mỗi lúc, giữ đúng kế hoạch ban đầu):** `mysql` Ngày 3–4 (2.2) và Ngày 10 (T3, T4 và 2.4); `mongo` Ngày 5 (2.2) và Ngày 11 (T3, T4 và 2.4); `tidb3` Ngày 6–10 (2.2 TiDB và toàn bộ 2.3). Slot cùng ngày chia theo giờ, Lực điều phối. Phương án dự phòng chạy **hai stack song song** chỉ dùng khi thật sự cần (trễ lịch) và phải ghi thành khác biệt với tài liệu (câu "mỗi lúc chỉ đưa tải vào một hệ").
+
+| Ngày | Lực | Cường | Duy Anh |
 | --- | --- | --- | --- |
-| **G0** | Hôm nay | Đã mở ticket thúc quota AWS (ticket `179516888700824`) | — |
-| **G1** | Cuối ngày 3 | Quota vCPU ≥ 32 và 2.1 chạy xong trên MySQL | 2.3 chỉ làm `tidb1` với máy tải nhỏ (quota 16 không đủ `tidb3`); số đo MongoDB/MySQL tạm dùng Docker và ghi rõ là sơ bộ |
-| **G2** | Cuối ngày 7 | Code 2.2 và 2.4 (MySQL) chạy được trên AWS ở mức smoke | Bỏ toàn bộ Tầng 2, dồn thời gian cho Tầng 1 |
-| **G3** | Cuối ngày 9 | T1, T2 xong và VALID | Cắt T3 và T4 xuống đòn bẩy rẻ nhất (NOWAIT, khóa theo thứ tự) |
-| **G4** | Ngày 12 | **Chốt số đo** | Không đo thêm; chỉ chạy lại lỗi nhỏ nếu cần |
+| 1 | Code P0, P1; cấu hình `--variant` | Thiết kế 2.4: lược đồ `ol_discount`, ba cách chuyển; giao dịch "Xem đơn cũ" | Dựng khung báo cáo; kiểm trích dẫn (Harding 2017, Huang 2020) |
+| 2 | P2 (chia tồn kho, cấp mã đơn theo lô), test đơn vị | Eager và Batch trên MySQL (thử trên VM Docker dev) | Kiểm trích dẫn (Zamanian 2016, Heiss và Wagner 1991); bắt đầu Phần 1 |
+| 3 | Dựng stack `mysql`; smoke P0–P2 trên AWS; **G1** | Lazy trên MySQL; kiểm tra đúng đắn | Phần 1; viết checklist chạy đo cho Lực |
+| 4 | MySQL: 2.2 T1, T2 (qua đêm); code P3 | Migration trên MongoDB (dev Docker) | Theo dõi chạy; kiểm trích dẫn xong (Schroeder 2006, Zhang 2021) |
+| 5 | Chuyển stack `mongo`: T1, T2; code tải vòng mở | Kiểm tra đúng đắn MongoDB | Bảng 2.2 MySQL; Phần 1 hoàn thiện |
+| 6 | Chuyển stack `tidb3`: T1, T2; code T4 (MySQL, TiDB) | Hoàn thiện 2.4 trên MySQL và MongoDB; viết cấu hình đo (q 5% và 50%) | Bảng 2.2 MongoDB; hình Phần 1 |
+| 7 | **G2** smoke 2.2; code script 2.3 (Region, leader), đơn nhiều kho, `AUTO_RANDOM` | **G2** smoke 2.4 trên môi trường dev; chuẩn bị chạy đo | Bảng 2.2 TiDB; kiểm chất lượng |
+| 8 | 2.3 nhóm A, B (`tidb1`, `tidb3`) | Review PR 2.2; hướng dẫn chạy 2.4 | Hình 2.2 T1 |
+| 9 | 2.3 nhóm C, D; **G3** | Phân tích sơ bộ 2.4 trên dev; đối chiếu số liệu | Hình 2.2 T2; mục phạm vi và giới hạn |
+| 10 | 2.3 nhóm E.a; rồi stack `mysql`: 2.2 T3, T4 | 2.4 đo chính thức trên MySQL | Hình 2.3 |
+| 11 | Stack `mongo`: 2.2 T3, T4 | 2.4 đo chính thức trên MongoDB | Bảng 2.4; hướng dẫn tái hiện |
+| 12 | **G4** chốt số đo; `terraform destroy`; phân tích 2.2 | Phân tích 2.4; 2.5 bản nháp | Bảng cuối; đối chiếu số trong báo cáo với `INDEX.csv` |
+| 13 | Viết kết quả 2.2 và 2.3 | Viết 2.4 và kết luận 2.5 | Hiệu đính, mục lục, thuật ngữ |
+| 14 | Cả ba: đọc lại toàn bộ, sửa lỗi cuối, nộp | Cả ba | Cả ba |
 
-## Lịch gợi ý
+## Phân công (đã chốt 2026-11-21)
 
-| Ngày | Đo trên AWS | Code |
+Quyết định của nhóm: **Lực làm toàn bộ 2.2 và 2.3** cùng việc vận hành AWS; **Cường chỉ làm 2.4**; **Duy Anh hỗ trợ Lực ở 2.2 và 2.3** và phụ trách báo cáo cùng việc tổng hợp kết quả. Giờ ước tính trong 14 ngày: Lực ~60, Cường ~50, Duy Anh ~55 (ước lượng chưa đo, sẽ điều chỉnh sau ba ngày đầu).
+
+**Quy tắc chung.** Trợ lý AI viết phần lớn code và test đơn vị; người sở hữu mục đó review, chạy thử trên DBMS thật và sửa lỗi. Lực giữ quyền `terraform apply` và `destroy`; người khác đăng ký khung giờ với Lực. Cường phát triển và thử 2.4 trên môi trường dev Docker (VM `TestTiDB` cũ), không chiếm slot stack AWS cho đến khi đo chính thức; số đo từ Docker chỉ là sơ bộ. Mỗi người làm trên nhánh riêng, PR nhỏ mỗi ngày; file hay xung đột (`adapters/sql.py`, `adapters/mongo.py`, `workload/generator.py`, `cli.py`, `runner.py`) cần báo trước khi sửa.
+
+| Người | Phụ trách | Giờ ước tính |
 | --- | --- | --- |
-| 1–2 | Chờ quota; MySQL 2.1 khi có | 2.2: P0–P2, cấp mã theo lô, `--theta`/`--hot-item` đã có |
-| 3–4 | MongoDB và TiDB cho 2.1 | 2.2: P3 và tải vòng mở |
-| 5–7 | 2.2: T1, T2 | 2.3: script đặt Region/leader; 2.4: "Xem đơn cũ" và migration |
-| 8–9 | 2.3: A, B, C, D, E.a | 2.4 hoàn thiện; T4 đòn bẩy |
-| 10–11 | 2.4 và T3, T4 còn thiếu | Báo cáo |
-| 12 | **Chốt số đo** | Kết luận 2.5 |
-| 13–14 | Chỉ chạy lại khi lỗi nhỏ | Báo cáo, kiểm trích dẫn, nộp |
+| **Lực** | 2.2 code (P0–P3, tải vòng mở, 5 đòn bẩy T4) 20; vận hành AWS 6; 2.2 đo 8; 2.2 phân tích 8; 2.3 code (script Region/leader, đơn nhiều kho, `AUTO_RANDOM`) 8; 2.3 đo 6; 2.3 phân tích 4 | ~60 |
+| **Cường** | "Xem đơn cũ" 4; 2.4 code (Eager, Batch nền, Lazy trên MySQL rồi MongoDB) 18; kiểm tra đúng đắn migration 8; 2.4 đo 8; 2.4 phân tích 6; 2.5 bản nháp 6 | ~50 |
+| **Duy Anh** | Kiểm trích dẫn 8; Phần 1 báo cáo 10; theo dõi chạy đo 2.2 và 2.3 10; bảng và hình 2.2 và 2.3 8; theo dõi hằng ngày (trạng thái, chi phí) 5; kiểm chất lượng (`pytest`, `INDEX.csv`) 4; mục phạm vi và giới hạn 5; hiệu đính 5 | ~55 |
 
-## Phân công vai trò gợi ý
-- **Người 1 (cao):** vận hành AWS và chạy đo (Terraform, script ma trận, theo dõi `loadgen_cpu_*`, Budgets, destroy khi xong).
-- **Người 2 (cao):** code 2.2 → 2.4 cùng trợ lý AI; chạy thử trên DBMS thật.
-- **Người 3:** báo cáo (Phần 1, kiểm trích dẫn, hình và bảng từ `flashsale report`, 2.5).
+**Phân quyền:** `terraform apply` và `destroy`, các lệnh đặt Region ở 2.3 và việc sửa code đo thuộc về Lực để có một đầu mối chịu trách nhiệm cho hạ tầng và số liệu.
+
+**Rủi ro chính của cách chia này:** khối lượng 2.2, 2.3 và vận hành AWS lớn trong 14 ngày. Chia sẻ việc bằng cách để Duy Anh theo dõi chạy và xử lý kết quả, kiểm tra tiến độ tại G2, và nếu chậm thì Cường nhận P3, tải vòng mở và T3 (đã thống nhất trước, chỉ khi cần). Phương án chạy hai stack song song cũng chỉ dùng khi cần.
 
 ## Ngân sách (ước lượng, chưa đo)
 Phạm vi Tầng 1 ước khoảng 70–90 giờ máy bật (~80–120 USD với ~1 USD/giờ), dư cho vài lần chạy lại trong 200 USD. Đo chi phí thật sau điểm đầu tiên rồi cập nhật. Mở Tầng 2 và Tầng 3 chỉ khi còn dư cả giờ và tiền.
