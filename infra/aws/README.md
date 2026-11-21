@@ -2,7 +2,7 @@
 
 Theo bản chốt `bao_cao_DBMS_ban_chot.docx`: mỗi thành phần một VM riêng, một VM riêng chạy script tải, cùng một region và một AZ (`us-east-1`, `us-east-1c`), EBS gp3 cố định giống nhau cho mọi hệ. Docker Compose trong `docker/` vẫn dùng để phát triển và chạy thử.
 
-**Trạng thái: CHƯA CHẠY.** Các file này chưa được `terraform init/plan/apply` trên tài khoản thật, nên mọi chi tiết đều là NOT TESTED cho đến khi bạn chạy thử.
+**Trạng thái: đã chạy thật** (2026-11-20/21) cho các stack `mysql`, `mongo` và `tidb3` với 152 lượt đo; xem `docs/acceptance-2.1.md`. Lưu ý đã học được: IP công cộng của bạn có thể đổi giữa chừng (cập nhật `allowed_ssh_cidr` khi SSH bị timeout); TiKV cần ≥ 8 GiB RAM (`m6i.large`); dùng `scripts/aws-tidb-up.sh` để dựng TiDB bằng TiUP; sau khi xong luôn `terraform destroy`.
 
 ## Những gì Terraform tạo
 
