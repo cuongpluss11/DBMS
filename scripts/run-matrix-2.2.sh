@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Chạy ma trận đo mục 2.2 (Tầng 1, docs/scope-2-weeks.md) cho MỘT hệ trên VM loadgen (chế độ remote).
-# Dùng:  scripts/run-matrix-2.2.sh <mysql|mongo|tidb> [--tier t1|t2|t3|c|all] [--dry-run]
+# Dùng:  scripts/run-matrix-2.2.sh <mysql|mongo|tidb> [--tier t1|t2|t3|t4|c|all] [--dry-run]
 #   t1: P1 ở θ ∈ {0; 0,5; 0,7; 0,9; "1 món"} × {8; 64; 256} client; P0 ở θ ∈ {0; 0,9; "1 món"} × {8; 64}.
 #   t2: P1 so với P2 (N = 1, 3, 9, 27; có cấp mã theo lô B) ở θ=0,9 và "1 món", 64 client; đối chứng P2 không cấp
 #       mã theo lô ở N=1 và N=9. (Điểm P1 không lô lấy từ t1 ở 64 client: chạy t1 trước hoặc cùng dataset.)
 #   t3: P2 so với P3 ở 128 và 256 client, θ=0,9, TẢI VÒNG MỞ. Cần T3_RATES (yêu cầu/giây, cách nhau bằng dấu cách):
 #       đặt SAU KHI xem t1/t2 (đề: T3 chỉ chạy khi hiệu năng thật sự sụp ở tải cao). Không đặt thì bỏ qua t3.
+#   t4: đòn bẩy riêng từng hệ ở θ ∈ {0,9; "1 món"} × {32; 128} client: MySQL (legacy, NOWAIT, khóa theo thứ tự i_id,
+#       P1 làm mốc), TiDB (legacy, khóa theo thứ tự, P1 lạc quan so với bi quan). MongoDB (b) và MySQL stored procedure
+#       CHƯA có trong mã: tier này không chạy MongoDB.
 #   c : lượt kiểm luật có hết hàng thực (tồn 1.000, dataset riêng): P1, P2 N=9, P3 N=9 (+ P0, INVALID là kết quả).
 # Mỗi điểm: reset dataset, rồi chạy 3 lần (30 giây warmup + 60 giây đo) với --reset-between. Không xóa dữ liệu,
 # không dừng DBMS, không đụng tới hạ tầng AWS. Điểm P0 được phép INVALID (mất cập nhật là KẾT QUẢ cần quan sát).
@@ -28,7 +31,7 @@ while (($#)); do
     esac
 done
 case "$ENGINE" in mysql | mongo | tidb) ;; *) echo "engine không hợp lệ: $ENGINE" >&2; exit 2 ;; esac
-case "$TIER" in t1 | t2 | t3 | c | all) ;; *) echo "--tier phải là t1, t2, t3, c hoặc all" >&2; exit 2 ;; esac
+case "$TIER" in t1 | t2 | t3 | t4 | c | all) ;; *) echo "--tier phải là t1, t2, t3, t4, c hoặc all" >&2; exit 2 ;; esac
 
 FS="${FLASHSALE_BIN:-flashsale}"
 LOG="${MATRIX_LOG_DIR:-results/matrix22-$ENGINE-$(date -u +%Y%m%dT%H%M%SZ)}"
@@ -131,6 +134,29 @@ if [[ "$TIER" == t3 || "$TIER" == all ]]; then
                         --hot-items "$HOT_ITEMS" --order-id-batch "$BATCH" --theta 0.9 --no-hot-item \
                         --concurrency "$clients" --arrival-rate "$rate" --queue-size "${T3_QUEUE:-64}"
                 done
+            done
+        done
+    fi
+fi
+
+if [[ "$TIER" == t4 || "$TIER" == all ]]; then
+    if [[ "$ENGINE" == mongo ]]; then
+        say "Bỏ qua t4 trên MongoDB: thiết kế (b) chưa có trong mã"
+    else
+        for clients in 32 128; do
+            for d in 0.9 hot; do
+                # shellcheck disable=SC2046
+                if [[ "$ENGINE" == mysql ]]; then
+                    point "$MAIN" "t4-legacy-$d-c$clients" "$H" --variant legacy $(dist_args "$d") --concurrency "$clients"
+                    point "$MAIN" "t4-nowait-$d-c$clients" "$H" --variant legacy --nowait $(dist_args "$d") --concurrency "$clients"
+                    point "$MAIN" "t4-lockorder-$d-c$clients" "$H" --variant legacy --lock-order $(dist_args "$d") --concurrency "$clients"
+                    point "$MAIN" "t4-p1-$d-c$clients" "$H" --variant p1 $(dist_args "$d") --concurrency "$clients"
+                else
+                    point "$MAIN" "t4-legacy-$d-c$clients" "$H" --variant legacy $(dist_args "$d") --concurrency "$clients"
+                    point "$MAIN" "t4-lockorder-$d-c$clients" "$H" --variant legacy --lock-order $(dist_args "$d") --concurrency "$clients"
+                    point "$MAIN" "t4-p1-optimistic-$d-c$clients" "$H" --variant p1 --txn-mode optimistic $(dist_args "$d") --concurrency "$clients"
+                    point "$MAIN" "t4-p1-pessimistic-$d-c$clients" "$H" --variant p1 --txn-mode pessimistic $(dist_args "$d") --concurrency "$clients"
+                fi
             done
         done
     fi

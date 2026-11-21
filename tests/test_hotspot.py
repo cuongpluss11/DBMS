@@ -285,3 +285,39 @@ def test_summary_reports_slot_attempts_per_item():
     assert phase.summary(1)["slot_attempts_per_item"] is None
     phase.slot_attempts, phase.slot_items = 30, 20
     assert phase.summary(1)["slot_attempts_per_item"] == 1.5
+
+
+def test_t4_lock_order_sorts_items_and_nowait_is_forwarded(monkeypatch):
+    lookup_free(monkeypatch)
+    db = MemDB()
+    execute(db, order([(4, 1), (1, 1), (3, 1)]), TxnContext("p1", lock_order=True))
+    assert [row["ol_i_id"] for row in db.tables["order_line"]] == [1, 3, 4]
+    unordered = MemDB()
+    execute(unordered, order([(4, 1), (1, 1), (3, 1)], 1), TxnContext("p1"))
+    assert [row["ol_i_id"] for row in unordered.tables["order_line"]] == [4, 1, 3]
+
+    seen = []
+
+    class Recording(MemDB):
+        def one(self, table, key, *, lock=False, nowait=False):
+            seen.append((table, lock, nowait))
+            return super().one(table, key, lock=lock)
+
+    execute(Recording(), order([(1, 1)], 2), TxnContext(nowait=True))
+    assert ("stock", True, True) in seen and ("district", True, False) in seen
+    assert TxnContext().is_2_1 and not TxnContext(lock_order=True).is_2_1 and not TxnContext(nowait=True).is_2_1
+
+
+def test_t4_settings_and_error_classification():
+    from dataclasses import replace
+    from pathlib import Path
+    import pymysql
+    from flashsale.adapters.sql import classify
+    from flashsale.config import read_settings
+    base = read_settings(Path("configs/smoke.toml"))
+    assert replace(base, nowait=True, lock_order=True, txn_mode="optimistic").nowait
+    for bad in (dict(variant="p1", nowait=True), dict(txn_mode="fast")):
+        with pytest.raises(ValueError):
+            replace(base, **bad)
+    error = classify(pymysql.err.OperationalError(3572, "Statement aborted because lock(s) could not be acquired"))
+    assert (error.category, error.retryable) == ("lock_nowait", True)

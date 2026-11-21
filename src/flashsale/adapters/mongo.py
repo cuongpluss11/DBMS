@@ -110,7 +110,9 @@ class MongoAdapter:
     def insert_many(self, table: str, rows: list[Row]) -> None:
         self.db[table].insert_many([dict(row) for row in rows], session=self.session)
 
-    def one(self, table: str, key: Row, *, lock: bool = False) -> Row | None:
+    def one(self, table: str, key: Row, *, lock: bool = False, nowait: bool = False) -> Row | None:
+        if nowait:
+            raise ValueError("NOWAIT không có trên MongoDB")
         if "request_id" in key:
             key = {**key, "request_id": {"$eq": key["request_id"], "$type": "string"}}
         try:

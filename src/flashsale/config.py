@@ -61,6 +61,13 @@ class Settings:
     p99_limit_ms: float = 500.0
     abort_limit_pct: float = 10.0
     limit_min: int = 1
+    # Mục 2.2, nhóm T4 (đòn bẩy riêng từng hệ; mặc định tắt = hành vi trước đó).
+    # lock_order: khóa/cập nhật các món của một đơn theo i_id tăng dần (MySQL, TiDB: tránh deadlock).
+    # nowait: SELECT ... FOR UPDATE NOWAIT trên dòng stock rồi thử lại (chỉ MySQL/TiDB, chỉ variant legacy).
+    # txn_mode: chế độ giao dịch của TiDB (default | optimistic | pessimistic).
+    lock_order: bool = False
+    nowait: bool = False
+    txn_mode: str = "default"
 
     def __post_init__(self) -> None:
         if self.idempotency == (self.label == "idempotency_off"):
@@ -72,6 +79,10 @@ class Settings:
         if (self.arrival_rate < 0 or self.queue_size < 1 or self.p99_limit_ms <= 0
                 or not 0 <= self.abort_limit_pct <= 100 or self.limit_min < 1):
             raise ValueError("Tham số tải vòng mở hoặc điều tiết không hợp lệ")
+        if self.txn_mode not in ("default", "optimistic", "pessimistic"):
+            raise ValueError("txn_mode phải là default, optimistic hoặc pessimistic")
+        if self.nowait and self.variant != "legacy":
+            raise ValueError("nowait chỉ có nghĩa với variant legacy (P1 là một lệnh cập nhật, không có đọc khóa)")
         if self.client_timeout_seconds <= 0:
             raise ValueError("client_timeout_seconds phải dương")
         if self.warehouse_mode not in {"uniform", "single-warehouse"}:

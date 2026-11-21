@@ -18,6 +18,8 @@ def classify(exc: pymysql.MySQLError, committing: bool = False) -> DBError:
         return DBError("timeout", True, committing and code in (9002, 9012))
     if code == 1213:
         return DBError("deadlock", True)
+    if code == 3572:  # ER_LOCK_NOWAIT: không lấy được khóa ngay (FOR UPDATE NOWAIT)
+        return DBError("lock_nowait", True)
     if code in (9007, 8002):
         return DBError("write_conflict", True)
     if code in (8022, 8028):
@@ -37,7 +39,8 @@ def keys(key: Row) -> tuple[str, tuple]:
 
 
 class SQLAdapter:
-    def __init__(self, endpoint: Endpoint, *, admin: bool = False, timeout: float = 15.0):
+    def __init__(self, endpoint: Endpoint, *, admin: bool = False, timeout: float = 15.0,
+                 txn_mode: str = "default"):
         self.endpoint = endpoint
         self.tidb = endpoint.engine == "tidb"
         self.in_transaction = False
@@ -46,6 +49,10 @@ class SQLAdapter:
             database=None if admin else endpoint.database, autocommit=True, cursorclass=DictCursor,
             connect_timeout=5, read_timeout=timeout, write_timeout=timeout,
         )
+        if txn_mode != "default":
+            if not self.tidb:
+                raise ValueError("txn_mode chỉ áp dụng cho TiDB")
+            self.query(f"SET SESSION tidb_txn_mode = '{txn_mode}'")
 
     def close(self) -> None:
         with suppress(pymysql.MySQLError):
@@ -127,9 +134,9 @@ class SQLAdapter:
             cursor.executemany(f"INSERT INTO {table} ({fields}) VALUES ({params})",
                                [tuple(row.values()) for row in rows])
 
-    def one(self, table: str, key: Row, *, lock: bool = False) -> Row | None:
+    def one(self, table: str, key: Row, *, lock: bool = False, nowait: bool = False) -> Row | None:
         where, values = keys(key)
-        suffix = " FOR UPDATE" if lock else ""
+        suffix = (" FOR UPDATE NOWAIT" if nowait else " FOR UPDATE") if lock or nowait else ""
         try:
             if not self.in_transaction and not self.connection.open:
                 self.connection.ping(reconnect=True)

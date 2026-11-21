@@ -21,10 +21,13 @@ class TxnContext:
     blocks: dict[tuple[int, int], list[int]] = field(default_factory=dict)
     slot_attempts: int = 0
     slot_items: int = 0
+    lock_order: bool = False
+    nowait: bool = False
 
     @property
     def is_2_1(self) -> bool:
-        return self.variant == "legacy" and self.order_id_batch == 0
+        return (self.variant == "legacy" and self.order_id_batch == 0 and not self.lock_order
+                and not self.nowait)
 
 
 def lookup(db: Adapter, req: Request) -> Row | None:
@@ -114,10 +117,12 @@ def new_order(db: Adapter, req: Request, ctx: TxnContext | None = None) -> None:
     legacy = ctx is None or ctx.variant == "legacy"
     order_id = take_order_id(db, req, ctx)
     lines = []
-    for line_number, (item, quantity) in enumerate(req.items, 1):
+    # T4: khóa các món theo i_id tăng dần để hai đơn không giữ khóa theo thứ tự ngược nhau (deadlock).
+    items = sorted(req.items) if ctx is not None and ctx.lock_order else req.items
+    for line_number, (item, quantity) in enumerate(items, 1):
         if legacy:
             key = {"s_w_id": w, "s_i_id": item}
-            stock = required(db.one("stock", key, lock=True))
+            stock = required(db.one("stock", key, lock=True, **({"nowait": True} if ctx and ctx.nowait else {})))
             if stock["s_quantity"] < quantity:
                 raise DBError("out_of_stock")
             price = required(db.one("item", {"i_id": item}))["i_price"]

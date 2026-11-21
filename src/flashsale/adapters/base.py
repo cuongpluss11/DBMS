@@ -36,7 +36,7 @@ class Adapter(Protocol):
     def drop(self) -> None: ...
     def insert(self, table: str, row: Row) -> None: ...
     def insert_many(self, table: str, rows: list[Row]) -> None: ...
-    def one(self, table: str, key: Row, *, lock: bool = False) -> Row | None: ...
+    def one(self, table: str, key: Row, *, lock: bool = False, nowait: bool = False) -> Row | None: ...
     def change(self, table: str, key: Row, *, set_values: Row | None = None,
                increment: Row | None = None, changed_only: bool = False,
                between: dict[str, tuple[int, int]] | None = None,
@@ -51,9 +51,10 @@ class Adapter(Protocol):
     def counters(self) -> dict[str, int | None]: ...
 
 
-def open_adapter(endpoint: Endpoint, *, admin: bool = False, timeout: float = 15.0) -> Adapter:
+def open_adapter(endpoint: Endpoint, *, admin: bool = False, timeout: float = 15.0,
+                 txn_mode: str = "default") -> Adapter:
     if endpoint.engine == "mongo":
         from .mongo import MongoAdapter
         return MongoAdapter(endpoint, timeout=timeout)
     from .sql import SQLAdapter
-    return SQLAdapter(endpoint, admin=admin, timeout=timeout)
+    return SQLAdapter(endpoint, admin=admin, timeout=timeout, txn_mode=txn_mode)

@@ -105,6 +105,10 @@ def run(target: Endpoint, cfg: Settings, config_path: Path, *, reset_between: bo
         raise ValueError("baseline-cross dùng theta=0 và tắt hot_item")
     if cfg.label in MYSQL_BASELINES and (target.engine != "mysql" or cfg.theta != 0 or cfg.hot_item):
         raise ValueError("Baseline dùng MySQL, theta=0 và tắt hot_item")
+    if (cfg.nowait or cfg.lock_order) and target.engine == "mongo":
+        raise ValueError("lock_order và nowait chỉ áp dụng cho MySQL và TiDB (đòn bẩy T4)")
+    if cfg.txn_mode != "default" and target.engine != "tidb":
+        raise ValueError("txn_mode chỉ áp dụng cho TiDB")
     state = dataset_state(target, cfg)
     environment = host_info()
     environment["source_sha256"] = source_hashes()
@@ -193,7 +197,7 @@ def parser() -> argparse.ArgumentParser:
 
 
 VARIANT_FIELDS = ("variant", "slots", "hot_items", "order_id_batch", "arrival_rate", "queue_size",
-                  "p99_limit_ms", "abort_limit_pct", "limit_min")
+                  "p99_limit_ms", "abort_limit_pct", "limit_min", "lock_order", "nowait", "txn_mode")
 
 
 def add_variant_arguments(command) -> None:
@@ -211,6 +215,12 @@ def add_variant_arguments(command) -> None:
     command.add_argument("--p99-limit-ms", type=float, dest="p99_limit_ms", help="P3: ngưỡng p99 dịch vụ (ms)")
     command.add_argument("--abort-limit-pct", type=float, dest="abort_limit_pct", help="P3: ngưỡng tỉ lệ hủy (%%)")
     command.add_argument("--limit-min", type=int, dest="limit_min", help="P3: sàn của giới hạn đồng thời")
+    command.add_argument("--lock-order", action=argparse.BooleanOptionalAction, default=None, dest="lock_order",
+                         help="T4: khóa các món của đơn theo i_id tăng dần (MySQL, TiDB)")
+    command.add_argument("--nowait", action=argparse.BooleanOptionalAction, default=None,
+                         help="T4: SELECT ... FOR UPDATE NOWAIT rồi thử lại (MySQL, TiDB; chỉ variant legacy)")
+    command.add_argument("--txn-mode", choices=("default", "optimistic", "pessimistic"), dest="txn_mode",
+                         help="T4: chế độ giao dịch của TiDB")
 
 
 def execute_command(args) -> dict | list:

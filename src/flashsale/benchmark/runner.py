@@ -30,7 +30,8 @@ def make_context(cfg: Settings, zipf: Zipf, repetition: int, worker: int) -> Txn
 
     ctx = TxnContext(cfg.variant, cfg.slots,
                      frozenset(zipf.item_ids[:cfg.hot_items]) if uses_slots(cfg.variant) else frozenset(),
-                     cfg.order_id_batch, rng=Random(f"{cfg.seed}:{repetition}:{worker}:slots"))
+                     cfg.order_id_batch, rng=Random(f"{cfg.seed}:{repetition}:{worker}:slots"),
+                     lock_order=cfg.lock_order, nowait=cfg.nowait)
     return None if ctx.is_2_1 else ctx
 
 
@@ -46,7 +47,7 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
 
     db = None
     try:
-        db = open_adapter(endpoint, timeout=cfg.client_timeout_seconds)
+        db = open_adapter(endpoint, timeout=cfg.client_timeout_seconds, txn_mode=cfg.txn_mode)
         jitter = Random(f"{cfg.seed}:{repetition}:{worker}:jitter") if cfg.jitter else None
         ctx = make_context(cfg, zipf, repetition, worker)
         phases = []
@@ -315,6 +316,7 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
         "version": server["version"], "label": cfg.label, "repetition": repetition,
         "seed": cfg.seed, "idempotency": cfg.idempotency, "variant": cfg.variant, "slots": variant_setup["slots"],
         "hot_items": variant_setup["hot_items"], "order_id_batch": cfg.order_id_batch, "arrival_rate": cfg.arrival_rate,
+        "lock_order": cfg.lock_order, "nowait": cfg.nowait, "txn_mode": cfg.txn_mode,
         "throttle_result": throttle_summary, "variant_setup": variant_setup,
         "client_timeout_seconds": cfg.client_timeout_seconds, "concurrency": cfg.concurrency, "warehouse_mode": cfg.warehouse_mode,
         "theta": cfg.theta, "hot_item": cfg.hot_item,

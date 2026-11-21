@@ -14,6 +14,10 @@ Chưa có số đo nào của mục 2.2 trong repo. Tài liệu này mô tả ph
 
 `--order-id-batch B` (0 = như 2.1): mỗi worker xin lô B mã đơn cho mỗi (kho, quận) thay vì tăng `d_next_o_id` mỗi đơn. Độc lập với variant (T2 cần cả hai nhánh có/không).
 
+## T4: đòn bẩy riêng từng hệ
+
+Đã có (mặc định tắt): `--lock-order` (khóa/cập nhật các món của đơn theo `i_id` tăng dần; MySQL, TiDB), `--nowait` (`SELECT ... FOR UPDATE NOWAIT` trên dòng stock rồi thử lại theo luật chung, lỗi 3572 phân loại `lock_nowait`; chỉ variant `legacy`, vì P1 là một lệnh cập nhật không có đọc khóa; MySQL, TiDB) và `--txn-mode optimistic|pessimistic` (TiDB, đặt `tidb_txn_mode` cho từng kết nối; giá trị thật vẫn ghi ở `manifest.dbms.transaction_mode`). **Chưa có:** MongoDB thiết kế (b) và MySQL stored procedure. Thử thật trên Docker MySQL: `legacy` có deadlock, `--nowait` sinh `lock_nowait` thay vì chờ, `--lock-order` hết deadlock; TiDB (`--txn-mode`) NOT TESTED.
+
 ## P3 (điều tiết thích thích ứng) và tải vòng mở
 
 - **Giới hạn L:** một giới hạn mức đồng thời dùng chung mọi process cho các đơn chạm ít nhất một món nóng (thanh toán và đơn không nóng không bị chặn). Khởi đầu L = số client; sàn `--limit-min` (mặc định 1), trần = số client.
