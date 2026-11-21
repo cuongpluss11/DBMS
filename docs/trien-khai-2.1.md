@@ -1,5 +1,7 @@
 # Triển khai mục 2.1 cho nhóm ba người
 
+> **Tài liệu của giai đoạn 2.1 (đã nghiệm thu, 2026-11-21).** Phân công TV1/TV2/TV3 và cách triển khai ba VM Docker dưới đây chỉ để tham khảo. Phân công hiện tại, lịch và quy trình AWS: [scope-2-weeks.md](scope-2-weeks.md), [../infra/aws/README.md](../infra/aws/README.md).
+
 Mỗi thành viên dùng một VM Ubuntu 24.04 LTS x86_64 để chạy DBMS được giao. Ba VM dùng cùng cấu hình và checkout cùng một Git commit từ repo của nhóm. Toàn bộ cụm TiDB ở trên VM của TV3.
 
 ## 1. Phân công và thứ tự bàn giao

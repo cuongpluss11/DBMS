@@ -73,5 +73,49 @@ Quyết định của nhóm: **Lực làm toàn bộ 2.2 và 2.3** cùng việc 
 ## Ngân sách (ước lượng, chưa đo)
 Phạm vi Tầng 1 ước khoảng 70–90 giờ máy bật (~80–120 USD với ~1 USD/giờ), dư cho vài lần chạy lại trong 200 USD. Đo chi phí thật sau điểm đầu tiên rồi cập nhật. Mở Tầng 2 và Tầng 3 chỉ khi còn dư cả giờ và tiền.
 
+## Định nghĩa xong cho một điểm đo
+
+Một hạng mục chỉ được đánh **Đã đo** khi đủ bốn điều kiện:
+1. Kết quả VALID: ba luật tồn kho đạt và phép kiểm chéo của tài liệu không có dòng sai lệch (riêng `idempotency-off` được phép INVALID và không xếp hạng).
+2. Đủ 3 lần lặp độc lập, mỗi lần 30 giây warmup + 60 giây đo, dữ liệu được reset trước mỗi lần.
+3. Không có cảnh báo `loadgen_cpu_*` (máy tải dưới ~80% CPU); `warmup_stability` và chuỗi `tps_per_second.csv` đã được xem; có `iostat` của điểm đó.
+4. Đã đưa vào `results/official/` kèm `manifest.json` và `INDEX.csv`; nếu là kết quả sơ bộ (Docker) hoặc thí nghiệm riêng thì ghi nhãn rõ.
+
+Phần nào chưa thử trên DBMS thật phải ghi NOT TESTED, không ghi là đã chạy.
+
 ## Trạng thái
-Cập nhật bảng này mỗi ngày: đánh `Chưa làm / Đang làm / Đã đo / Cắt` cho từng dòng và ghi run_id của các lượt đã chốt trong `results/official/`.
+
+Cập nhật bảng mỗi ngày: `Chưa làm / Đang làm / Đã đo / Cắt`, ghi run_id các lượt đã chốt trong `results/official/`. Ngày 1 là ngày bắt đầu 2.2; 2.1 đã xong.
+
+| Mục | Hạng mục Tầng 1 | Phụ trách | Trạng thái | Ghi chú |
+| --- | --- | --- | --- | --- |
+| 2.1 | Nghiệm thu trên AWS (ba hệ) | Lực | Đã đo | `docs/acceptance-2.1.md`, `results/official/2.1-aws/` |
+| 2.2 | P0, P1 (đọc rồi ghi, cập nhật có điều kiện) cả ba hệ | Lực | Chưa làm | |
+| 2.2 | P2 (chia tồn kho N slot, cấp mã đơn theo lô) và validator cộng slot | Lực | Chưa làm | |
+| 2.2 | T1 (P0 và P1 theo θ × client) | Lực | Chưa làm | slot AWS `mysql`, `mongo`, `tidb3` |
+| 2.2 | T2 (P1 so với P2, N = 1, 3, 9, 27) | Lực | Chưa làm | |
+| 2.2 | P3 (điều tiết thích ứng), tải vòng mở, T3 | Lực | Chưa làm | Cường nhận nếu tiến độ chậm tại G2 |
+| 2.2 | T4 (5 đòn bẩy) | Lực | Chưa làm | |
+| 2.3 | Script đặt Region/leader, đơn nhiều kho, `AUTO_RANDOM` | Lực | Chưa làm | |
+| 2.3 | Nhóm A, B, C, D, E.a (1 và 3 TiKV) | Lực | Chưa làm | slot `tidb3` Ngày 6–10 |
+| 2.4 | Thiết kế (lược đồ đích, ba cách chuyển, kiểm tra đúng đắn) | Cường | Chưa làm | gửi nhóm xem trước khi code nhiều |
+| 2.4 | Giao dịch "Xem đơn cũ" | Cường | Chưa làm | mặc định tắt |
+| 2.4 | Eager, Batch nền, Lazy trên MySQL rồi MongoDB; kiểm tra đúng đắn | Cường | Chưa làm | |
+| 2.4 | Đo chính thức (q = 5% và 50%) | Cường | Chưa làm | slot `mysql` Ngày 10, `mongo` Ngày 11 |
+| 2.5 | Ma trận đánh đổi và câu trả lời câu hỏi tổng | Cường | Chưa làm | bản nháp Ngày 12 |
+| Báo cáo | Kiểm trích dẫn (`docs/citation-check.md`) | Duy Anh | Chưa làm | |
+| Báo cáo | Khung báo cáo, Phần 1 | Duy Anh | Chưa làm | |
+| Báo cáo | Bảng và hình kết quả 2.2, 2.3 | Duy Anh | Chưa làm | sau khi có kết quả |
+
+**Chi phí AWS (ghi mỗi ngày từ trang Billing):** chưa có số. Budgets đã đặt ở 100 và 150 USD.
+
+## Ghi chú thiết kế 2.4 (đã chốt trước đó, cần đối chiếu với tài liệu gốc)
+
+Các quyết định dưới đây đã được thống nhất trong các buổi trước; chúng xuất phát từ tab "Đề xuất sửa phần evolution" (Lazy Migration, tab Ver 1.2) của Google Doc nhóm và **chưa được đối chiếu lại với mục 2.4 của `bao_cao_DBMS_ban_chot.docx`** (cần đọc mục đó trước khi code). Chỗ nào lệch thì ghi vào `docs/assumptions.md` và báo Lực.
+
+- Thí nghiệm chính so sánh Eager, Batch nền (lô 1.000 và 5.000) và Lazy (ý tưởng từ BullFrog, SIGMOD 2021) khi thêm `ol_discount` vào `order_line` dưới tải Flash-sale.
+- Phép biến đổi dẫn xuất, không dùng giá trị mặc định 0: `ol_discount = floor(ol_quantity * i_price * r / 100)`, với r = 10 nếu `i_price >= 5000`, r = 5 nếu `2500 <= i_price < 5000`, ngược lại r = 0 (ngưỡng có thể chỉnh).
+- Lược đồ đích chung: `ol_discount` và `ol_mig_state` (UNMIGRATED / MIGRATED); không dùng IN_PROGRESS vì hàm xác định cộng cập nhật có điều kiện. Dữ liệu cũ là các dòng `order_line` do loader 2.1 nạp (~3 triệu dòng với W=10).
+- Giao dịch đọc thứ ba "Xem đơn cũ" mặc định tắt (0%) để 2.1–2.3 không đổi; ở 2.4 chiếm tỉ lệ q của tổng yêu cầu.
+- Cần làm trong code: loại giao dịch đọc, bộ chuyển dữ liệu, khôi phục lược đồ sau mỗi lượt (reset hiện chưa gỡ cột), chuỗi TPS và p99 theo giây, mở rộng validator.
+- **Chỗ lệch cần chốt:** ghi chú cũ nêu q ∈ {5%, 25%, 50%} (25% là mức chính) và thí nghiệm E1 (thêm cột và thêm chỉ mục bằng DDL gốc, kẹt MDL), còn kế hoạch 2 tuần đặt Tầng 1 là q ∈ {5%, 50%}, 25% ở Tầng 2 và chưa có E1. Cường xác nhận với tài liệu gốc rồi cập nhật bảng phạm vi.
