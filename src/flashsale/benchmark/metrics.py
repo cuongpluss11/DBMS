@@ -33,14 +33,20 @@ class Phase:
     drained: int = 0
     out_of_stock_all: int = 0
     unknown_commits: int = 0
-    # P2: số lần thử slot và số dòng hàng trừ được qua slot (đếm cả giao dịch sau đó bị hủy/retry).
+    # P2: tổng số lần thử slot và số lần trừ món nóng qua slot (kể cả hết hàng, retry và giao dịch sau đó bị hủy).
     slot_attempts: int = 0
     slot_items: int = 0
+    # Tải vòng mở: yêu cầu bị từ chối vì hàng đợi đầy, yêu cầu còn trong hàng đợi lúc hết phase, thời gian chờ
+    # (đến lúc bắt đầu chạy, gồm hàng đợi và cổng điều tiết) của các yêu cầu trong cửa sổ đo.
+    rejected: int = 0
+    unserved: int = 0
+    queue_waits: list[float] = field(default_factory=list)
     successful_orders: list[str] = field(default_factory=list)
     # Số request thành công mỗi giây của phase (giây 0 = đầu phase); dùng kiểm tra warmup đã ổn định chưa.
     series: Counter[int] = field(default_factory=Counter)
 
-    def record(self, req: Request, outcome: Outcome, in_window: bool, second: int | None = None) -> None:
+    def record(self, req: Request, outcome: Outcome, in_window: bool, second: int | None = None,
+               queue_wait_ms: float | None = None) -> None:
         success = outcome.status == "success"
         if success and req.kind == "new_order":
             self.successful_orders.append(req.request_id)
@@ -56,6 +62,9 @@ class Phase:
                 self.series[second] += 1
         else:
             self.failures[outcome.status] += 1
+        if queue_wait_ms is not None:
+            self.queue_waits.append(queue_wait_ms)
+        self.rejected += outcome.status == "busy"
         self.errors.update(outcome.errors)
         self.error_requests.update(outcome.errors.keys())
         self.retry_requests += outcome.retries > 0
@@ -68,9 +77,11 @@ class Phase:
         for key in ("successes", "failures", "errors", "error_requests", "series"):
             getattr(self, key).update(getattr(part, key))
         self.latency.extend(part.latency)
+        self.queue_waits.extend(part.queue_waits)
         self.successful_orders.extend(part.successful_orders)
         for key in ("retry_requests", "retry_attempts", "draws", "top100", "top1", "drained",
-                    "out_of_stock_all", "unknown_commits", "slot_attempts", "slot_items"):
+                    "out_of_stock_all", "unknown_commits", "slot_attempts", "slot_items", "rejected",
+                    "unserved"):
             setattr(self, key, getattr(self, key) + getattr(part, key))
 
     def series_list(self, seconds: float) -> list[int]:
@@ -89,7 +100,11 @@ class Phase:
             "success": success, "failed": failed, "drained_requests": self.drained,
             "new_order_success": self.successes["new_order"], "payment_success": self.successes["payment"],
             "p50_ms": percentile(latency, 50), "p95_ms": percentile(latency, 95),
-            "p99_ms": percentile(latency, 99), "abort_pct": percent(failed - self.failures["out_of_stock"], requests),
+            "p99_ms": percentile(latency, 99), "abort_pct": percent(failed - self.failures["out_of_stock"] - self.failures["busy"], requests),
+            "rejected": self.rejected, "rejected_pct": percent(self.failures["busy"], requests),
+            "unserved_at_deadline": self.unserved,
+            "queue_wait_mean_ms": sum(waits) / len(waits) if (waits := self.queue_waits) else None,
+            "queue_wait_p99_ms": percentile(sorted(self.queue_waits), 99),
             "out_of_stock_pct": percent(self.failures["out_of_stock"], requests),
             "retry_pct": percent(self.retry_requests, requests), "retry_attempts": self.retry_attempts,
             "error_counts": {error: self.errors[error] for error in ERRORS},
@@ -144,6 +159,7 @@ def write_result(directory: Path, result: dict) -> None:
                                             "warehouse_mode", "theta", "hot_item", "resource_limits")},
             "idempotency": result.get("idempotency", True),
             "variant": result.get("variant", "legacy"), "slots": result.get("slots"),
+            "arrival_rate": result.get("arrival_rate", 0.0),
             "order_id_batch": result.get("order_id_batch", 0),
             "client_timeout_seconds": result.get("client_timeout_seconds"),
             "phase": phase, **result[phase], **result["theoretical_selection"],

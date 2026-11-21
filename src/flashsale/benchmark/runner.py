@@ -1,5 +1,5 @@
 from contextlib import suppress
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 import logging
 import multiprocessing as mp
@@ -13,13 +13,14 @@ import traceback
 from uuid import uuid4
 
 from flashsale.adapters.base import Adapter, Endpoint, open_adapter
-from flashsale.config import Settings
+from flashsale.config import Settings, uses_slots
 from flashsale.data.loader import prepare_slots
 from flashsale.infra import cpu_sampler, setting
 from flashsale.validation.checks import validate
 from flashsale.workload.generator import Generator, Zipf
 from flashsale.transactions.core import TxnContext
-from flashsale.workload.retry import run_request
+from flashsale.workload.retry import Outcome, run_request
+from flashsale.workload.throttle import ABORT_CATEGORIES, ArrivalFeed, SharedThrottle, control_loop
 from .metrics import Phase, SCHEMA_VERSION, warmup_stability, write_json, write_result, write_series
 
 
@@ -28,13 +29,19 @@ def make_context(cfg: Settings, zipf: Zipf, repetition: int, worker: int) -> Txn
     from random import Random
 
     ctx = TxnContext(cfg.variant, cfg.slots,
-                     frozenset(zipf.item_ids[:cfg.hot_items]) if cfg.variant == "p2" else frozenset(),
+                     frozenset(zipf.item_ids[:cfg.hot_items]) if uses_slots(cfg.variant) else frozenset(),
                      cfg.order_id_batch, rng=Random(f"{cfg.seed}:{repetition}:{worker}:slots"))
     return None if ctx.is_2_1 else ctx
 
 
+def is_hot(req, ctx: TxnContext | None) -> bool:
+    """Giao dịch đặt hàng chạm ít nhất một món nóng (đối tượng của bộ điều tiết P3)."""
+    return bool(ctx and ctx.hot_items and req.kind == "new_order"
+                and any(item in ctx.hot_items for item, _ in req.items))
+
+
 def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetition: int,
-           worker: int, barrier, deadlines) -> tuple[Phase, Phase]:
+           worker: int, barrier, deadlines, throttle=None, feeds=None) -> tuple[Phase, Phase]:
     from random import Random
 
     db = None
@@ -46,17 +53,41 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
         for i, name in enumerate(("warmup", "measurement")):
             phase = Phase()
             seconds = cfg.warmup_seconds if i == 0 else cfg.measurement_seconds
-            gen = Generator(cfg, zipf, run_id, repetition, worker, name)
+            feed = feeds[i] if feeds else None
+            gen = None if feed else Generator(cfg, zipf, run_id, repetition, worker, name)
             barrier.wait()
             barrier.wait()
             deadline = deadlines[i]
             start = deadline - seconds
+            if feed:
+                feed.start(start, deadline)
             attempts, items = (ctx.slot_attempts, ctx.slot_items) if ctx else (0, 0)
             while time.monotonic() < deadline:
-                req = gen.next()
-                outcome = run_request(db, req, jitter=jitter, ctx=ctx)
+                if feed:
+                    item = feed.get(deadline)
+                    if item is None:
+                        break
+                    req, arrival = item
+                else:
+                    req, arrival = gen.next(), time.monotonic()
+                hot = throttle is not None and is_hot(req, ctx)
+                if hot:
+                    throttle.acquire()
+                began = time.monotonic()
+                try:
+                    outcome = run_request(db, req, jitter=jitter, ctx=ctx)
+                finally:
+                    if hot:
+                        throttle.release()
                 now = time.monotonic()
-                phase.record(req, outcome, now <= deadline, int(now - start))
+                if hot:  # bộ điều khiển dùng độ trễ dịch vụ (không gồm hàng đợi) để không tự khuếch đại việc chờ
+                    throttle.observe(outcome.latency_ms, any(outcome.errors.get(c) for c in ABORT_CATEGORIES))
+                wait = None
+                if feed or throttle is not None:
+                    # Độ trễ tính từ lúc yêu cầu đến, gồm hàng đợi ứng dụng và cổng điều tiết (đề, mục 2.2).
+                    wait = (began - arrival) * 1000
+                    outcome = replace(outcome, latency_ms=(now - arrival) * 1000)
+                phase.record(req, outcome, now <= deadline, int(now - start), wait)
             if ctx:
                 phase.slot_attempts, phase.slot_items = ctx.slot_attempts - attempts, ctx.slot_items - items
             phases.append(phase)
@@ -70,17 +101,27 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
             db.close()
 
 
-def group(endpoint, cfg, run_id, repetition, workers, barrier, deadlines, output) -> None:
+def group(endpoint, cfg, run_id, repetition, workers, barrier, deadlines, output, throttle=None) -> None:
     try:
         zipf = Zipf(cfg.dataset.items, cfg.theta, cfg.seed, cfg.hot_item)
         warmup, measurement = Phase(), Phase()
+        feeds = None
+        if cfg.arrival_rate > 0:
+            # Một bộ phát yêu cầu mỗi process và phase; phần tốc độ đến tỉ lệ với số client của process.
+            rate = cfg.arrival_rate * len(workers) / cfg.concurrency
+            feeds = [ArrivalFeed(Generator(cfg, zipf, run_id, repetition, workers[0], name), rate, cfg.queue_size)
+                     for name in ("warmup", "measurement")]
         with ThreadPoolExecutor(max_workers=len(workers)) as executor:
             results = [executor.submit(client, endpoint, cfg, zipf, run_id, repetition,
-                                       index, barrier, deadlines) for index in workers]
+                                       index, barrier, deadlines, throttle, feeds) for index in workers]
             for result in results:
                 warm, measured = result.result()
                 warmup.merge(warm)
                 measurement.merge(measured)
+        for feed, phase in zip(feeds or (), (warmup, measurement)):
+            for req, arrival in feed.rejected:
+                phase.record(req, Outcome("busy", 0, {"busy": 1}, 0.0), True, int(arrival - feed.start_time))
+            phase.unserved += feed.queue.qsize()
         output.put((warmup, measurement, None))
     except BaseException:
         output.put((None, None, traceback.format_exc()))
@@ -109,7 +150,7 @@ def get_counters(db: Adapter) -> dict:
 
 
 def phases(endpoint: Endpoint, cfg: Settings, db: Adapter, run_id: str,
-           repetition: int, limits: dict) -> tuple[Phase, Phase, dict, dict]:
+           repetition: int, limits: dict) -> tuple[Phase, Phase, dict, dict, dict | None]:
     ctx = mp.get_context("spawn")
     barrier = ctx.Barrier(cfg.concurrency + 1, timeout=120)
     deadlines = ctx.Array("d", 2, lock=False)
@@ -118,16 +159,24 @@ def phases(endpoint: Endpoint, cfg: Settings, db: Adapter, run_id: str,
     samples: dict[str, list[float]] = {name: [] for name in limits}
     stop = Event()
     sampler = None
+    controller = None
+    # P3: một bộ điều tiết dùng chung mọi process; bộ điều khiển chạy ở process này, mỗi giây một bước.
+    throttle = (SharedThrottle(ctx, cfg.concurrency, cfg.limit_min, cfg.concurrency, cfg.p99_limit_ms,
+                               cfg.abort_limit_pct) if cfg.variant == "p3" else None)
+    trace: list[dict] = []
     try:
         for first in range(0, cfg.concurrency, cfg.workers_per_process):
             workers = range(first, min(cfg.concurrency, first + cfg.workers_per_process))
             process = ctx.Process(target=group, args=(endpoint, cfg, run_id, repetition, workers,
-                                                       barrier, deadlines, queue))
+                                                       barrier, deadlines, queue, throttle))
             process.start()
             processes.append(process)
         # First rendezvous waits for all clients to be online before starting its timer.
         # The second rendezvous publishes the deadline to all clients.
         start_phase(barrier, deadlines, 0, cfg.warmup_seconds)
+        if throttle is not None:
+            controller = Thread(target=control_loop, args=(throttle, stop, trace), daemon=True)
+            controller.start()
         barrier.wait(timeout=cfg.warmup_seconds + 120)
         initial = get_counters(db)
         start_phase(barrier, deadlines, 1, cfg.measurement_seconds)
@@ -148,7 +197,13 @@ def phases(endpoint: Endpoint, cfg: Settings, db: Adapter, run_id: str,
         cpu = {name: statistics.mean(values) if values else None for name, values in samples.items()}
         for name in limits:
             cpu.setdefault(name, None)
-        return warmup, measurement, counters, cpu
+        summary = None
+        if throttle is not None:
+            limits_seen = [step["limit_after"] for step in trace] or [throttle.limit.value]
+            summary = {"initial_limit": cfg.concurrency, "final_limit": throttle.limit.value,
+                       "min_limit": min(limits_seen), "adjustments": sum(
+                           step["limit_after"] != step["limit_before"] for step in trace), "trace": trace}
+        return warmup, measurement, counters, cpu, summary
     except Exception as exc:
         with suppress(Empty):
             _, _, error = queue.get(timeout=2)
@@ -157,6 +212,8 @@ def phases(endpoint: Endpoint, cfg: Settings, db: Adapter, run_id: str,
         raise RuntimeError(f"Runner gián đoạn: {exc!r}") from exc
     finally:
         stop.set()
+        if controller is not None:
+            controller.join(timeout=3)
         if sampler is not None:
             sampler.join(timeout=9)
         for process in processes:
@@ -200,10 +257,15 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
     measurement = unavailable_phase(cfg.measurement_seconds)
     expected = None
     tps_series = None
-    variant_setup = {"variant": cfg.variant, "slots": cfg.slots if cfg.variant == "p2" else None,
-                     "hot_items": cfg.hot_items if cfg.variant == "p2" else None,
-                     "order_id_batch": cfg.order_id_batch, "prepare_seconds": None}
-    if evidence["indexed"] and cfg.variant == "p2":
+    variant_setup = {"variant": cfg.variant, "slots": cfg.slots if uses_slots(cfg.variant) else None,
+                     "hot_items": cfg.hot_items if uses_slots(cfg.variant) else None,
+                     "order_id_batch": cfg.order_id_batch, "arrival_rate": cfg.arrival_rate,
+                     "queue_size": cfg.queue_size if cfg.arrival_rate else None,
+                     "throttle": ({"p99_limit_ms": cfg.p99_limit_ms, "abort_limit_pct": cfg.abort_limit_pct,
+                                   "limit_min": cfg.limit_min, "limit_max": cfg.concurrency}
+                                  if cfg.variant == "p3" else None), "prepare_seconds": None}
+    throttle_summary = None
+    if evidence["indexed"] and uses_slots(cfg.variant):
         began = time.monotonic()
         try:
             variant_setup.update(prepare_slots(db, cfg.dataset, zipf.item_ids[:cfg.hot_items], cfg.slots))
@@ -213,7 +275,7 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
             protocol_errors.append(f"slot_prepare_failed: {type(exc).__name__}: {exc}")
     if evidence["indexed"]:
         try:
-            warm, measured, counters, cpu = phases(endpoint, cfg, db, run_id, repetition, limits)
+            warm, measured, counters, cpu, throttle_summary = phases(endpoint, cfg, db, run_id, repetition, limits)
         except Exception as exc:
             protocol_errors.append(f"runner_failed: {type(exc).__name__}: {exc}")
         else:
@@ -239,7 +301,7 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
     if evidence["indexed"]:
         try:
             validation = validate(db, cfg.dataset, run_id, expected or (), dataset_state["counts"],
-                                  slots=cfg.variant == "p2")
+                                  slots=uses_slots(cfg.variant))
             if expected is None:
                 validation["rules"]["idempotency"] = None
         except Exception as exc:
@@ -252,7 +314,8 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
         "schema_version": SCHEMA_VERSION, "run_id": run_id, "engine": endpoint.engine,
         "version": server["version"], "label": cfg.label, "repetition": repetition,
         "seed": cfg.seed, "idempotency": cfg.idempotency, "variant": cfg.variant, "slots": variant_setup["slots"],
-        "hot_items": variant_setup["hot_items"], "order_id_batch": cfg.order_id_batch, "variant_setup": variant_setup,
+        "hot_items": variant_setup["hot_items"], "order_id_batch": cfg.order_id_batch, "arrival_rate": cfg.arrival_rate,
+        "throttle_result": throttle_summary, "variant_setup": variant_setup,
         "client_timeout_seconds": cfg.client_timeout_seconds, "concurrency": cfg.concurrency, "warehouse_mode": cfg.warehouse_mode,
         "theta": cfg.theta, "hot_item": cfg.hot_item,
         "inventory_mode": "performance" if cfg.dataset.inventory == 1_000_000_000 else cfg.label,

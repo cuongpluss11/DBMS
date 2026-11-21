@@ -3,7 +3,12 @@ from pathlib import Path
 import tomllib
 
 
-VARIANTS = ("legacy", "p0", "p1", "p2")
+VARIANTS = ("legacy", "p0", "p1", "p2", "p3")
+
+
+def uses_slots(variant: str) -> bool:
+    """P2 và P3 chia tồn kho thành slot (P3 = P2 + điều tiết thích ứng)."""
+    return variant in ("p2", "p3")
 
 
 @dataclass(frozen=True)
@@ -49,6 +54,13 @@ class Settings:
     hot_items: int = 100
     # 0 = mỗi đơn tăng d_next_o_id (như 2.1); B > 0 = mỗi worker xin một lô B mã đơn cho mỗi (kho, quận).
     order_id_batch: int = 0
+    # Tải vòng mở (T3): arrival_rate > 0 là số yêu cầu đến mỗi giây (tổng), vào hàng đợi hữu hạn `queue_size` mỗi
+    # process; 0 = vòng kín như 2.1. P3: ngưỡng điều tiết (các thông số khởi đầu, chỉnh khi chạy thử).
+    arrival_rate: float = 0.0
+    queue_size: int = 64
+    p99_limit_ms: float = 500.0
+    abort_limit_pct: float = 10.0
+    limit_min: int = 1
 
     def __post_init__(self) -> None:
         if self.idempotency == (self.label == "idempotency_off"):
@@ -57,6 +69,9 @@ class Settings:
             raise ValueError(f"variant phải thuộc {VARIANTS}")
         if self.slots < 1 or self.hot_items < 1 or self.order_id_batch < 0:
             raise ValueError("slots và hot_items phải dương, order_id_batch không âm")
+        if (self.arrival_rate < 0 or self.queue_size < 1 or self.p99_limit_ms <= 0
+                or not 0 <= self.abort_limit_pct <= 100 or self.limit_min < 1):
+            raise ValueError("Tham số tải vòng mở hoặc điều tiết không hợp lệ")
         if self.client_timeout_seconds <= 0:
             raise ValueError("client_timeout_seconds phải dương")
         if self.warehouse_mode not in {"uniform", "single-warehouse"}:

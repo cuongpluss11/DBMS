@@ -10,7 +10,7 @@ import sys
 from flashsale.adapters.base import Endpoint, open_adapter
 from flashsale.benchmark.metrics import write_json
 from flashsale.benchmark.runner import run_one
-from flashsale.config import VARIANTS, Settings, read_settings
+from flashsale.config import VARIANTS, Settings, read_settings, uses_slots
 from flashsale.data.loader import fingerprint, load, reset
 from flashsale.infra import (BUDGET_CPUS, BUDGET_MEMORY_BYTES, ENGINES, ROOT, active_engines, container_limits, endpoint, enforce_one,
                             host_info, pd_status, project_lock, ready, remote_nodes, source_hashes, setting, start, stop, tcp_rtt_ms)
@@ -192,17 +192,25 @@ def parser() -> argparse.ArgumentParser:
     return cli
 
 
-VARIANT_FIELDS = ("variant", "slots", "hot_items", "order_id_batch")
+VARIANT_FIELDS = ("variant", "slots", "hot_items", "order_id_batch", "arrival_rate", "queue_size",
+                  "p99_limit_ms", "abort_limit_pct", "limit_min")
 
 
 def add_variant_arguments(command) -> None:
     """Biến thể trừ kho của mục 2.2 (mặc định `legacy` = 2.1, không đổi)."""
     command.add_argument("--variant", choices=VARIANTS,
-                         help="legacy (2.1), p0 đọc rồi ghi, p1 cập nhật có điều kiện, p2 chia tồn kho thành slot")
+                         help="legacy (2.1), p0 đọc rồi ghi, p1 cập nhật có điều kiện, p2 chia tồn kho thành slot, "
+                              "p3 = p2 + điều tiết thích ứng")
     command.add_argument("--slots", type=int, help="p2: số slot N mỗi món nóng mỗi kho")
     command.add_argument("--hot-items", type=int, dest="hot_items", help="p2: số món đầu bảng hạng Zipf được chia slot")
     command.add_argument("--order-id-batch", type=int, dest="order_id_batch",
                          help="0 = tăng d_next_o_id mỗi đơn; B > 0 = mỗi worker xin lô B mã đơn")
+    command.add_argument("--arrival-rate", type=float, dest="arrival_rate",
+                         help="Tải vòng mở: số yêu cầu đến mỗi giây (tổng); 0 = vòng kín")
+    command.add_argument("--queue-size", type=int, dest="queue_size", help="Hàng đợi hữu hạn Q mỗi process (vòng mở)")
+    command.add_argument("--p99-limit-ms", type=float, dest="p99_limit_ms", help="P3: ngưỡng p99 dịch vụ (ms)")
+    command.add_argument("--abort-limit-pct", type=float, dest="abort_limit_pct", help="P3: ngưỡng tỉ lệ hủy (%%)")
+    command.add_argument("--limit-min", type=int, dest="limit_min", help="P3: sàn của giới hạn đồng thời")
 
 
 def execute_command(args) -> dict | list:
@@ -237,7 +245,7 @@ def execute_command(args) -> dict | list:
         with connect(target) as db:
             return validate(db, Dataset(**manifest["config"]["dataset"]), args.run_id, expected,
                             manifest["dataset_state"]["counts"],
-                            slots=manifest["config"].get("variant") == "p2")
+                            slots=uses_slots(manifest["config"].get("variant", "legacy")))
 
     target = endpoint(engine, getattr(args, "dataset", None))
     if command in {"reset", "drop"} and target.database != args.confirm:

@@ -98,13 +98,13 @@ def take_stock(db: Adapter, req: Request, ctx: TxnContext, item: int, quantity: 
     else:
         # P2, món nóng: chọn ngẫu nhiên một slot; slot không đủ thì thử lần lượt các slot còn lại.
         first = ctx.rng.randrange(ctx.slots)
+        ctx.slot_items += 1  # đếm mọi lần trừ món nóng (kể cả thất bại hết hàng) làm mẫu số của số lần thử
         for step in range(ctx.slots):
             ctx.slot_attempts += 1
             slot = {"ss_w_id": w, "ss_i_id": item, "ss_slot": (first + step) % ctx.slots}
             if db.change("stock_slot", slot, increment={"ss_quantity": -quantity, "ss_ytd": quantity,
                                                         "ss_order_cnt": 1},
                          at_least={"ss_quantity": quantity}) == 1:
-                ctx.slot_items += 1
                 return
         raise DBError("out_of_stock")
 
