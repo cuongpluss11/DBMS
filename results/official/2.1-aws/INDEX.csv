@@ -96,6 +96,7 @@ run_id,engine,version,profile,label,repetition,concurrency,warehouse_mode,theta,
 9e013c167b9e41e08ba6ef1810308b6d,mysql,8.4.8,baseline-cross,baseline-cross,3,8,uniform,0,False,performance,False,True,15.0,259.63,19.71,101.67,148.42,0.0,0.0,0.0,VALID,,-3.61,60.2,remote,
 9ea9a0615523477bb7b9fee06ac3f86d,mongo,8.0.20,baseline-cross,baseline-cross,3,8,uniform,0,False,performance,False,True,15.0,447.55,14.76,36.77,54.23,0.0,0.0,2.17,VALID,,0.0,116.39,remote,
 a2000f8daffd490baa8324305a53add7,mongo,8.0.20,performance,performance,1,128,uniform,0.0,False,performance,False,True,15.0,2481.15,27.46,147.2,312.73,0.95,0.0,21.67,VALID,,65.37,738.73,remote,
+a2bb1c804354406face27e70812eb3a6,tidb,8.0.11-TiDB-v8.5.7,idempotency-off,idempotency_off,1,64,single-warehouse,0,True,performance,False,False,0.02,208.12,7.86,278.53,472.3,36.82,0.0,46.85,INVALID,,-6.95,52.18,remote,idem_off_rerun
 a32601dc3a424398aff07d62023d12f6,mysql,8.4.8,payment-ytd,payment_ytd,3,8,uniform,0,False,performance,True,True,15.0,251.27,18.93,105.67,160.77,0.0,0.0,0.0,VALID,,1.14,60.72,remote,
 a5e7eb4b938f4a138f5577aba7e3e1ca,tidb,8.0.11-TiDB-v8.5.7,performance,performance,1,256,uniform,0.0,False,performance,False,True,15.0,948.2,119.15,898.18,1503.29,0.0,0.0,0.0,VALID,,-2.0,125.74,remote,
 a8ed3fc42ec1421abf98654dfa9b5400,mysql,8.4.8,idempotency-off,idempotency_off,1,64,single-warehouse,0,True,performance,False,False,0.02,468.85,5.44,282.34,467.04,14.66,0.0,39.7,INVALID,,-2.2,62.79,remote,

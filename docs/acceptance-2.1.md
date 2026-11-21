@@ -2,30 +2,70 @@
 
 Ngày chạy: 2026-11-19 và 2026-11-20. Môi trường: AWS EC2 `c6i.4xlarge` (16 vCPU, 32 GiB, đĩa gp3 100 GiB), Ubuntu 24.04 LTS x86_64, Docker 29.10.0, Compose 5.8.0, Python 3.12.3. Mỗi hệ chạy riêng một thời điểm với ngân sách container chung **8 CPU / 16 GiB** ([assumptions.md](assumptions.md)). Dữ liệu thô nằm ở [results/official/2.1/](../results/official/2.1/) (xem `INDEX.csv`, 51 lượt). Các lượt chạy ngày 2026-11-19 dùng Git commit `38dda58` (`main`); các lượt bổ sung ngày 2026-11-20 (profile `performance-theta*`, `performance-hot-item`, `baseline-concurrency`, idempotency-off trên MongoDB/TiDB, `validate-cli-output.json`) dùng commit `3a5aded` của nhánh `complete-2.1`, đã gồm phép kiểm chéo của tài liệu. Không có thay đổi chưa commit ở cả hai.
 
-## Cập nhật theo bản chốt `bao_cao_DBMS_ban_chot.docx` (2026-11-20): PARTIAL
-Các lượt bên dưới được chạy **trước** khi có bản chốt và chỉ là số đo **sơ bộ trên Docker**. Bản chốt thêm yêu cầu mà chưa được kiểm chứng trên DBMS thật: (1) MySQL-chỉnh (`configs/baseline-tuned.toml`) ở điểm baseline; (2) độ bền ngang nhau (`sync_binlog=1`, MongoDB `j:true`) và cache MongoDB đặt tường minh, nên các lượt MongoDB cũ cần chạy lại; (3) kiểm warmup bằng TPS theo giây; (4) baseline 1 client và baseline uniform trên mỗi hệ; (5) 3 lần lặp cho lưới θ × client; (6) hạ tầng AWS nhiều VM, script tải riêng, `iostat`, EBS snapshot. Mã và test đơn vị cho (1)–(3) đã có; (4)–(6) chưa làm. Chi tiết ở [assumptions.md](assumptions.md).
+## Nghiệm thu trên AWS theo bản chốt: DONE, kèm giới hạn ghi rõ
 
-### Checklist để 2.1 thành DONE theo bản chốt (số đo chính thức trên AWS)
+Ngày chạy 2026-11-20 và 2026-11-21 trên AWS `us-east-1c`, mỗi thành phần một VM riêng, một VM tải riêng (Python), Ubuntu 24.04, một DBMS tại một thời điểm. Dữ liệu thô: [results/official/2.1-aws/](../results/official/2.1-aws/INDEX.csv) (152 lượt, `INDEX.csv`, `SUMMARY.md`, `logs/` gồm log ma trận và `iostat`, `integration/` gồm các lượt smoke của integration test). Các lượt Docker cũ (51 lượt) ở [results/official/2.1/](../results/official/2.1/INDEX.csv) là **số đo sơ bộ**, không dùng để so sánh chính thức. Dựng lại: [infra/aws/README.md](../infra/aws/README.md), `scripts/run-matrix-2.1.sh`, `scripts/aws-tidb-up.sh`.
 
-| # | Việc | Bằng chứng cần có | Cách tạo | Trạng thái |
-| --- | --- | --- | --- | --- |
-| 1 | Quota vCPU ≥ 32 và hạ tầng `stack` dựng được | `terraform plan/apply` thành công, ảnh Budgets | `infra/aws/README.md` | NOT DONE (quota `CASE_OPENED`) |
-| 2 | TiDB 1 PD + 1 TiDB + 3 TiKV bằng TiUP, `max-replicas=1`, block cache như nhau | `manifest.json` (`pd`, `tikv_durability_config`), `SHOW TABLE stock REGIONS` | topology TiUP trong repo | NOT DONE |
-| 3 | Tài nguyên ba hệ bằng nhau (12 vCPU / 24 GiB, không tính VM tải/monitor) | `resource_limits` và `remote_nodes` trong manifest | Terraform + `FLASHSALE_REMOTE_NODES` | NOT DONE |
-| 4 | Độ bền ngang nhau: MySQL `flush=1`, `sync_binlog=1`; MongoDB `majority + j`; TiKV mặc định | `dbms` trong manifest cả ba hệ | compose override, `flashsale run` | NOT DONE |
-| 5 | Máy tải không là nút thắt (kể cả ở 64–256 client, nơi `c6i.xlarge` đã bão hòa ở 64 client / 10.000 IOPS) | `loadgen_cpu_pct` và không có cảnh báo `loadgen_cpu_*pct_of_limit` | node_exporter trên `loadgen`; nâng `loadgen_instance_type` | Đã chọn mặc định `c6i.2xlarge` (8 vCPU), cần xác nhận ở các điểm 64–256 client |
-| 6 | Baseline MySQL-mặc-định, MySQL-chỉnh, một kho, 1 client; uniform và 1 client cho từng hệ | `INDEX.csv`, `SUMMARY.md` | `scripts/run-matrix-2.1.sh` (MySQL-chỉnh chạy riêng) | NOT DONE trên AWS |
-| 7 | `payment-ytd`, `correctness` (hết hàng thực), `idempotency-off` trên cả ba hệ | các lượt VALID; idempotency-off INVALID luật 3 đúng dự kiến | script ma trận | NOT DONE trên AWS |
-| 8 | Các mức θ và số client (8–256) | lưới `evidence` (hoặc `full` nếu muốn) | `--grid evidence|full` | NOT DONE trên AWS |
-| 9 | Kiểm warmup 30 giây có đủ không | mục "Kiểm tra warmup" trong `SUMMARY.md` | `flashsale report` | NOT DONE |
-| 10 | Nút thắt đĩa EBS xác nhận bằng `iostat` | `iostat.txt` mỗi điểm | `FLASHSALE_IOSTAT_SSH` + script ma trận | NOT DONE |
-| 11 | Ba luật + phép kiểm chéo VALID sau mọi lượt, EXPLAIN đúng chỉ mục trên cả ba hệ | `validation`, `access_paths` | tự động trong `flashsale run` | PASS trên Docker; NOT DONE trên AWS |
-| 11b | Cấu hình đĩa ngang nhau và không phụ thuộc burst: mọi ổ gp3 cùng IOPS/throughput, không vượt IOPS cơ bản của instance nhỏ nhất | `terraform.tfvars`, manifest, [pilot-aws-vs-docker.md](pilot-aws-vs-docker.md) | mặc định 3000/125; thí nghiệm riêng 10.000 IOPS trên MySQL | Đề xuất, chờ xác nhận |
-| 12 | Kết quả chính thức commit vào `results/official/2.1/` kèm manifest, INDEX | thư mục và `INDEX.csv` | `flashsale report --results-dir results --out results/official/2.1` sau khi chọn lượt | NOT DONE |
+**Cấu hình đo chính thức (khác Docker):** MySQL và MongoDB là một VM `c6i.4xlarge` giới hạn còn **12 vCPU / 24 GiB** (cpuset 0–11); TiDB gồm PD `c6i.large` (2 vCPU), TiDB server `c6i.xlarge` (4 vCPU) và 3 TiKV `m6i.large` (2 vCPU, 8 GiB mỗi nút) = **12 vCPU / 36 GiB**; mọi ổ dữ liệu gp3 **3000 IOPS / 125 MB/s**, cùng AZ. Máy tải `c6i.2xlarge` (8 vCPU) cho MySQL và `c6i.4xlarge` (16 vCPU) cho MongoDB ở 64–256 client và TiDB. Phiên bản: MySQL 8.4.8, MongoDB 8.0.20, TiDB/PD/TiKV v8.5.7. Độ bền: MySQL `innodb_flush_log_at_trx_commit=1` và `sync_binlog=1`; MongoDB `{w:"majority", j:true}`, cache WiredTiger 3 GiB; TiKV giữ đồng bộ log Raft mặc định, block cache 1 GiB, `max-replicas=1`. MySQL-mặc-định có buffer pool 128 MiB; MySQL-chỉnh 3 GiB. Manifest ghi `source_sha256` của mã nguồn (VM không có `.git` nên không có `git_commit`).
 
-**Ước lượng thời gian và chi phí (chưa đo, chỉ là dự toán để hoạch định):** mỗi lần lặp tốn khoảng 90 giây đo cộng reset và đối soát, tạm tính 4–6 phút. Lưới `evidence` có khoảng 18 điểm × 3 lần cho MySQL (15 điểm cho MongoDB và TiDB), nên khoảng 4–5 giờ mỗi hệ, khoảng 13–16 giờ cho ba hệ. Cộng nạp dữ liệu W=10 (ba dataset mỗi hệ), dựng hạ tầng và debug, thực tế 30–40 giờ bật máy. Với 0,7–0,9 USD mỗi giờ, đó là khoảng 25–40 USD cho 2.1. Lưới `full` thêm khoảng 7 giờ đo cộng reset mỗi hệ; nên để 2.2. Con số có thể lệch nhiều, hãy đo thời gian một điểm đầu tiên rồi nhân lên.
+| Tiêu chí (AGENTS.md mục 14) | Trạng thái | Bằng chứng |
+| --- | --- | --- |
+| Phiên bản thực tế ba hệ | PASS | `dbms.version` trong manifest; TiDB `Release Version: v8.5.7`, ba store TiKV `8.5.7` |
+| Nạp và kiểm đếm 9 bảng/collection W=10 | PASS | `dataset_state.counts` giống nhau ở cả ba hệ: warehouse 10, item 100.000, district 100, stock 1.000.000, customer 300.000, history 300.000, orders 300.000, new_order 90.000, order_line 2.998.678 |
+| New-Order và Payment đúng trên các adapter | PASS | `pytest -m integration` chạy **trên AWS** với DBMS ở VM riêng: 4 passed trên mỗi hệ (MySQL, MongoDB, TiDB); 152 lượt đo |
+| Zipf/seed tái lập, uniform và single-warehouse | PASS | Unit test; các lượt θ và kiểu kho trong `INDEX.csv` |
+| Baseline MySQL theo thông số 2.1 | PASS | MySQL-mặc-định, MySQL-chỉnh, một kho, 1 client: 3/3 VALID mỗi điểm |
+| CSV/JSON, manifest phiên bản và tài nguyên | PASS | `result.csv`, `result.json`, `manifest.json` mỗi lượt; `tps_per_second.csv` |
+| Tự kiểm ba luật sau mỗi lượt | PASS | 152 lượt; phép kiểm chéo SQL/aggregation của tài liệu `doc_check.violations = 0` ở mọi lượt có kết quả |
+| EXPLAIN đúng chỉ mục | PASS | `access_paths.plans` và `indexed=true` trong manifest của cả ba hệ |
+| Region TiDB | PASS (ghi nhận) | `stock` 5 Region, leader chỉ ở 2/3 store; `history` 16 Region (`SHARD_ROW_ID_BITS=4`, `PRE_SPLIT_REGIONS=4`), 1 peer mỗi Region |
+| Lượt phụ: một kho, 1 client, `payment-ytd`, `idempotency-off` | PASS | Xem bảng dưới; `idempotency-off` INVALID luật 3 trên cả ba hệ (TiDB: 3 đơn trùng ở lần chạy lại, lần chạy đầu không sinh đơn trùng) |
+| Các mức θ và số client 8–256 | PASS (lưới `evidence`) | Bảng dưới; lưới đầy đủ θ × client là NOT TESTED (thuộc 2.2) |
+| Kiểm warmup | PASS (có lưu ý) | `warmup_stability` + `tps_per_second.csv`; xem lưu ý dưới |
+| Nút thắt đĩa xác nhận bằng `iostat` | PASS | `logs/*/iostat-*.gz` cho từng hệ |
 
-## Kết luận (theo AGENTS.md trước bản chốt): DONE
+### Kết quả chính (TPS trung vị của 3 lần lặp, 8 client, θ=0, kho uniform, tồn 10^9)
+
+| Điểm | MySQL | MongoDB | TiDB |
+| --- | --- | --- | --- |
+| Baseline (MySQL-mặc-định; cross cho hệ khác) | 259 (p99 150 ms) | 448 (p99 54 ms) | 447 (p99 46 ms) |
+| MySQL-chỉnh (buffer pool 3 GiB) | 438 (p99 65 ms) | — | — |
+| MySQL một kho / 1 client | 381 / 185 | — / 190 | — / 96 |
+| `payment-ytd` | 251 | 410 | 417 |
+| `correctness` (tồn 1.000, hết hàng thực) | 399 | 439 | 316 |
+
+Số client (θ=0, uniform), TPS và p99:
+
+| Client | MySQL | MongoDB (64–256 client: máy tải 16 vCPU) | TiDB |
+| --- | --- | --- | --- |
+| 8 | 257 (149 ms) | 458 (51 ms) | 400 (49 ms) |
+| 32 | 412 (254 ms) | 1.186 (121 ms) | 911 (106 ms) |
+| 64 | 496 (404 ms) | 2.119 (158 ms) | 946 (230 ms) |
+| 128 | 552 (781 ms) | 3.053 (245 ms) | 930 (586 ms) |
+| 256 | 506 (2.172 ms) | 2.968 (218 ms) | 948 (1.439 ms) |
+
+Các mức θ ở 8 client (kho uniform) gần như không đổi TPS ở cả ba hệ (MySQL 255–271, MongoDB 452–458, TiDB 399–469 TPS); mức "mọi người mua một món" tăng TPS (MySQL 498, MongoDB 595, TiDB 544) vì dồn vào ít dữ liệu nóng hơn. Điểm gãy theo θ là việc của 2.2. Chi tiết từng nhóm: `results/official/2.1-aws/SUMMARY.md`.
+
+### Khác biệt so với tài liệu ý tưởng và giới hạn (xem thêm [assumptions.md](assumptions.md))
+- **TiDB bị nghẽn ở tầng SQL từ 32 client:** TiDB server (4 vCPU) đạt ~96–100% CPU nên TPS đứng quanh 910–950. Quyết định: giữ ngân sách 12 vCPU bằng nhau cho ba hệ và coi đây là kết quả ở ngân sách bằng nhau; **không dùng các điểm TiDB ≥32 client để kết luận khả năng mở rộng của TiKV** (làm rõ ở 2.3 với TiDB server cỡ đủ lớn).
+- **RAM không bằng nhau:** cụm TiDB 36 GiB so với 24 GiB của MySQL/MongoDB, vì TiKV bị OOM-kill trên `c6i.large` (4 GiB, anon-rss 3,5 GB) nên dùng `m6i.large` (8 GiB). Bộ nhớ của MySQL (buffer pool) và MongoDB (cache) đặt tường minh nên không phụ thuộc giới hạn container, nhưng điều kiện "cùng tổng RAM" không được đáp ứng.
+- **Máy tải:** MongoDB ở 64/128/256 client lần đầu chạy với máy tải 8 vCPU bị bão hòa (CPU 81–94%, TPS 2.150–2.500); đã chạy lại với 16 vCPU (TPS 2.100–3.050, không còn cảnh báo). Cả hai bộ đều ở `INDEX.csv`; bộ lần đầu có cảnh báo `loadgen_cpu_*` nên **bị thay thế**, nhóm bằng `run_note=loadgen_c6i.4xlarge`.
+- **Lượt hỏng do lỗi công cụ, giữ lại để minh bạch:** 1 lượt MongoDB 64 client (`98b015c5…`) INVALID vì timeout 15 giây khi đối soát sau lượt 2.000 TPS; đã sửa (timeout 900 giây cho đối soát, nạp và reset) và chạy lại. Lần dựng TiDB đầu tiên (TiKV `c6i.large`) bị OOM giữa chừng; toàn bộ kết quả TiDB trong thư mục lấy từ lần dựng lại.
+- `max_connections=400` cho MySQL ở toàn bộ lượt AWS (để 256 client kết nối được), thay vì 151 mặc định; buffer pool và các tham số khác của MySQL-mặc-định giữ nguyên.
+- **Warmup:** 35/152 lượt bị đánh dấu `WARMUP_MAY_BE_SHORT` (chủ yếu MongoDB ở 64–256 client). Chuỗi theo giây cho thấy TPS đạt trạng thái ổn định trong vài giây đầu; độ lệch do **WiredTiger checkpoint định kỳ (~60 giây)** làm TPS tụt vài giây rơi vào cuối warmup hoặc đầu đo, không phải do chưa ổn định. 30 giây warmup được coi là đủ; số đo vẫn gồm các lần tụt này.
+- **`idempotency-off` trên TiDB:** lần chạy đầu (1 lần lặp) VALID, tức không có đơn trùng ngẫu nhiên; lần chạy lại (`run_note=idem_off_rerun`) INVALID luật 3 với 3 đơn trùng. Một điểm một lần lặp, không đủ để kết luận tần suất.
+- **Dao động của TiDB ở 8 client lớn hơn:** cùng cấu hình (8 client, θ=0, uniform) cho 447 TPS ở profile `baseline-cross` và 400 TPS ở `performance` (khoảng min–max 341–471 giữa các lần lặp); chênh dưới ~15% ở 8 client nằm trong nhiễu.
+- **Máy tải không có `.git`** nên manifest không ghi `git_commit` (có `source_sha256`).
+- **Trước đây chưa đo `iostat` ở các lượt Docker**; trên AWS `iostat` ghi liên tục cả ma trận (gồm reset và đối soát), chỉ dùng để thấy xu hướng.
+
+### NOT TESTED
+- Lưới đầy đủ θ × số client (8–256) trên cả ba hệ (Tầng 3 / 2.2).
+- MySQL-chỉnh chỉ chạy trên MySQL; chưa có "MongoDB-chỉnh" hay TiDB-chỉnh (không yêu cầu).
+- Lặp lại giữa các lần dựng VM (mọi lượt AWS cùng một lần dựng cho mỗi hệ, trừ MongoDB 64–256 client).
+- Quy trình snapshot/khôi phục EBS cho dữ liệu (chỉ dùng reset bằng SQL/aggregation).
+- Replica 3 của TiDB, pin leader/Region, `SPLIT TABLE` (thuộc 2.3).
+
+## Số đo sơ bộ trước bản chốt (Docker một VM): giữ để tham khảo
 
 | Tiêu chí | Trạng thái | Bằng chứng |
 | --- | --- | --- |

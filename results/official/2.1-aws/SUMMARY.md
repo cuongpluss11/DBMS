@@ -45,6 +45,7 @@ Trung vị, min–max của TPS thành công và trung vị p99 trên các lần
 | tidb | baseline-cross-1client | 1 | uniform | 0 | False | False | True |  | 3 | 3/3 | 95.9 (84.4–98.4) | 26.6 |
 | tidb | correctness | 8 | single-warehouse | 0 | True | False | True |  | 3 | 3/3 | 316.2 (311.9–320.9) | 10.3 |
 | tidb | idempotency-off | 64 | single-warehouse | 0 | True | False | False |  | 1 | 1/1 | 214.2 (214.2–214.2) | 474.9 |
+| tidb | idempotency-off | 64 | single-warehouse | 0 | True | False | False | idem_off_rerun | 1 | 0/1 | 208.1 (208.1–208.1) | 472.3 |
 | tidb | payment-ytd | 8 | uniform | 0 | False | True | True |  | 3 | 3/3 | 417.3 (323.3–419.9) | 45.4 |
 | tidb | performance | 128 | uniform | 0.0 | False | False | True |  | 3 | 3/3 | 929.9 (928.1–959.1) | 586.0 |
 | tidb | performance | 256 | uniform | 0.0 | False | False | True |  | 3 | 3/3 | 948.2 (939.6–950.3) | 1439.0 |
@@ -59,7 +60,7 @@ Trung vị, min–max của TPS thành công và trung vị p99 trên các lần
 
 ## Kiểm tra warmup 30 giây
 
-151/151 lượt có chuỗi TPS theo giây; 35 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
+152/152 lượt có chuỗi TPS theo giây; 35 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
 
 | run_id | engine | profile | client | θ | drift % |
 | --- | --- | --- | --- | --- | --- |
