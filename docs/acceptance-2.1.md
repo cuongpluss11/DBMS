@@ -21,7 +21,7 @@ Ngày chạy 2026-11-20 và 2026-11-21 trên AWS `us-east-1c`, mỗi thành ph�
 | Region TiDB | PASS (ghi nhận) | `stock` 5 Region, leader chỉ ở 2/3 store; `history` 16 Region (`SHARD_ROW_ID_BITS=4`, `PRE_SPLIT_REGIONS=4`), 1 peer mỗi Region |
 | Lượt phụ: một kho, 1 client, `payment-ytd`, `idempotency-off` | PASS | Xem bảng dưới; `idempotency-off` INVALID luật 3 trên cả ba hệ (TiDB: 3 đơn trùng ở lần chạy lại, lần chạy đầu không sinh đơn trùng) |
 | Các mức θ và số client 8–256 | PASS (lưới `evidence`) | Bảng dưới; lưới đầy đủ θ × client là NOT TESTED (thuộc 2.2) |
-| Kiểm warmup | PASS (có lưu ý) | `warmup_stability` + `tps_per_second.csv`; xem lưu ý dưới |
+| Kiểm warmup | PASS (có lưu ý) | `warmup_stability`, `tps_per_second.csv` và hình [TPS mỗi giây, 8 client](../results/official/2.1-aws/plots/tps-per-second-8-client.svg), [64 và 256 client](../results/official/2.1-aws/plots/tps-per-second-64-256-client.svg) (`scripts/plot_tps_per_second.py`); xem lưu ý dưới |
 | Nút thắt đĩa xác nhận bằng `iostat` | PASS | `logs/*/iostat-*.gz` cho từng hệ |
 
 ### Kết quả chính (TPS trung vị của 3 lần lặp, 8 client, θ=0, kho uniform, tồn 10^9)
@@ -52,7 +52,7 @@ Các mức θ ở 8 client (kho uniform) gần như không đổi TPS ở cả b
 - **Máy tải:** MongoDB ở 64/128/256 client lần đầu chạy với máy tải 8 vCPU bị bão hòa (CPU 81–94%, TPS 2.150–2.500); đã chạy lại với 16 vCPU (TPS 2.100–3.050, không còn cảnh báo). Cả hai bộ đều ở `INDEX.csv`; bộ lần đầu có cảnh báo `loadgen_cpu_*` nên **bị thay thế**, nhóm bằng `run_note=loadgen_c6i.4xlarge`.
 - **Lượt hỏng do lỗi công cụ, giữ lại để minh bạch:** 1 lượt MongoDB 64 client (`98b015c5…`) INVALID vì timeout 15 giây khi đối soát sau lượt 2.000 TPS; đã sửa (timeout 900 giây cho đối soát, nạp và reset) và chạy lại. Lần dựng TiDB đầu tiên (TiKV `c6i.large`) bị OOM giữa chừng; toàn bộ kết quả TiDB trong thư mục lấy từ lần dựng lại.
 - `max_connections=400` cho MySQL ở toàn bộ lượt AWS (để 256 client kết nối được), thay vì 151 mặc định; buffer pool và các tham số khác của MySQL-mặc-định giữ nguyên.
-- **Warmup:** 35/152 lượt bị đánh dấu `WARMUP_MAY_BE_SHORT` (chủ yếu MongoDB ở 64–256 client). Chuỗi theo giây cho thấy TPS đạt trạng thái ổn định trong vài giây đầu; độ lệch do **WiredTiger checkpoint định kỳ (~60 giây)** làm TPS tụt vài giây rơi vào cuối warmup hoặc đầu đo, không phải do chưa ổn định. 30 giây warmup được coi là đủ; số đo vẫn gồm các lần tụt này.
+- **Warmup:** 35/152 lượt bị đánh dấu `WARMUP_MAY_BE_SHORT` (chủ yếu MongoDB ở 64–256 client). Chuỗi theo giây cho thấy TPS đạt trạng thái ổn định trong vài giây đầu; độ lệch do **WiredTiger checkpoint định kỳ (~60 giây)** làm TPS tụt vài giây rơi vào cuối warmup hoặc đầu đo, không phải do chưa ổn định. 30 giây warmup được coi là đủ; số đo vẫn gồm các lần tụt này. Hình TPS theo giây cho thấy MySQL ổn định sau ~3 giây, MongoDB có các lần tụt định kỳ (ở 256 client kéo dài cỡ 10 giây và xuống dưới nửa mức bình thường), TiDB nhiễu hơn nhưng không có xu hướng tăng hay giảm.
 - **`idempotency-off` trên TiDB:** lần chạy đầu (1 lần lặp) VALID, tức không có đơn trùng ngẫu nhiên; lần chạy lại (`run_note=idem_off_rerun`) INVALID luật 3 với 3 đơn trùng. Một điểm một lần lặp, không đủ để kết luận tần suất.
 - **Dao động của TiDB ở 8 client lớn hơn:** cùng cấu hình (8 client, θ=0, uniform) cho 447 TPS ở profile `baseline-cross` và 400 TPS ở `performance` (khoảng min–max 341–471 giữa các lần lặp); chênh dưới ~15% ở 8 client nằm trong nhiễu.
 - **Máy tải không có `.git`** nên manifest không ghi `git_commit` (có `source_sha256`).
@@ -60,6 +60,10 @@ Các mức θ ở 8 client (kho uniform) gần như không đổi TPS ở cả b
 
 ### NOT TESTED
 - Lưới đầy đủ θ × số client (8–256) trên cả ba hệ (Tầng 3 / 2.2).
+- Thời gian chờ khóa và số deadlock của MongoDB và TiDB (chỉ MySQL có; hai hệ kia lưu `null`).
+- Grafana của cụm TiDB đã được dựng nhưng chưa dùng làm bằng chứng; tham số `raftstore.sync-log` không còn ở TiDB v8.5.7.
+- Khôi phục dữ liệu bằng EBS snapshot (dùng `flashsale reset` thay thế).
+- Bộ TPC-C chuẩn go-tpc để nạp dữ liệu và đo mốc (dùng loader Python thay thế).
 - MySQL-chỉnh chỉ chạy trên MySQL; chưa có "MongoDB-chỉnh" hay TiDB-chỉnh (không yêu cầu).
 - Lặp lại giữa các lần dựng VM (mọi lượt AWS cùng một lần dựng cho mỗi hệ, trừ MongoDB 64–256 client).
 - Quy trình snapshot/khôi phục EBS cho dữ liệu (chỉ dùng reset bằng SQL/aggregation).
