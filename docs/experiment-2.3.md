@@ -37,6 +37,22 @@ Chỉ TiDB. Trước warmup của mỗi lượt (ngoài thời gian đo): chia `
 
 `flashsale report` có thêm mục "Hệ số tăng tốc": TPS trung vị của cụm 3 TiKV chia cho 1 TiKV (TiDB), hoặc cỡ vCPU lớn chia cho cỡ nhỏ (MySQL, 24 ÷ 20), ghép theo từng nhóm giống hệt nhau về mọi tham số khác; chỉ tính khi hai phía có lượt VALID. `INDEX.csv` có thêm `tikv_count`, `vcpus`, `orders_key`, `placement`, `placement_scope`, `order_warehouses`, `warehouse_groups`.
 
+## Kết quả đo chính thức: cụm 1 TiKV (AWS, 2026-11-21)
+
+`results/official/2.3-aws/tidb1/` (21 lượt, `INDEX.csv`, `SUMMARY.md`, `runs/`, `logs/` gồm `matrix.log` và `iostat`). Cấu hình: TiDB v8.5.7, TiDB server c6i.4xlarge (16 vCPU), PD c6i.large, **1 TiKV m6i.large**, máy tải c6i.4xlarge, đĩa gp3 3000 IOPS / 125 MB/s, W = 12, tồn 10^9, 64 client, 3 lần × (30 s + 60 s), P1 (B và C kèm cấp mã đơn theo lô 50), `--placement spread`. Cả 21 lượt VALID; không có cảnh báo CPU máy tải hay TiDB server (TiDB ≈ 28% CPU của 16 vCPU).
+
+| Nhóm | TPS trung vị (min–max) | p99 trung vị (ms) |
+| --- | --- | --- |
+| A: θ=0, kho đều | 1.136 (956–1.181) | 200 |
+| B: θ=0,9, một kho | 616 (589–634) | 912 |
+| C: B + N = 3 slot | 707 (705–1.035) | 950 |
+| C: N = 9 slot | 849 (744–923) | 287 |
+| C: N = 27 slot | 845 (826–908) | 197 |
+| D: `orders` khóa `o_seq` tự tăng (θ=0, đều) | 766 (720–862) | 309 |
+| D: `orders` khóa `AUTO_RANDOM` (θ=0, đều) | 788 (745–834) | 302 |
+
+Điều đọc được từ số đo (chưa có phía 3 TiKV nên **chưa có hệ số tăng tốc**): (1) tải đều (A) nhanh hơn tải dồn (B) 1,8 lần, p99 4,5 lần thấp hơn; (2) chia món nóng thành N slot (P2) cải thiện B: N = 9 và 27 đạt ≈ 1,4 lần TPS và p99 giảm từ 912 ms xuống 287 và 197 ms, còn N = 3 chưa cải thiện rõ (TPS trung vị 707, p99 950 ms); (3) ở 1 TiKV, TiKV duy nhất chạm 100% CPU của 2 vCPU ở nhóm A, tức nút thắt là TiKV, đúng điều kiện để thêm TiKV có tác dụng; (4) `AUTO_RANDOM` nhỉnh hơn khóa tự tăng chỉ ≈ 3% (788 so với 766), nằm trong nhiễu giữa các lần lặp, nên ở 1 TiKV chưa thấy tác dụng như dự đoán (dự đoán nói về điểm nóng khi thêm máy, cần so ở 3 TiKV); cả hai đều thấp hơn khóa TPC-C ghép (1.136), nên đổi lược đồ sang `o_seq` + UNIQUE phụ tự nó tốn thêm chi phí ghi chỉ mục. **Lưu ý chất lượng:** `warmup_drift_pct` vượt ±10% ở một số lượt (ví dụ nhóm D autoinc −28,5% và 29,2%; N = 27 lượt 3 là 44,3%; A lượt 1 là 11,7%) nên 30 giây warmup có thể chưa đủ cho TiDB ở các điểm đó; cần xem `tps_per_second.csv` trước khi dùng số của các lượt này làm kết luận, và `flashsale report` đã đánh dấu `WARMUP_MAY_BE_SHORT`.
+
 ## Đã kiểm thử / chưa kiểm thử
 
 - Unit test với PD và TiDB giả lập (`tests/test_scaling.py`; toàn bộ 75 test không cần DBMS PASS). Đơn nhiều kho trên MySQL 8.4.8 thật (Docker máy dev, sơ bộ): smoke 1, 2 và 3–4 kho/đơn đều VALID với hết hàng thực.

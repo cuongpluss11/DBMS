@@ -1,0 +1,57 @@
+11:09:13 Bắt đầu ma trận 2.3: engine=tidb tier=a dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb1
+11:09:35 Bắt đầu ma trận 2.3: engine=tidb tier=a dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb1
+11:09:35 Đã nạp dataset  từ configs/scaling.toml
+11:09:35 Điểm 1: a-uniform (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform)
+11:09:35 LỖI reset ở điểm 1 (a-uniform), mã 1. Xem /home/ubuntu/m23-tidb1/point-01-a-uniform/reset.err
+11:09:52 Đã nạp dataset  từ configs/scaling.toml
+11:09:52 Điểm 1: a-uniform (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform)
+11:09:52 LỖI reset ở điểm 1 (a-uniform), mã 1. Xem /home/ubuntu/m23-tidb1/point-01-a-uniform/reset.err
+11:16:27 Bắt đầu ma trận 2.3: engine=tidb tier=a dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb1
+11:16:27 Điểm 1: a-uniform (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform)
+11:23:36 Xong 1 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-tidb1/report
+{
+  "runs": 3,
+  "groups": 1,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 1,
+  "out_dir": "/home/ubuntu/m23-tidb1/report"
+}
+11:23:36 Bắt đầu ma trận 2.3: engine=tidb tier=b dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb1
+11:23:36 Điểm 1: b-hot (configs/scaling.toml --variant p1 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+11:30:49 Xong 1 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-tidb1/report
+{
+  "runs": 6,
+  "groups": 2,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 2,
+  "out_dir": "/home/ubuntu/m23-tidb1/report"
+}
+11:30:49 Bắt đầu ma trận 2.3: engine=tidb tier=c dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb1
+11:30:49 Điểm 1: c-slots-n3 (configs/scaling.toml --variant p2 --slots 3 --hot-items 100 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+11:39:27 Điểm 2: c-slots-n9 (configs/scaling.toml --variant p2 --slots 9 --hot-items 100 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+11:48:43 Điểm 3: c-slots-n27 (configs/scaling.toml --variant p2 --slots 27 --hot-items 100 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+11:57:36 Xong 3 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-tidb1/report
+{
+  "runs": 15,
+  "groups": 5,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 4,
+  "out_dir": "/home/ubuntu/m23-tidb1/report"
+}
+11:57:36 Bắt đầu ma trận 2.3: engine=tidb tier=d dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb1
+12:04:45 Đã nạp dataset flashsale_67a0275e58614b96880a4c404685a0de từ configs/scaling-autoinc.toml
+12:04:45 Điểm 1: d-autoinc (configs/scaling-autoinc.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform)
+12:20:00 Đã nạp dataset flashsale_bcd967b948614558bf671b6c7e76f239 từ configs/scaling-autorandom.toml
+12:20:00 Điểm 2: d-auto-random (configs/scaling-autorandom.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform)
+12:27:07 Xong 2 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-tidb1/report
+{
+  "runs": 21,
+  "groups": 7,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 7,
+  "out_dir": "/home/ubuntu/m23-tidb1/report"
+}
