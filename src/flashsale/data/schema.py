@@ -80,13 +80,21 @@ EXTRA_TABLES = {
 }
 
 
-def ddl(name: str, tidb: bool, foreign_keys: bool = False, idempotency: bool = True) -> str:
+def ddl(name: str, tidb: bool, foreign_keys: bool = False, idempotency: bool = True,
+        orders_key: str = "composite") -> str:
     # FK mặc định TẮT: InnoDB lấy khóa S trên dòng cha khi insert dòng con, làm
     # district/customer thành điểm nóng ngầm và sinh deadlock New-Order/Payment.
     # MongoDB không có FK, nên tắt để ba hệ cùng điều kiện (xem docs/assumptions.md).
     table = {**TABLES, **EXTRA_TABLES}[name]
     definitions = [table.columns]
-    if table.key:
+    surrogate = name == "orders" and orders_key != "composite"
+    if surrogate:
+        # Nhóm D (chỉ TiDB): khóa chính một cột o_seq; khóa TPC-C (o_w_id, o_d_id, o_id) thành UNIQUE phụ.
+        definitions[0] = ("o_seq BIGINT NOT NULL AUTO_INCREMENT, " if orders_key == "autoinc"
+                          else "o_seq BIGINT AUTO_RANDOM, ") + table.columns
+        definitions.append("PRIMARY KEY (o_seq) CLUSTERED")
+        definitions.append("UNIQUE KEY uq_order_key (o_w_id,o_d_id,o_id)")
+    elif table.key:
         clustered = " CLUSTERED" if tidb else ""
         definitions.append(f"PRIMARY KEY ({','.join(table.key)}){clustered}")
     # idempotency=False chỉ dành cho lượt phụ `idempotency_off`: giữ chỉ mục nhưng bỏ ràng buộc UNIQUE.

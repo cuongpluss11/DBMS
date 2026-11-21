@@ -116,6 +116,9 @@ class SQLAdapter:
         if self.tidb:
             info["build"] = self.query("SELECT TIDB_VERSION() AS build")[0]["build"]
             info["transaction_mode"] = self.query("SELECT @@tidb_txn_mode AS mode")[0]["mode"]
+            # Mục 2.3.1: nhóm A–D chạy với cấu hình chốt mặc định của phiên bản; ghi lại để báo cáo.
+            info["commit_options"] = self.query("SELECT @@tidb_enable_async_commit AS async_commit, "
+                                                "@@tidb_enable_1pc AS one_pc")[0]
             try:
                 rows = self.query("SHOW CONFIG WHERE type='tikv' AND name IN "
                                   "('storage.block-cache.capacity','raftstore.sync-log')")
@@ -151,11 +154,13 @@ class SQLAdapter:
         finally:
             self.in_transaction = False
 
-    def create(self, idempotency: bool = True) -> None:
+    def create(self, idempotency: bool = True, orders_key: str = "composite") -> None:
+        if orders_key != "composite" and not self.tidb:
+            raise ValueError("orders_key autoinc/auto_random chỉ áp dụng cho TiDB (nhóm D)")
         self.query(f"CREATE DATABASE {self.endpoint.database} CHARACTER SET utf8mb4")
         self.connection.select_db(self.endpoint.database)
         for name in TABLES:
-            self.query(ddl(name, self.tidb, idempotency=idempotency))
+            self.query(ddl(name, self.tidb, idempotency=idempotency, orders_key=orders_key))
 
     def drop(self) -> None:
         self.query(f"DROP DATABASE IF EXISTS {self.endpoint.database}")

@@ -105,7 +105,9 @@ class MongoAdapter:
             finally:
                 self.session = None
 
-    def create(self, idempotency: bool = True) -> None:
+    def create(self, idempotency: bool = True, orders_key: str = "composite") -> None:
+        if orders_key != "composite":
+            raise ValueError("orders_key chỉ áp dụng cho TiDB")
         if self.db.list_collection_names():
             raise RuntimeError("Database MongoDB đã có collection")
         for name, table in TABLES.items():

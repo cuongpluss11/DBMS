@@ -15,6 +15,8 @@ from uuid import uuid4
 from flashsale.adapters.base import Adapter, Endpoint, open_adapter
 from flashsale.config import Settings, uses_slots
 from flashsale.data.loader import prepare_slots
+from flashsale.data.placement import PD, apply_layout, hot_regions, unfreeze_scheduling
+from flashsale.infra import pd_url
 from flashsale.infra import cpu_sampler, setting
 from flashsale.validation.checks import validate
 from flashsale.workload.generator import Generator, Zipf
@@ -281,6 +283,19 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
         except Exception as exc:
             evidence = {**evidence, "indexed": False}
             protocol_errors.append(f"slot_prepare_failed: {type(exc).__name__}: {exc}")
+    placement_evidence = None
+    placed_pd = None
+    if evidence["indexed"] and cfg.placement != "none":
+        try:
+            if endpoint.engine != "tidb":
+                raise RuntimeError("placement chỉ áp dụng cho TiDB")
+            placed_pd = PD(pd_url())
+            placement_evidence = apply_layout(db, placed_pd, cfg, zipf.item_ids,
+                                              cfg.slots if uses_slots(cfg.variant) else None)
+        except Exception as exc:
+            evidence = {**evidence, "indexed": False}
+            protocol_errors.append(f"placement_failed: {type(exc).__name__}: {exc}")
+            placed_pd = None
     if evidence["indexed"]:
         try:
             warm, measured, counters, cpu, throttle_summary = phases(endpoint, cfg, db, run_id, repetition, limits)
@@ -302,6 +317,13 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
                 protocol_errors.append("unresolved_commit")
     elif not protocol_errors:
         protocol_errors.append("indexed_access_not_confirmed")
+    if placed_pd is not None:
+        # Khôi phục bộ lập lịch của PD dù lượt chạy thành công hay không; ghi Region nóng sau lượt đo.
+        placement_evidence["hot_regions_after"] = hot_regions(db)
+        try:
+            unfreeze_scheduling(placed_pd, placement_evidence["previous_schedule"])
+        except Exception as exc:
+            protocol_errors.append(f"placement_restore_failed: {type(exc).__name__}: {exc}")
     validation = {"status": "INVALID", "rules": dict.fromkeys(
         ("nonnegative", "reconciliation", "idempotency")), "errors": {}, "committed_orders": None}
     # With an incomplete client log, stock rules can still be checked and
@@ -325,6 +347,10 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
         "hot_items": variant_setup["hot_items"], "order_id_batch": cfg.order_id_batch, "arrival_rate": cfg.arrival_rate,
         "lock_order": cfg.lock_order, "nowait": cfg.nowait, "txn_mode": cfg.txn_mode,
         "mongo_design": cfg.mongo_design, "stored_procedure": cfg.stored_procedure,
+        "placement": cfg.placement, "placement_scope": cfg.placement_scope, "orders_key": cfg.orders_key,
+        "order_warehouses": [cfg.order_warehouses_min, cfg.order_warehouses_max],
+        "warehouse_groups": cfg.warehouse_groups, "placement_result": placement_evidence,
+        "tikv_count": sum(name.startswith("tikv") for name in limits) or None,
         "throttle_result": throttle_summary, "variant_setup": variant_setup,
         "client_timeout_seconds": cfg.client_timeout_seconds, "concurrency": cfg.concurrency, "warehouse_mode": cfg.warehouse_mode,
         "theta": cfg.theta, "hot_item": cfg.hot_item,

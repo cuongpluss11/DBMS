@@ -97,9 +97,11 @@ def take_order_id(db: Adapter, req: Request, ctx: TxnContext | None) -> int:
     return order_id
 
 
-def take_stock(db: Adapter, req: Request, ctx: TxnContext, item: int, quantity: int) -> None:
+def take_stock(db: Adapter, req: Request, ctx: TxnContext, item: int, quantity: int,
+               warehouse: int | None = None) -> None:
     """Trừ kho theo variant; hết hàng thì ném DBError('out_of_stock') để cả giao dịch rollback."""
-    w, key = req.warehouse, {"s_w_id": req.warehouse, "s_i_id": item}
+    w = req.warehouse if warehouse is None else warehouse
+    key = {"s_w_id": w, "s_i_id": item}
     stats = {"s_ytd": quantity, "s_order_cnt": 1}
     if ctx.variant == "p0":
         # Đọc rồi ghi: giá trị tuyệt đối tính ở ứng dụng, không khóa lúc đọc, nên hai giao dịch đồng thời
@@ -131,11 +133,15 @@ def new_order(db: Adapter, req: Request, ctx: TxnContext | None = None) -> None:
     legacy = ctx is None or ctx.variant == "legacy"
     order_id = take_order_id(db, req, ctx)
     lines = []
-    # T4: khóa các món theo i_id tăng dần để hai đơn không giữ khóa theo thứ tự ngược nhau (deadlock).
-    items = sorted(req.items) if ctx is not None and ctx.lock_order else req.items
-    for line_number, (item, quantity) in enumerate(items, 1):
+    # Kho cung cấp từng món (đơn nhiều kho, mục 2.3 nhóm E); không có `supply` thì mọi món lấy từ kho nhà.
+    entries = [(item, quantity, req.supply[i] if req.supply else w) for i, (item, quantity) in enumerate(req.items)]
+    # T4: khóa các món theo (kho, i_id) tăng dần để hai đơn không giữ khóa theo thứ tự ngược nhau (deadlock).
+    if ctx is not None and ctx.lock_order:
+        entries.sort(key=lambda entry: (entry[2], entry[0]))
+    all_local = int(all(entry[2] == w for entry in entries))
+    for line_number, (item, quantity, sw) in enumerate(entries, 1):
         if legacy:
-            key = {"s_w_id": w, "s_i_id": item}
+            key = {"s_w_id": sw, "s_i_id": item}
             stock = required(db.one("stock", key, lock=True, **({"nowait": True} if ctx and ctx.nowait else {})))
             if stock["s_quantity"] < quantity:
                 raise DBError("out_of_stock")
@@ -144,16 +150,16 @@ def new_order(db: Adapter, req: Request, ctx: TxnContext | None = None) -> None:
                                                "s_ytd": quantity, "s_order_cnt": 1})
             dist_info = stock[f"s_dist_{d:02d}"]
         else:
-            take_stock(db, req, ctx, item, quantity)
+            take_stock(db, req, ctx, item, quantity, sw)
             price = required(db.one("item", {"i_id": item}))["i_price"]
             dist_info = DIST_FILLER
         lines.append(dict(ol_w_id=w, ol_d_id=d, ol_o_id=order_id, ol_number=line_number,
-                          ol_i_id=item, ol_supply_w_id=w, ol_quantity=quantity, ol_delivery_d=None,
+                          ol_i_id=item, ol_supply_w_id=sw, ol_quantity=quantity, ol_delivery_d=None,
                           ol_amount=quantity * price, ol_dist_info=dist_info,
                           run_id=req.run_id))
     db.insert("orders", dict(o_w_id=w, o_d_id=d, o_id=order_id, o_c_id=req.customer,
                             o_entry_d=datetime.now(timezone.utc).replace(tzinfo=None),
-                            o_carrier_id=None, o_ol_cnt=len(lines), o_all_local=1,
+                            o_carrier_id=None, o_ol_cnt=len(lines), o_all_local=all_local,
                             request_id=req.request_id, run_id=req.run_id))
     db.insert("new_order", dict(no_w_id=w, no_d_id=d, no_o_id=order_id, run_id=req.run_id))
     db.insert_many("order_line", lines)

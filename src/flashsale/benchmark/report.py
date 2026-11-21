@@ -13,12 +13,14 @@ from .metrics import warmup_stability
 
 INDEX_COLUMNS = [
     "run_id", "engine", "version", "profile", "label", "repetition", "concurrency", "warehouse_mode", "theta",
-    "hot_item", "variant", "slots", "order_id_batch", "arrival_rate", "lock_order", "nowait", "txn_mode", "mongo_design", "stored_procedure", "inventory_mode", "payment_ytd", "idempotency", "client_timeout_seconds", "tps", "p50_ms",
+    "hot_item", "variant", "slots", "order_id_batch", "arrival_rate", "lock_order", "nowait", "txn_mode", "mongo_design", "stored_procedure", "tikv_count", "orders_key", "placement", "placement_scope", "order_warehouses",
+    "warehouse_groups", "vcpus", "inventory_mode", "payment_ytd", "idempotency", "client_timeout_seconds", "tps", "p50_ms",
     "p95_ms", "p99_ms", "abort_pct", "out_of_stock_pct", "retry_pct", "validation", "git_commit",
     "warmup_drift_pct", "loadgen_cpu_pct", "environment_mode", "run_note"]
 GROUP_KEYS = ("engine", "profile", "concurrency", "warehouse_mode", "theta", "hot_item", "variant", "slots",
               "order_id_batch", "arrival_rate", "lock_order", "nowait", "txn_mode", "mongo_design", "stored_procedure",
-              "payment_ytd", "idempotency", "run_note")
+              "tikv_count", "orders_key", "placement", "placement_scope", "order_warehouses", "warehouse_groups",
+              "vcpus", "payment_ytd", "idempotency", "run_note")
 WARMUP_DRIFT_LIMIT_PCT = 10.0
 
 
@@ -47,6 +49,13 @@ def collect(results_dir: Path) -> list[dict[str, Any]]:
             "lock_order": result.get("lock_order", False), "nowait": result.get("nowait", False),
             "txn_mode": result.get("txn_mode", "default"), "mongo_design": result.get("mongo_design", "a"),
             "stored_procedure": result.get("stored_procedure", False),
+            # Mục 2.3: đọc từ cấu hình trong manifest (lượt cũ không có các trường này: giá trị mặc định).
+            "tikv_count": result.get("tikv_count"), "vcpus": (result.get("resource_limits") or {}).get("cpus"), "orders_key": _config(manifest, "orders_key", "composite"),
+            "placement": _config(manifest, "placement", "none"),
+            "placement_scope": _config(manifest, "placement_scope", "stock"),
+            "order_warehouses": f"{_config(manifest, 'order_warehouses_min', 1)}-"
+                                f"{_config(manifest, 'order_warehouses_max', 1)}",
+            "warehouse_groups": _config(manifest, "warehouse_groups", 0),
             "payment_ytd": manifest.get("config", {}).get("payment_ytd"),
             "idempotency": result.get("idempotency", True),
             "client_timeout_seconds": result.get("client_timeout_seconds"),
@@ -60,6 +69,10 @@ def collect(results_dir: Path) -> list[dict[str, Any]]:
             "run_note": manifest.get("environment", {}).get("run_note"),
         })
     return rows
+
+
+def _config(manifest: dict, key: str, default: Any) -> Any:
+    return manifest.get("config", {}).get(key, default)
 
 
 def _fmt(value: Any, digits: int = 1) -> str:
@@ -84,6 +97,30 @@ def summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return summary
 
 
+SPEEDUP_EXCLUDE = ("tikv_count", "vcpus", "run_note")
+
+
+def speedups(summary: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Mục 2.3: hệ số tăng tốc = TPS trung vị của cụm 3 TiKV / TPS trung vị của cụm 1 TiKV (TiDB), hoặc của MySQL-chỉnh
+    12 vCPU / 8 vCPU (mốc mở rộng dọc), cho từng cặp nhóm giống hệt nhau về mọi tham số khác. Chỉ tính khi cả hai phía có
+    ít nhất một lượt VALID. Khóa 1 = cấu hình nhỏ, 3 = cấu hình lớn."""
+    pairs: dict[tuple, dict[int, dict]] = defaultdict(dict)
+    for item in summary:
+        size = ({1: 1, 3: 3}.get(item.get("tikv_count")) if item["engine"] == "tidb"
+                else {8.0: 1, 12.0: 3}.get(item.get("vcpus")) if item["engine"] == "mysql" else None)
+        if size and item["valid"]:
+            key = tuple(item[name] for name in GROUP_KEYS if name not in SPEEDUP_EXCLUDE)
+            pairs[key][size] = item
+    result = []
+    for key, sides in sorted(pairs.items(), key=lambda pair: tuple(str(part) for part in pair[0])):
+        if 1 in sides and 3 in sides and sides[1]["tps_median"]:
+            result.append({**dict(zip([name for name in GROUP_KEYS if name not in SPEEDUP_EXCLUDE], key)),
+                           "tps_1": sides[1]["tps_median"], "tps_3": sides[3]["tps_median"],
+                           "speedup": sides[3]["tps_median"] / sides[1]["tps_median"],
+                           "p99_1": sides[1]["p99_median_ms"], "p99_3": sides[3]["p99_median_ms"]})
+    return result
+
+
 def warmup_table(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Mỗi lượt: drift giữa TPS cuối warmup và đầu đo. null = lượt cũ không có chuỗi theo giây."""
     table = []
@@ -95,7 +132,8 @@ def warmup_table(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return table
 
 
-def markdown(summary: list[dict[str, Any]], warmup: list[dict[str, Any]]) -> str:
+def markdown(summary: list[dict[str, Any]], warmup: list[dict[str, Any]],
+             speedup: list[dict[str, Any]] | None = None) -> str:
     lines = ["# Tổng hợp kết quả", "",
              "Trung vị, min–max của TPS thành công và trung vị p99 trên các lần lặp cùng cấu hình. "
              "`valid` là số lượt VALID trên tổng số lượt; lượt INVALID không được xếp hạng.", "",
@@ -107,6 +145,19 @@ def markdown(summary: list[dict[str, Any]], warmup: list[dict[str, Any]]) -> str
             f"{item['theta']} | {item['hot_item']} | {item['variant']} | {item['slots'] or ''} | {item['order_id_batch']} | {item['arrival_rate'] or 'kín'} | {item['lock_order']} | {item['nowait']} | {item['txn_mode']} | {item['mongo_design']} | {item['stored_procedure']} | {item['payment_ytd']} | {item['idempotency']} | {item['run_note'] or ''} | {item['runs']} | "
             f"{item['valid']}/{item['runs']} | {_fmt(item['tps_median'])} ({_fmt(item['tps_min'])}–{_fmt(item['tps_max'])}) | "
             f"{_fmt(item['p99_median_ms'])} |")
+    if speedup:
+        lines += ["", "## Hệ số tăng tốc (TiDB: 3 TiKV ÷ 1 TiKV; MySQL: 12 vCPU ÷ 8 vCPU)", "",
+                  "Chỉ ghép các nhóm giống hệt nhau về mọi tham số khác. 3 nghĩa là thêm máy hiệu quả hoàn hảo, 1 nghĩa "
+                  "là vô ích.", "",
+                  "| engine | profile | client | kho | θ | hot | biến thể | slot | lô mã | vị trí | khóa orders | kho/đơn | "
+                  "TPS 1 TiKV | TPS 3 TiKV | tăng tốc |", "| " + " | ".join(["---"] * 15) + " |"]
+        for item in speedup:
+            lines.append(
+                f"| {item['engine']} | {item['profile']} | {item['concurrency']} | {item['warehouse_mode']} | "
+                f"{item['theta']} | {item['hot_item']} | {item['variant']} | {item['slots'] or ''} | "
+                f"{item['order_id_batch']} | {item['placement']}/{item['placement_scope']} | {item['orders_key']} | "
+                f"{item['order_warehouses']} | {_fmt(item['tps_1'])} | {_fmt(item['tps_3'])} | "
+                f"{_fmt(item['speedup'], 2)} |")
     checked = [row for row in warmup if row["status"] != "no_series"]
     short = [row for row in warmup if row["status"] == "WARMUP_MAY_BE_SHORT"]
     lines += ["", "## Kiểm tra warmup 30 giây", "",
@@ -131,8 +182,9 @@ def write_report(results_dir: Path, out_dir: Path) -> dict[str, Any]:
                              else row[key] for key in INDEX_COLUMNS})
     summary = summarize(rows)
     warmup = warmup_table(rows)
-    (out_dir / "SUMMARY.md").write_text(markdown(summary, warmup), encoding="utf-8")
+    speedup = speedups(summary)
+    (out_dir / "SUMMARY.md").write_text(markdown(summary, warmup, speedup), encoding="utf-8")
     return {"runs": len(rows), "groups": len(summary),
-            "invalid": sum(row["validation"] != "VALID" for row in rows),
+            "invalid": sum(row["validation"] != "VALID" for row in rows), "speedup_pairs": len(speedup),
             "warmup_may_be_short": sum(row["status"] == "WARMUP_MAY_BE_SHORT" for row in warmup),
             "out_dir": str(out_dir)}

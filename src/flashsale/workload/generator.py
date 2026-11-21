@@ -19,6 +19,8 @@ class Request:
     amount: int = 0
     payment_ytd: bool = False
     idempotent: bool = True
+    # Kho cung cấp từng món (song song với `items`); rỗng = mọi món lấy từ kho nhà `warehouse` (mặc định, như 2.1).
+    supply: tuple[int, ...] = ()
 
 
 class Zipf:
@@ -66,9 +68,35 @@ class Generator:
                            idempotent=self.settings.idempotency)
         quantities: dict[int, int] = {}
         ranks = []
-        for _ in range(1 if self.zipf.hot_item else rng.randint(1, 5)):
+        # Đơn nhiều kho (nhóm E): cần ít nhất `kho` món khác nhau để chạm đúng chừng đó kho. Khi cấu hình là
+        # 1 kho (mặc định) dãy số ngẫu nhiên giữ nguyên như 2.1.
+        wanted = rng.randint(self.settings.order_warehouses_min, self.settings.order_warehouses_max) \
+            if self.settings.order_warehouses_max > 1 else 1
+        for _ in range(1 if self.zipf.hot_item else rng.randint(wanted, 5)):
             rank, item = self.zipf.draw(rng)
             quantities[item] = quantities.get(item, 0) + rng.randint(1, 10)
             ranks.append(rank)
+        supply: tuple[int, ...] = ()
+        if wanted > 1:
+            supply = self.supply_warehouses(rng, w, len(quantities), wanted)
         return Request(request_id, self.run_id, "new_order", w, d, c,
-                       tuple(quantities.items()), tuple(ranks), idempotent=self.settings.idempotency)
+                       tuple(quantities.items()), tuple(ranks), idempotent=self.settings.idempotency,
+                       supply=supply)
+
+    def supply_warehouses(self, rng: random.Random, home: int, items: int, wanted: int) -> tuple[int, ...]:
+        """Kho cung cấp từng món: kho nhà cộng (wanted - 1) kho khác khác nhau, mỗi kho khác cấp cho đúng một món."""
+        warehouses = self.settings.dataset.warehouses
+        groups = self.settings.warehouse_groups
+
+        def group(w: int) -> int:
+            return (w - 1) * groups // warehouses if groups else 0
+
+        others = [w for w in range(1, warehouses + 1) if w != home and group(w) == group(home)]
+        remote = min(wanted - 1, len(others), items - 1)
+        if remote < 1:
+            return ()
+        chosen = rng.sample(others, remote)
+        supply = [home] * items
+        for position, warehouse in zip(rng.sample(range(items), remote), chosen):
+            supply[position] = warehouse
+        return tuple(supply)
