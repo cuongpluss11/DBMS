@@ -13,6 +13,7 @@ output "ssh_loadgen" {
 output "single_node_limits" {
   description = "Bien moi truong cho compose override tren VM MySQL/MongoDB."
   value = {
+    FLASHSALE_AWS_CPUS   = "${var.single_node_cpus}"
     FLASHSALE_AWS_CPUSET = "0-${var.single_node_cpus - 1}"
     FLASHSALE_AWS_MEM    = "${var.single_node_mem_gb}g"
   }

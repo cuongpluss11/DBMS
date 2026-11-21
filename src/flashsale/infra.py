@@ -92,6 +92,22 @@ def node_cpu_seconds(host: str) -> tuple[float, float]:
         return parse_node_cpu(response.read().decode())
 
 
+def tcp_rtt_ms(host: str, port: int, samples: int = 10) -> dict | None:
+    """Thời gian kết nối TCP (xấp xỉ một vòng mạng) tới DBMS; trung vị, min, max theo ms.
+    Chỉ có nghĩa khi DBMS ở máy khác; trả None nếu không kết nối được."""
+    import socket
+    import statistics
+    values = []
+    for _ in range(samples):
+        started = time.perf_counter()
+        try:
+            with socket.create_connection((host, port), timeout=3):
+                values.append(1000 * (time.perf_counter() - started))
+        except OSError:
+            return None
+    return {"median": statistics.median(values), "min": min(values), "max": max(values), "samples": samples}
+
+
 def cpu_sampler(limits: dict[str, dict]):
     """Hàm lấy CPU% (100% = một lõi) từng nút/container. Docker: docker stats; remote: delta node_exporter.
     Ở chế độ remote có thêm khóa "loadgen" (node_exporter của chính máy tải) để kiểm tra nút thắt của script tải."""

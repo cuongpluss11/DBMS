@@ -1,0 +1,19 @@
+19:05:12 Bắt đầu ma trận 2.1: engine=mongo grid=evidence dry=0 log=results/matrix-mongo2
+19:05:12 Bỏ qua điểm 1 (baseline-cross): MATRIX_START_POINT=11
+19:05:12 Bỏ qua điểm 2 (baseline-cross-1client): MATRIX_START_POINT=11
+19:05:12 Bỏ qua điểm 3 (payment-ytd): MATRIX_START_POINT=11
+19:05:12 Bỏ qua điểm 4 (theta-0): MATRIX_START_POINT=11
+19:05:12 Bỏ qua điểm 5 (theta-0.3): MATRIX_START_POINT=11
+19:05:12 Bỏ qua điểm 6 (theta-0.5): MATRIX_START_POINT=11
+19:05:12 Bỏ qua điểm 7 (theta-0.7): MATRIX_START_POINT=11
+19:05:12 Bỏ qua điểm 8 (theta-0.9): MATRIX_START_POINT=11
+19:05:12 Bỏ qua điểm 9 (theta-hot-item): MATRIX_START_POINT=11
+19:05:12 Bỏ qua điểm 10 (clients-32): MATRIX_START_POINT=11
+19:05:12 Điểm 11: clients-64 (configs/performance.toml --theta 0 --concurrency 64)
+19:12:04 Điểm 12: clients-128 (configs/performance.toml --theta 0 --concurrency 128)
+19:19:09 Điểm 13: clients-256 (configs/performance.toml --theta 0 --concurrency 256)
+19:31:57 Đã nạp dataset flashsale_2bdd7edf64ed497d9db02374833f6dfb từ configs/correctness.toml
+19:31:57 Điểm 14: correctness (configs/correctness.toml )
+19:39:37 Đã nạp dataset flashsale_d46e5107af2b4101a77605a4e014f5d0 từ configs/idempotency-off.toml
+19:39:37 Điểm 15: idempotency-off (INVALID luật 3 là kết quả dự kiến, không xếp hạng)
+19:41:22 Xong 15 điểm. Tổng hợp: flashsale report --results-dir results --out results/matrix-mongo2/report

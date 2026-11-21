@@ -2,3 +2,10 @@
 ssh_public_key_path = "~/.ssh/flashsale_aws.pub"
 allowed_ssh_cidr    = "203.0.113.7/32" # IP cong cong cua ban, xem https://checkip.amazonaws.com
 stack               = "none"           # none | mysql | mongo | tidb1 | tidb3
+
+# Thi nghiem rieng "do nhay cua dia" (chi MySQL/MongoDB tren c6i.2xlarge tro len, co ban >= 12.000 IOPS):
+# single_node_instance_type = "c6i.2xlarge"
+# single_node_cpus          = 8
+# single_node_mem_gb        = 16
+# data_volume_iops          = 10000
+# data_volume_throughput    = 250

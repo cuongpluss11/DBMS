@@ -244,3 +244,52 @@ def test_validate_includes_document_cross_check():
     bad = validate(FakeDB([{"s_w_id": 1, "s_i_id": 2, "sold": 3}]), cfg, "run", [])
     assert bad["status"] == "INVALID" and bad["rules"]["reconciliation"] is False
     assert bad["errors"]["reconciliation"][-1]["doc_sql_check"][0]["sold"] == 3
+
+
+def test_report_index_summary_and_warmup(tmp_path):
+    from flashsale.benchmark.report import collect, summarize, warmup_table, write_report
+
+    def make(run_id, repetition, tps, drift, status="VALID"):
+        folder = tmp_path / "in" / run_id
+        folder.mkdir(parents=True)
+        measurement = {"tps": tps, "p50_ms": 1.0, "p95_ms": 2.0, "p99_ms": 3.0, "abort_pct": 0.0,
+                       "out_of_stock_pct": 0.0, "retry_pct": 0.0}
+        result = {"run_id": run_id, "engine": "mysql", "version": "8.4", "label": "baseline",
+                  "repetition": repetition, "concurrency": 8, "warehouse_mode": "uniform", "theta": 0,
+                  "hot_item": False, "inventory_mode": "performance", "measurement": measurement,
+                  "validation": {"status": status}}
+        if drift is not None:
+            result["warmup_stability"] = {"drift_pct": drift}
+        (folder / "result.json").write_text(json.dumps(result), encoding="utf-8")
+        (folder / "manifest.json").write_text(json.dumps(
+            {"config_path": "configs/baseline.toml", "config": {"payment_ytd": False},
+             "environment": {"git_commit": "abc"}}), encoding="utf-8")
+
+    make("a", 1, 100.0, None)
+    make("b", 2, 120.0, 15.0)
+    make("c", 3, 110.0, 2.0, status="INVALID")
+    rows = collect(tmp_path / "in")
+    assert [row["profile"] for row in rows] == ["baseline"] * 3 and rows[0]["environment_mode"] == "docker"
+    (group,) = summarize(rows)
+    assert (group["runs"], group["valid"], group["tps_median"], group["tps_min"], group["tps_max"]) == (3, 2, 110.0, 100.0, 120.0)
+    assert [row["status"] for row in warmup_table(rows)] == ["no_series", "WARMUP_MAY_BE_SHORT", "ok"]
+    out = write_report(tmp_path / "in", tmp_path / "out")
+    assert out["runs"] == 3 and out["invalid"] == 1 and out["warmup_may_be_short"] == 1
+    index = (tmp_path / "out" / "INDEX.csv").read_text(encoding="utf-8").splitlines()
+    assert len(index) == 4 and "warmup_drift_pct" in index[0]
+    assert "TPS median" in (tmp_path / "out" / "SUMMARY.md").read_text(encoding="utf-8")
+
+
+def test_tcp_rtt_to_local_listener_and_unreachable():
+    import socket
+    from flashsale.infra import tcp_rtt_ms
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen(16)
+    port = server.getsockname()[1]
+    try:
+        rtt = tcp_rtt_ms("127.0.0.1", port, samples=5)
+        assert rtt["samples"] == 5 and 0 <= rtt["min"] <= rtt["median"] <= rtt["max"]
+    finally:
+        server.close()
+    assert tcp_rtt_ms("127.0.0.1", port, samples=2) is None  # cổng đã đóng

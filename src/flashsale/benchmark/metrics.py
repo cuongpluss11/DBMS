@@ -100,11 +100,14 @@ class Phase:
 
 
 def warmup_stability(warmup: list[int], measurement: list[int], window: int = 10) -> dict[str, Any]:
-    """So TPS trung bình `window` giây cuối của warmup với `window` giây đầu của đo.
+    """So TPS trung vị `window` giây cuối của warmup với `window` giây đầu của đo.
     Lệch lớn nghĩa là 30 giây warmup chưa đủ (đề: kéo dài warmup cho mọi hệ). Thiếu dữ liệu → null."""
     if len(warmup) < window or len(measurement) < window:
         return {"window_seconds": window, "warmup_tail_tps": None, "measurement_head_tps": None, "drift_pct": None}
-    tail, head = sum(warmup[-window:]) / window, sum(measurement[:window]) / window
+    # Trung vị, không phải trung bình: WiredTiger checkpoint định kỳ (~60 giây) làm TPS tụt vài giây và làm lệch
+    # trung bình dù warmup đã ổn định.
+    import statistics
+    tail, head = statistics.median(warmup[-window:]), statistics.median(measurement[:window])
     return {"window_seconds": window, "warmup_tail_tps": tail, "measurement_head_tps": head,
             "drift_pct": 100 * (head - tail) / tail if tail else None}
 

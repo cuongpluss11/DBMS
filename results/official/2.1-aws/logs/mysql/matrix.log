@@ -1,0 +1,22 @@
+15:23:21 Bắt đầu ma trận 2.1: engine=mysql grid=evidence dry=0 log=results/matrix-mysql3
+15:23:21 Bỏ qua điểm 1 (baseline-mysql-default): MATRIX_START_POINT=2
+15:23:21 Điểm 2: baseline-single-warehouse (configs/baseline-single-warehouse.toml )
+15:31:15 Điểm 3: baseline-1client (configs/baseline-1client.toml )
+15:39:15 Điểm 4: baseline-cross (configs/baseline-cross.toml )
+15:47:28 Điểm 5: baseline-cross-1client (configs/baseline-cross-1client.toml )
+15:55:35 Điểm 6: payment-ytd (configs/payment-ytd.toml )
+16:03:48 Điểm 7: theta-0 (configs/performance.toml --theta 0)
+16:12:03 Điểm 8: theta-0.3 (configs/performance.toml --theta 0.3)
+16:20:18 Điểm 9: theta-0.5 (configs/performance.toml --theta 0.5)
+16:28:33 Điểm 10: theta-0.7 (configs/performance.toml --theta 0.7)
+16:36:47 Điểm 11: theta-0.9 (configs/performance.toml --theta 0.9)
+16:45:00 Điểm 12: theta-hot-item (configs/performance.toml --hot-item)
+16:53:05 Điểm 13: clients-32 (configs/performance.toml --theta 0 --concurrency 32)
+17:01:24 Điểm 14: clients-64 (configs/performance.toml --theta 0 --concurrency 64)
+17:09:54 Điểm 15: clients-128 (configs/performance.toml --theta 0 --concurrency 128)
+17:18:30 Điểm 16: clients-256 (configs/performance.toml --theta 0 --concurrency 256)
+17:30:31 Đã nạp dataset flashsale_78b8370e3f6e45afa285d8e5d4b1afa4 từ configs/correctness.toml
+17:30:31 Điểm 17: correctness (configs/correctness.toml )
+17:41:34 Đã nạp dataset flashsale_4a7271a8a6ab4dfeb864b3e4a80c0b91 từ configs/idempotency-off.toml
+17:41:35 Điểm 18: idempotency-off (INVALID luật 3 là kết quả dự kiến, không xếp hạng)
+17:43:58 Xong 18 điểm. Tổng hợp: flashsale report --results-dir results --out results/matrix-mysql3/report

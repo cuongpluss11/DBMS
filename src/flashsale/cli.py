@@ -13,7 +13,7 @@ from flashsale.benchmark.runner import run_one
 from flashsale.config import Settings, read_settings
 from flashsale.data.loader import fingerprint, load, reset
 from flashsale.infra import (BUDGET_CPUS, BUDGET_MEMORY_BYTES, ENGINES, ROOT, active_engines, container_limits, endpoint, enforce_one,
-                            host_info, pd_status, project_lock, ready, remote_nodes, source_hashes, start, stop)
+                            host_info, pd_status, project_lock, ready, remote_nodes, source_hashes, setting, start, stop, tcp_rtt_ms)
 from flashsale.validation.checks import validate
 
 RESULTS = ROOT / "results"
@@ -21,7 +21,9 @@ RESULTS = ROOT / "results"
 
 @contextmanager
 def connect(target: Endpoint, *, admin: bool = False):
-    db = open_adapter(target, admin=admin)
+    # Đối soát, nạp và reset dữ liệu có thể chạy hàng chục giây trên dataset lớn (vd. aggregation MongoDB sau lượt
+    # 2.000 TPS); timeout 15 giây của client đo gây NetworkTimeout giả. Client đo dùng timeout riêng ở runner.
+    db = open_adapter(target, admin=admin, timeout=float(setting("FLASHSALE_ADMIN_TIMEOUT_SECONDS", "900")))
     try:
         yield db
     finally:
@@ -106,6 +108,10 @@ def run(target: Endpoint, cfg: Settings, config_path: Path, *, reset_between: bo
     state = dataset_state(target, cfg)
     environment = host_info()
     environment["source_sha256"] = source_hashes()
+    # Ghi chú tự do của người vận hành cho lượt chạy (ví dụ "ebs_iops=10000"), để tách nhóm khi tổng hợp.
+    environment["run_note"] = setting("FLASHSALE_RUN_NOTE")
+    # RTT mạng tới DBMS khi DBMS ở máy khác (AWS); null khi chạy cục bộ.
+    environment["db_tcp_rtt_ms"] = None if target.host in ("127.0.0.1", "localhost") else tcp_rtt_ms(target.host, target.port)
     if target.engine == "tidb":
         environment["pd"] = pd_status()
     limits = container_limits(target.engine)
@@ -156,6 +162,9 @@ def parser() -> argparse.ArgumentParser:
     setup = commands.add_parser("setup")
     setup.add_argument("--smoke-all", action="store_true")
     commands.add_parser("doctor")
+    report = commands.add_parser("report", help="Tổng hợp results/ thành INDEX.csv và SUMMARY.md (không cần DBMS)")
+    report.add_argument("--results-dir", type=Path, default=ROOT / "results" / "official" / "2.1")
+    report.add_argument("--out", type=Path, default=None, help="Mặc định: cùng thư mục với --results-dir")
     for name in ("start", "stop", "status", "load", "reset", "run", "benchmark", "validate", "smoke", "drop"):
         command = commands.add_parser(name)
         command.add_argument("engine", choices=ENGINES)
@@ -171,6 +180,9 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--concurrency", type=int)
             command.add_argument("--warehouse-mode", choices=("uniform", "single-warehouse"))
             command.add_argument("--repetitions", type=int)
+            command.add_argument("--theta", type=float, choices=(0, 0.3, 0.5, 0.7, 0.9))
+            command.add_argument("--hot-item", action=argparse.BooleanOptionalAction, default=None,
+                                 help="Mọi yêu cầu chọn đúng một món (mức cực đoan của đề)")
         if name == "validate":
             command.add_argument("--run-id", required=True)
         if name == "smoke":
@@ -223,7 +235,7 @@ def execute_command(args) -> dict | list:
         return load_dataset(target, cfg)
     if command == "reset":
         return restore(target, cfg, dataset_state(target, cfg))
-    cfg = replace(cfg, **{name: getattr(args, name) for name in ("concurrency", "warehouse_mode", "repetitions")
+    cfg = replace(cfg, **{name: getattr(args, name) for name in ("concurrency", "warehouse_mode", "repetitions", "theta", "hot_item")
                           if getattr(args, name) is not None})
     return run(target, cfg, args.config, reset_between=args.reset_between)
 
@@ -234,6 +246,14 @@ def main() -> int:
     if args.command == "setup":
         return subprocess.call(["bash", str(ROOT / "scripts" / "setup.sh"),
                                 *(["--smoke-all"] if args.smoke_all else [])], cwd=ROOT)
+    if args.command == "report":
+        try:
+            from flashsale.benchmark.report import write_report
+            print(json.dumps(write_report(args.results_dir, args.out or args.results_dir), indent=2))
+            return 0
+        except Exception as exc:
+            logging.error("%s: %s", type(exc).__name__, exc)
+            return 1
     try:
         with project_lock():
             result = execute_command(args)

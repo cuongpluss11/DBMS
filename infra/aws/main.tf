@@ -127,6 +127,12 @@ resource "aws_instance" "node" {
   })
 
   tags = { Name = "flashsale-${each.key}", Role = each.value.role }
+
+  # Canonical phat hanh AMI moi thuong xuyen; "most_recent" se doi AMI giua cac lan plan va doi tuong chay thanh THAY THE
+  # VM dang do (mat du lieu va moi truong). Ghim AMI da dung cho den khi destroy.
+  lifecycle {
+    ignore_changes = [ami, user_data]
+  }
 }
 
 resource "aws_ebs_volume" "data" {

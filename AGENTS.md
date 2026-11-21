@@ -186,6 +186,7 @@ Nếu mới sinh mã nguồn hoặc chỉ chạy mock, báo cáo **PARTIAL**, tu
 
 ## 15. Điểm vào của bộ khung mục 2.1
 
+- [Phạm vi 2 tuần](docs/scope-2-weeks.md) ghi thứ tự ưu tiên (Tầng 1/2/3), các cổng kiểm và phần cắt; tài liệu ý tưởng vẫn thắng, phần cắt phải ghi vào báo cáo.
 - [Bảng ánh xạ yêu cầu](docs/requirements-2.1.md) nối đặc tả với phần triển khai và phép kiểm.
 - [Hướng dẫn vận hành](README.md) có lệnh cài, smoke, integration, baseline và reset.
 - [Skill dbms-benchmark](.agents/skills/dbms-benchmark/SKILL.md) tóm tắt các điều kiện cần giữ khi sửa benchmark.
