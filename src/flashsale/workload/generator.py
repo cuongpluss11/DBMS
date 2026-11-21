@@ -19,6 +19,7 @@ class Request:
     amount: int = 0
     payment_ytd: bool = False
     idempotent: bool = True
+    order_id: int = 0
 
 
 class Zipf:
@@ -49,6 +50,7 @@ class Generator:
         self.run_id = run_id
         self.prefix = f"{run_id}-{phase[0]}-{worker}-"
         self.sequence = 0
+        self.write_sequence = 0
         self.rng = random.Random(f"{settings.seed}:{repeat}:{worker}:{phase}")
         self.first_kind = self.rng.randrange(2)
 
@@ -58,9 +60,15 @@ class Generator:
         sequence = self.sequence
         self.sequence += 1
         request_id = self.prefix + str(sequence)
+        if self.settings.old_order_read_pct > 0 and rng.random() * 100 < self.settings.old_order_read_pct:
+            return Request(request_id, self.run_id, "old_order",
+                           rng.randint(1, cfg.warehouses), rng.randint(1, cfg.districts), 0,
+                           order_id=rng.randint(1, cfg.initial_orders), idempotent=False)
+        write_seq = self.write_sequence
+        self.write_sequence += 1
         w = 1 if self.settings.warehouse_mode == "single-warehouse" else rng.randint(1, cfg.warehouses)
         d, c = rng.randint(1, cfg.districts), rng.randint(1, cfg.customers)
-        if (sequence + self.first_kind) % 2:
+        if (write_seq + self.first_kind) % 2:
             return Request(request_id, self.run_id, "payment", w, d, c,
                            amount=rng.randint(100, 500000), payment_ytd=self.settings.payment_ytd,
                            idempotent=self.settings.idempotency)
