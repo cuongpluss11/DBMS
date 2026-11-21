@@ -7,8 +7,8 @@
 #   t3: P2 so với P3 ở 128 và 256 client, θ=0,9, TẢI VÒNG MỞ. Cần T3_RATES (yêu cầu/giây, cách nhau bằng dấu cách):
 #       đặt SAU KHI xem t1/t2 (đề: T3 chỉ chạy khi hiệu năng thật sự sụp ở tải cao). Không đặt thì bỏ qua t3.
 #   t4: đòn bẩy riêng từng hệ ở θ ∈ {0,9; "1 món"} × {32; 128} client: MySQL (legacy, NOWAIT, khóa theo thứ tự i_id,
-#       P1 làm mốc), TiDB (legacy, khóa theo thứ tự, P1 lạc quan so với bi quan). MongoDB (b) và MySQL stored procedure
-#       CHƯA có trong mã: tier này không chạy MongoDB.
+#       P1 làm mốc), TiDB (legacy, khóa theo thứ tự, P1 lạc quan so với bi quan). MongoDB (thiết kế (a) so với (b), cùng P1).
+#       MySQL stored procedure CHƯA có trong mã.
 #   c : lượt kiểm luật có hết hàng thực (tồn 1.000, dataset riêng): P1, P2 N=9, P3 N=9 (+ P0, INVALID là kết quả).
 # Mỗi điểm: reset dataset, rồi chạy 3 lần (30 giây warmup + 60 giây đo) với --reset-between. Không xóa dữ liệu,
 # không dừng DBMS, không đụng tới hạ tầng AWS. Điểm P0 được phép INVALID (mất cập nhật là KẾT QUẢ cần quan sát).
@@ -141,7 +141,13 @@ fi
 
 if [[ "$TIER" == t4 || "$TIER" == all ]]; then
     if [[ "$ENGINE" == mongo ]]; then
-        say "Bỏ qua t4 trên MongoDB: thiết kế (b) chưa có trong mã"
+        for clients in 32 128; do
+            for d in 0.9 hot; do
+                # shellcheck disable=SC2046
+                point "$MAIN" "t4-design-a-p1-$d-c$clients" "$H" --variant p1 $(dist_args "$d") --concurrency "$clients"
+                point "$MAIN" "t4-design-b-p1-$d-c$clients" "$H" --variant p1 --mongo-design b $(dist_args "$d") --concurrency "$clients"
+            done
+        done
     else
         for clients in 32 128; do
             for d in 0.9 hot; do

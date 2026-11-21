@@ -68,6 +68,9 @@ class Settings:
     lock_order: bool = False
     nowait: bool = False
     txn_mode: str = "default"
+    # Thiết kế MongoDB (đề mục 2.1): "a" = 9 collection + giao dịch nhiều tài liệu; "b" = nhúng order_line vào orders,
+    # trừ kho bằng một lệnh updateOne có điều kiện mỗi món, hoàn lại khi lỗi, KHÔNG có giao dịch nhiều tài liệu.
+    mongo_design: str = "a"
 
     def __post_init__(self) -> None:
         if self.idempotency == (self.label == "idempotency_off"):
@@ -81,6 +84,10 @@ class Settings:
             raise ValueError("Tham số tải vòng mở hoặc điều tiết không hợp lệ")
         if self.txn_mode not in ("default", "optimistic", "pessimistic"):
             raise ValueError("txn_mode phải là default, optimistic hoặc pessimistic")
+        if self.mongo_design not in ("a", "b"):
+            raise ValueError("mongo_design phải là a hoặc b")
+        if self.mongo_design == "b" and self.variant != "p1":
+            raise ValueError("Thiết kế (b) là P1 từng món không giao dịch: dùng variant p1")
         if self.nowait and self.variant != "legacy":
             raise ValueError("nowait chỉ có nghĩa với variant legacy (P1 là một lệnh cập nhật, không có đọc khóa)")
         if self.client_timeout_seconds <= 0:

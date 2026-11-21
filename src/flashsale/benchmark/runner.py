@@ -31,7 +31,7 @@ def make_context(cfg: Settings, zipf: Zipf, repetition: int, worker: int) -> Txn
     ctx = TxnContext(cfg.variant, cfg.slots,
                      frozenset(zipf.item_ids[:cfg.hot_items]) if uses_slots(cfg.variant) else frozenset(),
                      cfg.order_id_batch, rng=Random(f"{cfg.seed}:{repetition}:{worker}:slots"),
-                     lock_order=cfg.lock_order, nowait=cfg.nowait)
+                     lock_order=cfg.lock_order, nowait=cfg.nowait, design_b=cfg.mongo_design == "b")
     return None if ctx.is_2_1 else ctx
 
 
@@ -302,7 +302,7 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
     if evidence["indexed"]:
         try:
             validation = validate(db, cfg.dataset, run_id, expected or (), dataset_state["counts"],
-                                  slots=uses_slots(cfg.variant))
+                                  slots=uses_slots(cfg.variant), embedded=cfg.mongo_design == "b")
             if expected is None:
                 validation["rules"]["idempotency"] = None
         except Exception as exc:
@@ -317,7 +317,7 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
         "seed": cfg.seed, "idempotency": cfg.idempotency, "variant": cfg.variant, "slots": variant_setup["slots"],
         "hot_items": variant_setup["hot_items"], "order_id_batch": cfg.order_id_batch, "arrival_rate": cfg.arrival_rate,
         "lock_order": cfg.lock_order, "nowait": cfg.nowait, "txn_mode": cfg.txn_mode,
-        "throttle_result": throttle_summary, "variant_setup": variant_setup,
+        "mongo_design": cfg.mongo_design, "throttle_result": throttle_summary, "variant_setup": variant_setup,
         "client_timeout_seconds": cfg.client_timeout_seconds, "concurrency": cfg.concurrency, "warehouse_mode": cfg.warehouse_mode,
         "theta": cfg.theta, "hot_item": cfg.hot_item,
         "inventory_mode": "performance" if cfg.dataset.inventory == 1_000_000_000 else cfg.label,

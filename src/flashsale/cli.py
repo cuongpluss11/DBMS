@@ -107,6 +107,8 @@ def run(target: Endpoint, cfg: Settings, config_path: Path, *, reset_between: bo
         raise ValueError("Baseline dùng MySQL, theta=0 và tắt hot_item")
     if (cfg.nowait or cfg.lock_order) and target.engine == "mongo":
         raise ValueError("lock_order và nowait chỉ áp dụng cho MySQL và TiDB (đòn bẩy T4)")
+    if cfg.mongo_design == "b" and target.engine != "mongo":
+        raise ValueError("mongo_design chỉ áp dụng cho MongoDB")
     if cfg.txn_mode != "default" and target.engine != "tidb":
         raise ValueError("txn_mode chỉ áp dụng cho TiDB")
     state = dataset_state(target, cfg)
@@ -197,7 +199,7 @@ def parser() -> argparse.ArgumentParser:
 
 
 VARIANT_FIELDS = ("variant", "slots", "hot_items", "order_id_batch", "arrival_rate", "queue_size",
-                  "p99_limit_ms", "abort_limit_pct", "limit_min", "lock_order", "nowait", "txn_mode")
+                  "p99_limit_ms", "abort_limit_pct", "limit_min", "lock_order", "nowait", "txn_mode", "mongo_design")
 
 
 def add_variant_arguments(command) -> None:
@@ -219,6 +221,9 @@ def add_variant_arguments(command) -> None:
                          help="T4: khóa các món của đơn theo i_id tăng dần (MySQL, TiDB)")
     command.add_argument("--nowait", action=argparse.BooleanOptionalAction, default=None,
                          help="T4: SELECT ... FOR UPDATE NOWAIT rồi thử lại (MySQL, TiDB; chỉ variant legacy)")
+    command.add_argument("--mongo-design", choices=("a", "b"), dest="mongo_design",
+                         help="T4: MongoDB (a) giao dịch nhiều tài liệu | (b) nhúng order_line, updateOne từng món "
+                              "(cần --variant p1)")
     command.add_argument("--txn-mode", choices=("default", "optimistic", "pessimistic"), dest="txn_mode",
                          help="T4: chế độ giao dịch của TiDB")
 
@@ -255,7 +260,8 @@ def execute_command(args) -> dict | list:
         with connect(target) as db:
             return validate(db, Dataset(**manifest["config"]["dataset"]), args.run_id, expected,
                             manifest["dataset_state"]["counts"],
-                            slots=uses_slots(manifest["config"].get("variant", "legacy")))
+                            slots=uses_slots(manifest["config"].get("variant", "legacy")),
+                            embedded=manifest["config"].get("mongo_design") == "b")
 
     target = endpoint(engine, getattr(args, "dataset", None))
     if command in {"reset", "drop"} and target.database != args.confirm:

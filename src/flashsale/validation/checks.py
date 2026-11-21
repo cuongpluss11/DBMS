@@ -101,15 +101,17 @@ def check(dataset: Dataset, run_id: str, expected_requests: Iterable[str],
 
 
 def validate(db: Adapter, dataset: Dataset, run_id: str, expected_requests: Iterable[str],
-             baseline_counts: dict[str, int] | None = None, slots: bool = False) -> dict:
+             baseline_counts: dict[str, int] | None = None, slots: bool = False, embedded: bool = False) -> dict:
+    lines = db.embedded_lines() if embedded else db.rows("order_line", LINE_FIELDS, tagged=True)
     report = check(dataset, run_id, expected_requests, db.rows("stock", STOCK_FIELDS),
-                   db.rows("orders", ORDER_FIELDS, tagged=True), db.rows("order_line", LINE_FIELDS, tagged=True),
+                   db.rows("orders", ORDER_FIELDS, tagged=True), lines,
                    db.rows("stock_slot", SLOT_FIELDS) if slots else ())
     if baseline_counts is not None:
         for table, rule in (("orders", "idempotency"), ("order_line", "reconciliation"),
                             ("new_order", "idempotency")):
             tagged = report["tagged_rows"].get(table, report["tagged_rows"]["orders"])
-            expected = baseline_counts[table] + tagged
+            # Thiết kế (b): dòng đơn nằm trong orders, collection order_line phải giữ nguyên số dòng nạp.
+            expected = baseline_counts[table] + (0 if embedded and table == "order_line" else tagged)
             actual = db.count(table)
             if actual != expected:
                 report["errors"][rule].append({"table": table, "expected_rows": expected, "actual_rows": actual})
@@ -117,8 +119,8 @@ def validate(db: Adapter, dataset: Dataset, run_id: str, expected_requests: Iter
                 report["status"] = "INVALID"
     cross_check = getattr(db, "doc_reconciliation", None)
     if cross_check is not None:
-        violations = (cross_check(dataset.inventory, dataset.initial_orders, slots=True) if slots
-                      else cross_check(dataset.inventory, dataset.initial_orders))
+        options = {**({"slots": True} if slots else {}), **({"embedded": True} if embedded else {})}
+        violations = cross_check(dataset.inventory, dataset.initial_orders, **options)
         report["doc_check"] = {"violations": len(violations), "sample": violations[:5]}
         if violations:
             report["errors"]["reconciliation"].append({"doc_sql_check": violations[:5]})

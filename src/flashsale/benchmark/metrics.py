@@ -161,6 +161,7 @@ def write_result(directory: Path, result: dict) -> None:
             "variant": result.get("variant", "legacy"), "slots": result.get("slots"),
             "arrival_rate": result.get("arrival_rate", 0.0), "lock_order": result.get("lock_order", False),
             "nowait": result.get("nowait", False), "txn_mode": result.get("txn_mode", "default"),
+            "mongo_design": result.get("mongo_design", "a"),
             "order_id_batch": result.get("order_id_batch", 0),
             "client_timeout_seconds": result.get("client_timeout_seconds"),
             "phase": phase, **result[phase], **result["theoretical_selection"],

@@ -23,11 +23,12 @@ class TxnContext:
     slot_items: int = 0
     lock_order: bool = False
     nowait: bool = False
+    design_b: bool = False
 
     @property
     def is_2_1(self) -> bool:
         return (self.variant == "legacy" and self.order_id_batch == 0 and not self.lock_order
-                and not self.nowait)
+                and not self.nowait and not self.design_b)
 
 
 def lookup(db: Adapter, req: Request) -> Row | None:
@@ -42,6 +43,11 @@ def required(row: Row | None) -> Row:
 
 
 def execute(db: Adapter, req: Request, ctx: TxnContext | None = None) -> None:
+    if ctx is not None and ctx.design_b and req.kind == "new_order":
+        # Thiết kế (b): KHÔNG có giao dịch nhiều tài liệu (xem new_order_b).
+        if not (req.idempotent and lookup(db, req) is not None):
+            new_order_b(db, req)
+        return
     if ctx is not None and ctx.order_id_batch > 0 and req.kind == "new_order":
         # Xin lô mã đơn TRƯỚC khi mở giao dịch của đơn (giao dịch riêng, commit ngay): BEGIN lồng trong một
         # giao dịch đang mở sẽ chốt giao dịch đó.
@@ -143,6 +149,69 @@ def new_order(db: Adapter, req: Request, ctx: TxnContext | None = None) -> None:
                             request_id=req.request_id, run_id=req.run_id))
     db.insert("new_order", dict(no_w_id=w, no_d_id=d, no_o_id=order_id, run_id=req.run_id))
     db.insert_many("order_line", lines)
+
+
+def new_order_b(db: Adapter, req: Request) -> None:
+    """MongoDB thiết kế (b), đề mục 2.1/2.2: đơn nhúng order_lines trong một tài liệu orders; mỗi món trừ kho bằng một
+    updateOne có điều kiện (nguyên tử trên MỘT tài liệu stock); hoàn lại các món đã trừ nếu gặp món hết hàng hoặc
+    không ghi được đơn. Mã đơn lấy bằng findOneAndUpdate $inc. Điểm cam kết là việc ghi tài liệu orders (khóa UNIQUE
+    request_id). Giới hạn đã biết của (b): nếu tiến trình chết giữa lúc trừ kho và lúc ghi đơn (hoặc kết quả ghi đơn
+    không xác định và không đọc lại được), kho bị trừ mà không có đơn; validator luật 2 sẽ báo lệch."""
+    try:
+        _new_order_b(db, req)
+    except DBError:
+        raise
+    except Exception as exc:
+        converted = db.as_db_error(exc)
+        if converted is exc:
+            raise
+        raise converted from exc
+
+
+def _new_order_b(db: Adapter, req: Request) -> None:
+    w, d = req.warehouse, req.district
+    order_id = db.take_counter("district", {"d_w_id": w, "d_id": d}, "d_next_o_id", 1)
+    deducted: list[tuple[int, int]] = []
+    keep_stock = False
+    try:
+        lines = []
+        for line_number, (item, quantity) in enumerate(req.items, 1):
+            if db.change("stock", {"s_w_id": w, "s_i_id": item},
+                         increment={"s_quantity": -quantity, "s_ytd": quantity, "s_order_cnt": 1},
+                         at_least={"s_quantity": quantity}) != 1:
+                raise DBError("out_of_stock")
+            deducted.append((item, quantity))
+            price = required(db.one("item", {"i_id": item}))["i_price"]
+            lines.append(dict(ol_number=line_number, ol_i_id=item, ol_supply_w_id=w, ol_quantity=quantity,
+                              ol_amount=quantity * price, ol_dist_info=DIST_FILLER))
+        try:
+            db.insert("orders", dict(o_w_id=w, o_d_id=d, o_id=order_id, o_c_id=req.customer,
+                                    o_entry_d=datetime.now(timezone.utc).replace(tzinfo=None),
+                                    o_carrier_id=None, o_ol_cnt=len(lines), o_all_local=1,
+                                    request_id=req.request_id, run_id=req.run_id, order_lines=lines))
+        except Exception as exc:
+            if getattr(db.as_db_error(exc), "category", None) == "duplicate_key":
+                raise  # chắc chắn không phải tài liệu của lần này: hoàn kho rồi để vòng retry đối chiếu
+            try:
+                present = lookup(db, req) is not None
+            except Exception:
+                keep_stock = True  # không xác định được: giữ nguyên, tránh hoàn kho cho một đơn có thể đã ghi
+                raise
+            if not present:
+                raise
+        keep_stock = True  # từ đây đơn đã cam kết: lỗi ở bước sau không được hoàn kho
+        db.insert("new_order", dict(no_w_id=w, no_d_id=d, no_o_id=order_id, run_id=req.run_id))
+    except BaseException:
+        if not keep_stock:
+            for item, quantity in reversed(deducted):
+                for _ in range(3):  # hoàn kho tốt nhất có thể; thất bại hẳn thì luật 2 sẽ phát hiện
+                    try:
+                        db.change("stock", {"s_w_id": w, "s_i_id": item},
+                                  increment={"s_quantity": quantity, "s_ytd": -quantity, "s_order_cnt": -1})
+                        break
+                    except Exception:
+                        continue
+        raise
 
 
 def payment(db: Adapter, req: Request) -> None:
