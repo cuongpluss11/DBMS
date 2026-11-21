@@ -31,7 +31,8 @@ def make_context(cfg: Settings, zipf: Zipf, repetition: int, worker: int) -> Txn
     ctx = TxnContext(cfg.variant, cfg.slots,
                      frozenset(zipf.item_ids[:cfg.hot_items]) if uses_slots(cfg.variant) else frozenset(),
                      cfg.order_id_batch, rng=Random(f"{cfg.seed}:{repetition}:{worker}:slots"),
-                     lock_order=cfg.lock_order, nowait=cfg.nowait, design_b=cfg.mongo_design == "b")
+                     lock_order=cfg.lock_order, nowait=cfg.nowait, design_b=cfg.mongo_design == "b",
+                     stored_procedure=cfg.stored_procedure)
     return None if ctx.is_2_1 else ctx
 
 
@@ -266,6 +267,12 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
                                    "limit_min": cfg.limit_min, "limit_max": cfg.concurrency}
                                   if cfg.variant == "p3" else None), "prepare_seconds": None}
     throttle_summary = None
+    if evidence["indexed"] and cfg.stored_procedure:
+        try:
+            db.install_procedures()
+        except Exception as exc:
+            evidence = {**evidence, "indexed": False}
+            protocol_errors.append(f"procedure_install_failed: {type(exc).__name__}: {exc}")
     if evidence["indexed"] and uses_slots(cfg.variant):
         began = time.monotonic()
         try:
@@ -317,7 +324,8 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
         "seed": cfg.seed, "idempotency": cfg.idempotency, "variant": cfg.variant, "slots": variant_setup["slots"],
         "hot_items": variant_setup["hot_items"], "order_id_batch": cfg.order_id_batch, "arrival_rate": cfg.arrival_rate,
         "lock_order": cfg.lock_order, "nowait": cfg.nowait, "txn_mode": cfg.txn_mode,
-        "mongo_design": cfg.mongo_design, "throttle_result": throttle_summary, "variant_setup": variant_setup,
+        "mongo_design": cfg.mongo_design, "stored_procedure": cfg.stored_procedure,
+        "throttle_result": throttle_summary, "variant_setup": variant_setup,
         "client_timeout_seconds": cfg.client_timeout_seconds, "concurrency": cfg.concurrency, "warehouse_mode": cfg.warehouse_mode,
         "theta": cfg.theta, "hot_item": cfg.hot_item,
         "inventory_mode": "performance" if cfg.dataset.inventory == 1_000_000_000 else cfg.label,

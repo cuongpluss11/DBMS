@@ -123,6 +123,9 @@ class MongoAdapter:
     def drop(self) -> None:
         self.client.drop_database(self.db)
 
+    def install_procedures(self) -> None:
+        raise RuntimeError("MongoDB không có stored procedure")
+
     def create_slots(self) -> None:
         self.drop_slots()
         collection = self.db.create_collection(SLOT_TABLE)

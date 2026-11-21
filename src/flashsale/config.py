@@ -71,6 +71,9 @@ class Settings:
     # Thiết kế MongoDB (đề mục 2.1): "a" = 9 collection + giao dịch nhiều tài liệu; "b" = nhúng order_line vào orders,
     # trừ kho bằng một lệnh updateOne có điều kiện mỗi món, hoàn lại khi lỗi, KHÔNG có giao dịch nhiều tài liệu.
     mongo_design: str = "a"
+    # T4 (MySQL): toàn bộ giao dịch đặt hàng trong MỘT stored procedure (một lần gọi qua mạng, khóa không bị giữ
+    # trong lúc chờ ứng dụng). Cùng logic khóa-rồi-ghi của `legacy`, nên chỉ dùng với variant legacy.
+    stored_procedure: bool = False
 
     def __post_init__(self) -> None:
         if self.idempotency == (self.label == "idempotency_off"):
@@ -88,6 +91,9 @@ class Settings:
             raise ValueError("mongo_design phải là a hoặc b")
         if self.mongo_design == "b" and self.variant != "p1":
             raise ValueError("Thiết kế (b) là P1 từng món không giao dịch: dùng variant p1")
+        if self.stored_procedure and (self.variant != "legacy" or self.nowait or self.mongo_design != "a"
+                                      or self.order_id_batch):
+            raise ValueError("stored_procedure chỉ dùng với variant legacy, không kèm nowait, thiết kế (b) hay lô mã đơn")
         if self.nowait and self.variant != "legacy":
             raise ValueError("nowait chỉ có nghĩa với variant legacy (P1 là một lệnh cập nhật, không có đọc khóa)")
         if self.client_timeout_seconds <= 0:

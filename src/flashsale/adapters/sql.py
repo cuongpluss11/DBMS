@@ -1,4 +1,5 @@
 from collections.abc import Iterable, Iterator
+import json
 from contextlib import contextmanager, suppress
 from typing import Any
 
@@ -18,6 +19,8 @@ def classify(exc: pymysql.MySQLError, committing: bool = False) -> DBError:
         return DBError("timeout", True, committing and code in (9002, 9012))
     if code == 1213:
         return DBError("deadlock", True)
+    if code == 1644 and "out_of_stock" in detail:  # SIGNAL của stored procedure new_order_sp
+        return DBError("out_of_stock")
     if code == 3572:  # ER_LOCK_NOWAIT: không lấy được khóa ngay (FOR UPDATE NOWAIT)
         return DBError("lock_nowait", True)
     if code in (9007, 8002):
@@ -30,6 +33,46 @@ def classify(exc: pymysql.MySQLError, committing: bool = False) -> DBError:
     if code == 1062:
         return DBError("duplicate_key", True)
     return DBError("database_error")
+
+
+_DIST = "CASE p_d " + " ".join(f"WHEN {i} THEN s_dist_{i:02d}" for i in range(1, 11)) + " END"
+NEW_ORDER_PROCEDURE = f"""
+CREATE PROCEDURE new_order_sp(IN p_w INT, IN p_d INT, IN p_c INT, IN p_request VARCHAR(64), IN p_run CHAR(32),
+                              IN p_items JSON, IN p_now DATETIME)
+BEGIN
+  DECLARE v_n INT DEFAULT JSON_LENGTH(p_items);
+  DECLARE v_i INT DEFAULT 0;
+  DECLARE v_item INT;
+  DECLARE v_qty INT;
+  DECLARE v_stock BIGINT;
+  DECLARE v_price INT;
+  DECLARE v_dist CHAR(24);
+  DECLARE v_oid BIGINT;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+  START TRANSACTION;
+  SELECT d_next_o_id INTO v_oid FROM district WHERE d_w_id = p_w AND d_id = p_d FOR UPDATE;
+  UPDATE district SET d_next_o_id = d_next_o_id + 1 WHERE d_w_id = p_w AND d_id = p_d;
+  WHILE v_i < v_n DO
+    SET v_item = CAST(JSON_EXTRACT(p_items, CONCAT('$[', v_i, '][0]')) AS SIGNED);
+    SET v_qty = CAST(JSON_EXTRACT(p_items, CONCAT('$[', v_i, '][1]')) AS SIGNED);
+    SELECT s_quantity, {_DIST} INTO v_stock, v_dist FROM stock WHERE s_w_id = p_w AND s_i_id = v_item FOR UPDATE;
+    IF v_stock < v_qty THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'out_of_stock';
+    END IF;
+    SELECT i_price INTO v_price FROM item WHERE i_id = v_item;
+    UPDATE stock SET s_quantity = s_quantity - v_qty, s_ytd = s_ytd + v_qty, s_order_cnt = s_order_cnt + 1
+      WHERE s_w_id = p_w AND s_i_id = v_item;
+    INSERT INTO order_line (ol_w_id, ol_d_id, ol_o_id, ol_number, ol_i_id, ol_supply_w_id, ol_delivery_d, ol_quantity,
+                            ol_amount, ol_dist_info, run_id)
+      VALUES (p_w, p_d, v_oid, v_i + 1, v_item, p_w, NULL, v_qty, v_qty * v_price, v_dist, p_run);
+    SET v_i = v_i + 1;
+  END WHILE;
+  INSERT INTO orders (o_w_id, o_d_id, o_id, o_c_id, o_entry_d, o_carrier_id, o_ol_cnt, o_all_local, request_id, run_id)
+    VALUES (p_w, p_d, v_oid, p_c, p_now, NULL, v_n, 1, p_request, p_run);
+  INSERT INTO new_order (no_w_id, no_d_id, no_o_id, run_id) VALUES (p_w, p_d, v_oid, p_run);
+  COMMIT;
+END
+"""
 
 
 def keys(key: Row) -> tuple[str, tuple]:
@@ -116,6 +159,25 @@ class SQLAdapter:
 
     def drop(self) -> None:
         self.query(f"DROP DATABASE IF EXISTS {self.endpoint.database}")
+
+    def install_procedures(self) -> None:
+        """T4 (MySQL): tạo stored procedure đặt hàng trong database của lượt chạy (DDL, ngoài thời gian đo)."""
+        if self.tidb:
+            raise RuntimeError("TiDB không hỗ trợ stored procedure")
+        self.query("DROP PROCEDURE IF EXISTS new_order_sp")
+        self.query(NEW_ORDER_PROCEDURE)
+
+    def call_new_order(self, w: int, d: int, c: int, request_id: str, run_id: str,
+                       items: list[tuple[int, int]], now) -> None:
+        """Một lần CALL: thủ tục tự BEGIN/COMMIT (kết nối đang autocommit), nên toàn bộ giao dịch là một vòng mạng."""
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute("CALL new_order_sp(%s, %s, %s, %s, %s, CAST(%s AS JSON), %s)",
+                               (w, d, c, request_id, run_id, json.dumps([list(item) for item in items]), now))
+                while cursor.nextset():
+                    pass
+        except pymysql.MySQLError as exc:
+            raise classify(exc, committing=True) from exc
 
     def create_slots(self) -> None:
         self.drop_slots()

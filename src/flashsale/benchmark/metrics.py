@@ -162,6 +162,7 @@ def write_result(directory: Path, result: dict) -> None:
             "arrival_rate": result.get("arrival_rate", 0.0), "lock_order": result.get("lock_order", False),
             "nowait": result.get("nowait", False), "txn_mode": result.get("txn_mode", "default"),
             "mongo_design": result.get("mongo_design", "a"),
+            "stored_procedure": result.get("stored_procedure", False),
             "order_id_batch": result.get("order_id_batch", 0),
             "client_timeout_seconds": result.get("client_timeout_seconds"),
             "phase": phase, **result[phase], **result["theoretical_selection"],

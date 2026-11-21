@@ -24,11 +24,12 @@ class TxnContext:
     lock_order: bool = False
     nowait: bool = False
     design_b: bool = False
+    stored_procedure: bool = False
 
     @property
     def is_2_1(self) -> bool:
         return (self.variant == "legacy" and self.order_id_batch == 0 and not self.lock_order
-                and not self.nowait and not self.design_b)
+                and not self.nowait and not self.design_b and not self.stored_procedure)
 
 
 def lookup(db: Adapter, req: Request) -> Row | None:
@@ -47,6 +48,13 @@ def execute(db: Adapter, req: Request, ctx: TxnContext | None = None) -> None:
         # Thiết kế (b): KHÔNG có giao dịch nhiều tài liệu (xem new_order_b).
         if not (req.idempotent and lookup(db, req) is not None):
             new_order_b(db, req)
+        return
+    if ctx is not None and ctx.stored_procedure and req.kind == "new_order":
+        # T4 (MySQL): cả giao dịch là một CALL; thủ tục tự BEGIN/COMMIT nên không dùng db.atomic().
+        if not (req.idempotent and lookup(db, req) is not None):
+            items = sorted(req.items) if ctx.lock_order else req.items
+            db.call_new_order(req.warehouse, req.district, req.customer, req.request_id, req.run_id, list(items),
+                              datetime.now(timezone.utc).replace(tzinfo=None))
         return
     if ctx is not None and ctx.order_id_batch > 0 and req.kind == "new_order":
         # Xin lô mã đơn TRƯỚC khi mở giao dịch của đơn (giao dịch riêng, commit ngay): BEGIN lồng trong một

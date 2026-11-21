@@ -95,7 +95,7 @@ Cập nhật bảng mỗi ngày: `Chưa làm / Đang làm / Đã đo / Cắt`, g
 | 2.2 | T1 (P0 và P1 theo θ × client) | Lực | Chưa làm | script `scripts/run-matrix-2.2.sh` sẵn sàng; slot AWS `mysql`, `mongo`, `tidb3` |
 | 2.2 | T2 (P1 so với P2, N = 1, 3, 9, 27) | Lực | Chưa làm | |
 | 2.2 | P3 (điều tiết thích ứng), tải vòng mở, T3 | Lực | Đang làm (mã xong, smoke VALID; chưa đo T3) | Cường nhận nếu tiến độ chậm tại G2 |
-| 2.2 | T4 (5 đòn bẩy) | Lực | Đang làm | Mã xong 4/5 (khóa theo thứ tự, NOWAIT, TiDB lạc quan/bi quan, MongoDB (b); thử được trên Docker MySQL/MongoDB); còn stored procedure |
+| 2.2 | T4 (5 đòn bẩy) | Lực | Đang làm | Mã xong 5/5 (khóa theo thứ tự, NOWAIT, TiDB lạc quan/bi quan, MongoDB (b), stored procedure; thử được trên Docker MySQL/MongoDB, TiDB NOT TESTED); chưa đo |
 | 2.3 | Script đặt Region/leader, đơn nhiều kho, `AUTO_RANDOM` | Lực | Chưa làm | |
 | 2.3 | Nhóm A, B, C, D, E.a (1 và 3 TiKV) | Lực | Chưa làm | slot `tidb3` Ngày 6–10 |
 | 2.4 | Thiết kế (lược đồ đích, ba cách chuyển, kiểm tra đúng đắn) | Cường | Chưa làm | gửi nhóm xem trước khi code nhiều |

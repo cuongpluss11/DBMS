@@ -440,3 +440,32 @@ def test_design_b_settings_and_validator_use_embedded_lines():
                       {"orders": 0, "new_order": 0, "order_line": 0}, embedded=True)
     assert report["status"] == "VALID", report["errors"]
     assert "embedded" in fake.asked and "order_line" not in fake.asked
+
+
+def test_stored_procedure_path_is_one_call_without_app_transaction_and_validates_settings(monkeypatch):
+    from dataclasses import replace
+    from pathlib import Path
+    from flashsale.adapters.sql import NEW_ORDER_PROCEDURE, classify
+    from flashsale.config import read_settings
+    import pymysql
+    calls = []
+
+    class Proc(MemDB):
+        def call_new_order(self, *args):
+            calls.append(args)
+
+    lookup_free(monkeypatch)
+    db = Proc()
+    execute(db, order([(4, 1), (1, 2)]), TxnContext(stored_procedure=True, lock_order=True))
+    assert len(calls) == 1 and "begin" not in db.calls
+    assert calls[0][5] == [(1, 2), (4, 1)]                      # lock_order sắp xếp trước khi gọi
+    assert not TxnContext(stored_procedure=True).is_2_1
+    assert "FOR UPDATE" in NEW_ORDER_PROCEDURE and "START TRANSACTION" in NEW_ORDER_PROCEDURE
+    assert "s_dist_10" in NEW_ORDER_PROCEDURE
+    error = classify(pymysql.err.OperationalError(1644, "out_of_stock"))
+    assert (error.category, error.retryable) == ("out_of_stock", False)
+    base = read_settings(Path("configs/smoke.toml"))
+    assert replace(base, stored_procedure=True, lock_order=True).stored_procedure
+    for bad in (dict(variant="p1"), dict(nowait=True), dict(order_id_batch=5)):
+        with pytest.raises(ValueError):
+            replace(base, stored_procedure=True, **bad)

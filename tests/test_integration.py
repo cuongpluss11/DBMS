@@ -147,6 +147,28 @@ def test_mongo_design_b_embedded_order_and_refund(dataset, engine):
     assert validate(db, config, "", [])["status"] == "VALID"
 
 
+def test_mysql_stored_procedure_new_order(dataset, engine):
+    """T4 (MySQL): cả giao dịch đặt hàng trong một CALL; cùng kết quả và ba luật như đường ứng dụng."""
+    if engine != "mysql":
+        pytest.skip("Stored procedure chỉ có trên MySQL")
+    db, config, counts = dataset
+    db.install_procedures()
+    run_id = "d" * 32
+    ctx = TxnContext(stored_procedure=True)
+    ok = Request(run_id + "-sp", run_id, "new_order", 1, 1, 1, ((1, 4), (2, 5)))
+    assert run_request(db, ok, ctx=ctx).status == "success"
+    assert run_request(db, ok, ctx=ctx).status == "success"          # replay: không tạo đơn thứ hai
+    short = Request(run_id + "-sp-short", run_id, "new_order", 1, 1, 1, ((1, 7), (2, 16)))
+    assert run_request(db, short, ctx=ctx).status == "out_of_stock"   # SIGNAL -> DBError, rollback toàn bộ
+    assert db.one("stock", {"s_w_id": 1, "s_i_id": 1})["s_quantity"] == 16
+    assert db.one("stock", {"s_w_id": 1, "s_i_id": 2})["s_quantity"] == 15
+    assert db.one("district", {"d_w_id": 1, "d_id": 1})["d_next_o_id"] == config.initial_orders + 2
+    assert db.count("orders") == counts["orders"] + 1 and db.count("order_line") == counts["order_line"] + 2
+    assert db.count("new_order") == counts["new_order"] + 1
+    assert validate(db, config, run_id, [ok.request_id], counts)["status"] == "VALID"
+    assert db.doc_reconciliation(config.inventory, config.initial_orders) == []
+
+
 def test_smoke_exports(engine):
     path = Path("configs/smoke.toml")
     with project_lock():

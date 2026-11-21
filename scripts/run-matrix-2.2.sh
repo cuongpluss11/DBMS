@@ -7,8 +7,7 @@
 #   t3: P2 so với P3 ở 128 và 256 client, θ=0,9, TẢI VÒNG MỞ. Cần T3_RATES (yêu cầu/giây, cách nhau bằng dấu cách):
 #       đặt SAU KHI xem t1/t2 (đề: T3 chỉ chạy khi hiệu năng thật sự sụp ở tải cao). Không đặt thì bỏ qua t3.
 #   t4: đòn bẩy riêng từng hệ ở θ ∈ {0,9; "1 món"} × {32; 128} client: MySQL (legacy, NOWAIT, khóa theo thứ tự i_id,
-#       P1 làm mốc), TiDB (legacy, khóa theo thứ tự, P1 lạc quan so với bi quan). MongoDB (thiết kế (a) so với (b), cùng P1).
-#       MySQL stored procedure CHƯA có trong mã.
+#       stored procedure, P1 làm mốc), TiDB (legacy, khóa theo thứ tự, P1 lạc quan so với bi quan). MongoDB (thiết kế (a) so với (b), cùng P1).
 #   c : lượt kiểm luật có hết hàng thực (tồn 1.000, dataset riêng): P1, P2 N=9, P3 N=9 (+ P0, INVALID là kết quả).
 # Mỗi điểm: reset dataset, rồi chạy 3 lần (30 giây warmup + 60 giây đo) với --reset-between. Không xóa dữ liệu,
 # không dừng DBMS, không đụng tới hạ tầng AWS. Điểm P0 được phép INVALID (mất cập nhật là KẾT QUẢ cần quan sát).
@@ -156,6 +155,7 @@ if [[ "$TIER" == t4 || "$TIER" == all ]]; then
                     point "$MAIN" "t4-legacy-$d-c$clients" "$H" --variant legacy $(dist_args "$d") --concurrency "$clients"
                     point "$MAIN" "t4-nowait-$d-c$clients" "$H" --variant legacy --nowait $(dist_args "$d") --concurrency "$clients"
                     point "$MAIN" "t4-lockorder-$d-c$clients" "$H" --variant legacy --lock-order $(dist_args "$d") --concurrency "$clients"
+                    point "$MAIN" "t4-sp-$d-c$clients" "$H" --variant legacy --stored-procedure $(dist_args "$d") --concurrency "$clients"
                     point "$MAIN" "t4-p1-$d-c$clients" "$H" --variant p1 $(dist_args "$d") --concurrency "$clients"
                 else
                     point "$MAIN" "t4-legacy-$d-c$clients" "$H" --variant legacy $(dist_args "$d") --concurrency "$clients"
