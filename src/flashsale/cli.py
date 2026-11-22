@@ -38,10 +38,11 @@ def load_dataset(target: Endpoint, cfg: Settings) -> dict:
     path = state_path(target)
     path.parent.mkdir(parents=True, exist_ok=True)
     state = {"engine": target.engine, "database": target.database,
-             "fingerprint": fingerprint(cfg.dataset, cfg.seed, cfg.idempotency), "status": "loading"}
+             "fingerprint": fingerprint(cfg.dataset, cfg.seed, cfg.idempotency, cfg.orders_key),
+             "status": "loading"}
     write_json(path, state)
     with connect(target, admin=True) as db:
-        db.create(idempotency=cfg.idempotency)
+        db.create(idempotency=cfg.idempotency, orders_key=cfg.orders_key)
         state["counts"] = load(db, cfg.dataset, cfg.seed)
     state["status"] = "ready"
     write_json(path, state)
@@ -53,7 +54,7 @@ def dataset_state(target: Endpoint, cfg: Settings) -> dict:
     if not path.is_file():
         raise ValueError("Dataset chưa được đăng ký bằng lệnh load của dự án")
     state = json.loads(path.read_text(encoding="utf-8"))
-    if state["fingerprint"] != fingerprint(cfg.dataset, cfg.seed, cfg.idempotency):
+    if state["fingerprint"] != fingerprint(cfg.dataset, cfg.seed, cfg.idempotency, cfg.orders_key):
         raise ValueError("Dataset hoặc seed của config khác lúc load")
     if "counts" not in state:
         raise ValueError("Dataset chưa nạp xong, hãy tạo dataset mới")
@@ -105,6 +106,16 @@ def run(target: Endpoint, cfg: Settings, config_path: Path, *, reset_between: bo
         raise ValueError("baseline-cross dùng theta=0 và tắt hot_item")
     if cfg.label in MYSQL_BASELINES and (target.engine != "mysql" or cfg.theta != 0 or cfg.hot_item):
         raise ValueError("Baseline dùng MySQL, theta=0 và tắt hot_item")
+    if (cfg.nowait or cfg.lock_order) and target.engine == "mongo":
+        raise ValueError("lock_order và nowait chỉ áp dụng cho MySQL và TiDB (đòn bẩy T4)")
+    if cfg.placement != "none" and target.engine != "tidb":
+        raise ValueError("placement chỉ áp dụng cho TiDB")
+    if cfg.stored_procedure and target.engine != "mysql":
+        raise ValueError("stored_procedure chỉ áp dụng cho MySQL (TiDB không hỗ trợ, MongoDB không có)")
+    if cfg.mongo_design == "b" and target.engine != "mongo":
+        raise ValueError("mongo_design chỉ áp dụng cho MongoDB")
+    if cfg.txn_mode != "default" and target.engine != "tidb":
+        raise ValueError("txn_mode chỉ áp dụng cho TiDB")
     state = dataset_state(target, cfg)
     environment = host_info()
     environment["source_sha256"] = source_hashes()
@@ -193,8 +204,9 @@ def parser() -> argparse.ArgumentParser:
 
 
 VARIANT_FIELDS = ("variant", "slots", "hot_items", "order_id_batch", "arrival_rate", "queue_size",
-                  "p99_limit_ms", "abort_limit_pct", "limit_min", "migration_strategy",
-                  "old_order_read_pct", "migration_batch_size", "migration_sleep_ms",
+                  "p99_limit_ms", "abort_limit_pct", "limit_min", "lock_order", "nowait", "txn_mode", "mongo_design", "stored_procedure", "order_warehouses_min",
+                  "order_warehouses_max", "warehouse_groups", "placement", "placement_scope", "placement_slot_items",
+                  "migration_strategy", "old_order_read_pct", "migration_batch_size", "migration_sleep_ms",
                   "migration_delay_seconds")
 
 
@@ -213,6 +225,30 @@ def add_variant_arguments(command) -> None:
     command.add_argument("--p99-limit-ms", type=float, dest="p99_limit_ms", help="P3: ngưỡng p99 dịch vụ (ms)")
     command.add_argument("--abort-limit-pct", type=float, dest="abort_limit_pct", help="P3: ngưỡng tỉ lệ hủy (%%)")
     command.add_argument("--limit-min", type=int, dest="limit_min", help="P3: sàn của giới hạn đồng thời")
+    command.add_argument("--lock-order", action=argparse.BooleanOptionalAction, default=None, dest="lock_order",
+                         help="T4: khóa các món của đơn theo i_id tăng dần (MySQL, TiDB)")
+    command.add_argument("--nowait", action=argparse.BooleanOptionalAction, default=None,
+                         help="T4: SELECT ... FOR UPDATE NOWAIT rồi thử lại (MySQL, TiDB; chỉ variant legacy)")
+    command.add_argument("--stored-procedure", action=argparse.BooleanOptionalAction, default=None,
+                         dest="stored_procedure",
+                         help="T4: cả giao dịch đặt hàng trong một stored procedure (chỉ MySQL, variant legacy)")
+    command.add_argument("--order-warehouses-min", type=int, dest="order_warehouses_min",
+                         help="2.3 nhóm E: số kho tối thiểu mỗi đơn chạm (1-4)")
+    command.add_argument("--order-warehouses-max", type=int, dest="order_warehouses_max",
+                         help="2.3 nhóm E: số kho tối đa mỗi đơn chạm (1-4)")
+    command.add_argument("--warehouse-groups", type=int, dest="warehouse_groups",
+                         help="2.3 nhóm E: chia W kho thành nhóm; đơn nhiều kho chỉ chọn kho cùng nhóm")
+    command.add_argument("--placement", choices=("none", "spread", "group"),
+                         help="2.3 (TiDB): tách Region theo kho và đặt leader: spread | group | none (PD tự quyết)")
+    command.add_argument("--placement-scope", choices=("stock", "all"), dest="placement_scope",
+                         help="2.3: chỉ stock (và stock_slot) hay mọi bảng bắt đầu bằng mã kho")
+    command.add_argument("--placement-slot-items", type=int, dest="placement_slot_items",
+                         help="2.3 nhóm C: số món nóng đầu bảng hạng có slot được tách và đặt leader")
+    command.add_argument("--mongo-design", choices=("a", "b"), dest="mongo_design",
+                         help="T4: MongoDB (a) giao dịch nhiều tài liệu | (b) nhúng order_line, updateOne từng món "
+                              "(cần --variant p1)")
+    command.add_argument("--txn-mode", choices=("default", "optimistic", "pessimistic"), dest="txn_mode",
+                         help="T4: chế độ giao dịch của TiDB")
     command.add_argument("--migration-strategy", choices=MIGRATION_STRATEGIES, dest="migration_strategy",
                          help="Mục 2.4: none, eager (P1), batch (P2), lazy (P3)")
     command.add_argument("--old-order-read-pct", type=float, dest="old_order_read_pct",
@@ -258,6 +294,7 @@ def execute_command(args) -> dict | list:
             return validate(db, Dataset(**manifest["config"]["dataset"]), args.run_id, expected,
                             manifest["dataset_state"]["counts"],
                             slots=uses_slots(manifest["config"].get("variant", "legacy")),
+                            embedded=manifest["config"].get("mongo_design") == "b",
                             migration=uses_migration(manifest["config"].get("migration_strategy", "none")))
 
     target = endpoint(engine, getattr(args, "dataset", None))

@@ -1,0 +1,76 @@
+14:31:55 Bắt đầu ma trận 2.3: engine=tidb tier=a dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb3
+14:31:55 Điểm 1: a-uniform (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform)
+14:40:26 Xong 1 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-tidb3/report
+{
+  "runs": 3,
+  "groups": 1,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 1,
+  "out_dir": "/home/ubuntu/m23-tidb3/report"
+}
+14:40:26 Bắt đầu ma trận 2.3: engine=tidb tier=b dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb3
+14:40:26 Điểm 1: b-hot (configs/scaling.toml --variant p1 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+14:48:17 Xong 1 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-tidb3/report
+{
+  "runs": 6,
+  "groups": 2,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 1,
+  "out_dir": "/home/ubuntu/m23-tidb3/report"
+}
+14:48:17 Bắt đầu ma trận 2.3: engine=tidb tier=c dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb3
+14:48:17 Điểm 1: c-slots-n3 (configs/scaling.toml --variant p2 --slots 3 --hot-items 100 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+14:58:07 Điểm 2: c-slots-n9 (configs/scaling.toml --variant p2 --slots 9 --hot-items 100 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+15:08:55 Điểm 3: c-slots-n27 (configs/scaling.toml --variant p2 --slots 27 --hot-items 100 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+15:19:36 Xong 3 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-tidb3/report
+{
+  "runs": 15,
+  "groups": 5,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 1,
+  "out_dir": "/home/ubuntu/m23-tidb3/report"
+}
+15:19:36 Bắt đầu ma trận 2.3: engine=tidb tier=d dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb3
+15:26:30 Đã nạp dataset flashsale_1fb129454aac447c9789e8c9ce41dc51 từ configs/scaling-autoinc.toml
+15:26:30 Điểm 1: d-autoinc (configs/scaling-autoinc.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform)
+15:42:20 Đã nạp dataset flashsale_d90cf94617494e4a9dc250782fd7cce1 từ configs/scaling-autorandom.toml
+15:42:20 Điểm 2: d-auto-random (configs/scaling-autorandom.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform)
+15:52:21 Xong 2 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-tidb3/report
+{
+  "runs": 21,
+  "groups": 7,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 2,
+  "out_dir": "/home/ubuntu/m23-tidb3/report"
+}
+15:52:21 Bắt đầu ma trận 2.3: engine=tidb tier=e dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb3
+15:52:21 Điểm 1: e-none-k1-1 (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform --placement none --placement-scope all --warehouse-groups 3 --order-warehouses-min 1 --order-warehouses-max 1)
+16:01:30 Điểm 2: e-none-k2-2 (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform --placement none --placement-scope all --warehouse-groups 3 --order-warehouses-min 2 --order-warehouses-max 2)
+16:11:06 Điểm 3: e-none-k3-4 (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform --placement none --placement-scope all --warehouse-groups 3 --order-warehouses-min 3 --order-warehouses-max 4)
+16:21:17 Điểm 4: e-spread-k1-1 (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform --placement spread --placement-scope all --warehouse-groups 3 --order-warehouses-min 1 --order-warehouses-max 1)
+16:32:44 Điểm 5: e-spread-k2-2 (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform --placement spread --placement-scope all --warehouse-groups 3 --order-warehouses-min 2 --order-warehouses-max 2)
+16:42:12 Điểm 6: e-spread-k3-4 (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform --placement spread --placement-scope all --warehouse-groups 3 --order-warehouses-min 3 --order-warehouses-max 4)
+16:47:21 LỖI hoặc INVALID ở điểm 6 (e-spread-k3-4), mã 1. Xem /home/ubuntu/m23-tidb3/point-06-e-spread-k3-4/run.err và run.json
+20:02:41 Bắt đầu ma trận 2.3: engine=tidb tier=e dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb3
+20:02:41 Bỏ qua điểm 1 (e-none-k1-1): MATRIX_START_POINT
+20:02:41 Bỏ qua điểm 2 (e-none-k2-2): MATRIX_START_POINT
+20:02:41 Bỏ qua điểm 3 (e-none-k3-4): MATRIX_START_POINT
+20:02:41 Bỏ qua điểm 4 (e-spread-k1-1): MATRIX_START_POINT
+20:02:41 Bỏ qua điểm 5 (e-spread-k2-2): MATRIX_START_POINT
+20:02:41 Điểm 6: e-spread-k3-4 (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform --placement spread --placement-scope all --warehouse-groups 3 --order-warehouses-min 3 --order-warehouses-max 4)
+20:11:52 Điểm 7: e-group-k1-1 (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform --placement group --placement-scope all --warehouse-groups 3 --order-warehouses-min 1 --order-warehouses-max 1)
+20:23:05 Điểm 8: e-group-k2-2 (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform --placement group --placement-scope all --warehouse-groups 3 --order-warehouses-min 2 --order-warehouses-max 2)
+20:34:35 Điểm 9: e-group-k3-4 (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform --placement group --placement-scope all --warehouse-groups 3 --order-warehouses-min 3 --order-warehouses-max 4)
+20:46:48 Xong 9 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-tidb3/report
+{
+  "runs": 48,
+  "groups": 16,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 9,
+  "out_dir": "/home/ubuntu/m23-tidb3/report"
+}

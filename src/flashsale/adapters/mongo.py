@@ -2,7 +2,7 @@ from collections.abc import Iterable, Iterator
 from contextlib import contextmanager, suppress
 from typing import Any
 
-from pymongo import MongoClient
+from pymongo import MongoClient, ReturnDocument
 from pymongo.errors import ConnectionFailure, DuplicateKeyError, PyMongoError
 from pymongo.read_concern import ReadConcern
 from pymongo.write_concern import WriteConcern
@@ -36,11 +36,38 @@ class MongoAdapter:
                                   replicaSet="flashsale", retryWrites=False,
                                   serverSelectionTimeoutMS=5000, socketTimeoutMS=int(timeout * 1000),
                                   maxPoolSize=1)
-        self.db = self.client.get_database(endpoint.database, read_concern=ReadConcern("majority"))
+        # Ghi ngoài giao dịch (thiết kế (b)) phải bền như giao dịch của (a): {w: majority, j: true}. Trong giao dịch,
+        # write concern do session.start_transaction() quyết định nên giá trị này không đổi thiết kế (a).
+        self.db = self.client.get_database(endpoint.database, read_concern=ReadConcern("majority"),
+                                           write_concern=WriteConcern("majority", j=True))
         self.session = None
 
     def close(self) -> None:
         self.client.close()
+
+    def as_db_error(self, exc: BaseException) -> BaseException:
+        """Thiết kế (b) chạy ngoài atomic(): đổi lỗi pymongo thành DBError để vòng retry phân loại được."""
+        return classify(exc) if isinstance(exc, PyMongoError) else exc
+
+    def take_counter(self, table: str, key: Row, field: str, step: int = 1) -> int:
+        """Tăng bộ đếm bằng MỘT lệnh nguyên tử trên một tài liệu và trả về giá trị TRƯỚC khi tăng."""
+        document = self.db[table].find_one_and_update(
+            key, {"$inc": {field: step}}, projection={field: 1, "_id": 0},
+            return_document=ReturnDocument.BEFORE, session=self.session)
+        if document is None:
+            raise DBError("application_error")
+        return document[field]
+
+    def embedded_lines(self) -> Iterator[Row]:
+        """Thiết kế (b): các dòng đơn nhúng trong orders của lượt chạy, trả về cùng dạng như collection order_line."""
+        pipeline = [{"$match": {"run_id": {"$type": "string"}}}, {"$unwind": "$order_lines"},
+                    {"$project": {"_id": 0, "ol_w_id": "$o_w_id", "ol_d_id": "$o_d_id", "ol_o_id": "$o_id",
+                                  "ol_number": "$order_lines.ol_number",
+                                  "ol_supply_w_id": "$order_lines.ol_supply_w_id",
+                                  "ol_i_id": "$order_lines.ol_i_id", "ol_quantity": "$order_lines.ol_quantity",
+                                  "run_id": "$run_id"}}]
+        with self.db.orders.aggregate(pipeline) as cursor:
+            yield from cursor
 
     def ping(self, concurrency: int = 1) -> dict[str, Any]:
         hello = self.client.admin.command("hello")
@@ -78,7 +105,9 @@ class MongoAdapter:
             finally:
                 self.session = None
 
-    def create(self, idempotency: bool = True) -> None:
+    def create(self, idempotency: bool = True, orders_key: str = "composite") -> None:
+        if orders_key != "composite":
+            raise ValueError("orders_key chỉ áp dụng cho TiDB")
         if self.db.list_collection_names():
             raise RuntimeError("Database MongoDB đã có collection")
         for name, table in TABLES.items():
@@ -96,6 +125,9 @@ class MongoAdapter:
     def drop(self) -> None:
         self.client.drop_database(self.db)
 
+    def install_procedures(self) -> None:
+        raise RuntimeError("MongoDB không có stored procedure")
+
     def create_slots(self) -> None:
         self.drop_slots()
         collection = self.db.create_collection(SLOT_TABLE)
@@ -110,7 +142,9 @@ class MongoAdapter:
     def insert_many(self, table: str, rows: list[Row]) -> None:
         self.db[table].insert_many([dict(row) for row in rows], session=self.session)
 
-    def one(self, table: str, key: Row, *, lock: bool = False) -> Row | None:
+    def one(self, table: str, key: Row, *, lock: bool = False, nowait: bool = False) -> Row | None:
+        if nowait:
+            raise ValueError("NOWAIT không có trên MongoDB")
         if "request_id" in key:
             key = {**key, "request_id": {"$eq": key["request_id"], "$type": "string"}}
         try:
@@ -181,13 +215,21 @@ class MongoAdapter:
                       for plan in plans.values())
         return {"indexed": indexed, "plans": plans}
 
-    def doc_reconciliation(self, inventory: int, initial_orders: int, slots: bool = False) -> list[dict]:
+    def doc_reconciliation(self, inventory: int, initial_orders: int, slots: bool = False,
+                           embedded: bool = False) -> list[dict]:
         """Bản aggregation tương đương câu SQL kiểm luật 1 và 2 của đề. Kết quả rỗng là đạt.
         `slots`: các món đã chia slot (mục 2.2) được đối soát riêng theo tổng tồn các slot."""
         hot = sorted(self.db[SLOT_TABLE].distinct("ss_i_id")) if slots else []
         first = {"$match": {"ol_o_id": {"$gt": initial_orders}, **({"ol_i_id": {"$nin": hot}} if hot else {})}}
         grouped = [first,
                    {"$group": {"_id": {"w": "$ol_supply_w_id", "i": "$ol_i_id"}, "sold": {"$sum": "$ol_quantity"}}}]
+        source = self.db.order_line
+        if embedded:
+            # Thiết kế (b): đơn của lượt chạy mang các dòng nhúng; đơn nạp sẵn không có trường order_lines.
+            grouped = [{"$match": {"o_id": {"$gt": initial_orders}}}, {"$unwind": "$order_lines"},
+                       {"$group": {"_id": {"w": "$order_lines.ol_supply_w_id", "i": "$order_lines.ol_i_id"},
+                                   "sold": {"$sum": "$order_lines.ol_quantity"}}}]
+            source = self.db.orders
         violations = grouped + [
             {"$lookup": {"from": "stock", "let": {"w": "$_id.w", "i": "$_id.i"}, "as": "stock",
                          "pipeline": [{"$match": {"$expr": {"$and": [{"$eq": ["$s_w_id", "$$w"]},
@@ -199,9 +241,9 @@ class MongoAdapter:
             {"$limit": 10}]
         errors = [{"warehouse": row["_id"]["w"], "item": row["_id"]["i"], "sold": row["sold"],
                    "s_quantity": row["stock"][0]["s_quantity"] if row["stock"] else None}
-                  for row in self.db.order_line.aggregate(violations)]
+                  for row in source.aggregate(violations)]
         # Dòng tồn đã đổi nhưng không có đơn tương ứng (bao gồm tồn âm không do đơn nào gây ra).
-        groups = next(iter(self.db.order_line.aggregate(grouped + [{"$count": "n"}])), {"n": 0})["n"]
+        groups = next(iter(source.aggregate(grouped + [{"$count": "n"}])), {"n": 0})["n"]
         changed_filter = {"s_quantity": {"$ne": inventory}, **({"s_i_id": {"$nin": hot}} if hot else {})}
         changed = self.db.stock.count_documents(changed_filter)
         if changed != groups:

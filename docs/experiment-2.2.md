@@ -14,6 +14,10 @@ Chưa có số đo nào của mục 2.2 trong repo. Tài liệu này mô tả ph
 
 `--order-id-batch B` (0 = như 2.1): mỗi worker xin lô B mã đơn cho mỗi (kho, quận) thay vì tăng `d_next_o_id` mỗi đơn. Độc lập với variant (T2 cần cả hai nhánh có/không).
 
+## T4: đòn bẩy riêng từng hệ
+
+Đã có (mặc định tắt): `--lock-order` (khóa/cập nhật các món của đơn theo `i_id` tăng dần; MySQL, TiDB), `--nowait` (`SELECT ... FOR UPDATE NOWAIT` trên dòng stock rồi thử lại theo luật chung, lỗi 3572 phân loại `lock_nowait`; chỉ variant `legacy`, vì P1 là một lệnh cập nhật không có đọc khóa; MySQL, TiDB) và `--txn-mode optimistic|pessimistic` (TiDB, đặt `tidb_txn_mode` cho từng kết nối; giá trị thật vẫn ghi ở `manifest.dbms.transaction_mode`). `--mongo-design b` (MongoDB thiết kế (b), cần `--variant p1`): đơn là MỘT tài liệu `orders` có mảng `order_lines` nhúng (collection `order_line` giữ nguyên các dòng nạp sẵn), mã đơn lấy bằng `findOneAndUpdate $inc`, mỗi món trừ kho bằng một `update` có điều kiện `s_quantity >= n`, hoàn lại các món đã trừ khi gặp món hết hàng hoặc ghi đơn thất bại (trùng `request_id`), **không có giao dịch nhiều tài liệu**; ghi dùng `{w: majority, j: true}` như (a). Điểm cam kết là ghi tài liệu `orders` (UNIQUE `request_id`); Payment vẫn dùng giao dịch như (a). Validator đọc dòng đơn từ `orders.order_lines` và đối soát của đề dùng `$unwind`. **Giới hạn của (b) (đề đã nêu):** nếu tiến trình chết giữa lúc trừ kho và lúc ghi đơn, hoặc kết quả ghi đơn không xác định và không đọc lại được (khi đó mã giữ nguyên kho), kho bị trừ mà không có đơn: luật 2 sẽ báo lệch; chưa thử bằng cách giết tiến trình. `--stored-procedure` (chỉ MySQL, variant `legacy`): toàn bộ giao dịch đặt hàng là MỘT `CALL new_order_sp(...)` (thủ tục tự `START TRANSACTION`/`COMMIT`, ROLLBACK + RESIGNAL khi lỗi, hết hàng báo bằng `SIGNAL` mã 1644 'out_of_stock'), cùng logic khóa-rồi-ghi của `legacy` nhưng không giữ khóa trong lúc chờ mạng giữa ứng dụng và CSDL (bài L2B1); thủ tục được tạo trong database của lượt chạy trước warmup; có thể kèm `--lock-order`; TiDB không hỗ trợ stored procedure nên bị từ chối. Cả năm đòn bẩy T4 đã có mã. Thử thật trên Docker MySQL: `legacy` có deadlock, `--nowait` sinh `lock_nowait` thay vì chờ, `--lock-order` hết deadlock; Stored procedure trên Docker MySQL thật: test integration `test_mysql_stored_procedure_new_order` PASS (replay, rollback khi hết hàng, ba luật, đối soát) và smoke 16 client VALID (TPS 328 so với 220 của `legacy` ở smoke nhỏ, không phải số đo). TiDB (`--txn-mode`) NOT TESTED. MongoDB (b) trên Docker thật: test integration `test_mongo_design_b_embedded_order_and_refund` PASS (hoàn kho, replay, validator, đối soát, và phát hiện lệch cài chủ động) và smoke 16 client có hết hàng thực VALID (so (a): TPS 306 so với 198 ở smoke nhỏ, chỉ để kiểm đường chạy, không phải số đo).
+
 ## P3 (điều tiết thích thích ứng) và tải vòng mở
 
 - **Giới hạn L:** một giới hạn mức đồng thời dùng chung mọi process cho các đơn chạm ít nhất một món nóng (thanh toán và đơn không nóng không bị chặn). Khởi đầu L = số client; sàn `--limit-min` (mặc định 1), trần = số client.
@@ -32,6 +36,10 @@ flashsale run mysql --config configs/hotspot.toml --dataset <ten-dataset> --rese
 ```
 
 Smoke nhỏ (cần DBMS đang chạy): `flashsale smoke mysql --start --variant p2 --slots 3 --hot-items 5` (profile `smoke.toml`, tồn 20, có hết hàng). Lượt kiểm luật có hết hàng thực: `--config configs/correctness.toml --variant p2 --slots 9`.
+
+## Ma trận Tầng 1
+
+`scripts/run-matrix-2.2.sh <mysql|mongo|tidb> [--tier t1|t2|t3|c|all] [--dry-run]` chạy trên VM `loadgen` (chế độ remote), cùng cách dùng như `run-matrix-2.1.sh`: T1 (P1 ở 15 điểm θ × client, P0 ở 6 điểm; P0 được phép INVALID), T2 (P2 N = 1, 3, 9, 27 có lô mã, đối chứng không lô ở N = 1 và 9, θ = 0,9 và "1 món", 64 client), T3 (P2 so với P3 ở 128/256 client, tải vòng mở; **chỉ chạy khi đặt `T3_RATES`** sau khi xem T1/T2), `c` (lượt kiểm luật có hết hàng thực). Tổng 37 điểm không kể T3, mỗi điểm 3 lần × (30 s + 60 s). Điểm P1 không lô mã của T2 lấy từ T1 (64 client). Đã `--dry-run` đủ tier và chạy thật thu nhỏ trên Docker MySQL (tier `c` và 3 điểm `t2`, remote mode giả lập): script, reset giữa điểm, P0 INVALID dự kiến và báo cáo tổng hợp hoạt động.
 
 ## Kết quả và trường mới
 
@@ -56,3 +64,8 @@ Stack `mysql` (MySQL-chỉnh, buffer pool 3 GiB, c6i.4xlarge giới hạn 12 vCP
 | P1, θ=0,9 (không "1 món") | 1.167 | 277 | VALID |
 
 Chỉ chứng minh mã chạy đúng trên AWS; chưa kết luận về hiệu quả (cần T1/T2 đủ 3 lần lặp 30 + 60 s). Bằng chứng lưu ở `.work/g1-smoke-aws/` (không đưa lên Git).
+
+
+## Kết quả đo chính thức trên TiDB (AWS, 2026-11-22)
+
+`results/official/2.2-aws/tidb3/`: 145 lượt trên cụm 3 TiKV (W = 10, `configs/hotspot.toml`): T1 (P1 ở 5 mức θ × 8/64/256 client và P0), T2 (P2 N ∈ {1,3,9,27} có/không cấp mã theo lô), lượt kiểm luật, T4 (đòn bẩy TiDB lạc quan/bi quan, khóa theo thứ tự). 138 lượt VALID; 7 lượt INVALID đều là P0 (đọc rồi ghi) vi phạm luật đối soát do mất cập nhật, đúng dự kiến và không xếp hạng. T3 (P3, tải vòng mở) chưa đo vì chờ chọn `T3_RATES`. Phân tích số liệu xem `SUMMARY.md` cùng thư mục; cảnh báo warmup (`WARMUP_MAY_BE_SHORT`) có ở nhiều lượt, cần xem trước khi kết luận.

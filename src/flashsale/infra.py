@@ -187,10 +187,14 @@ def enforce_one(engine: str, *, must_run: bool = True) -> None:
         raise RuntimeError(f"{engine} chưa chạy")
 
 
-def pd_status() -> dict:
+def pd_url() -> str:
     nodes = remote_nodes()
     host = nodes["pd"]["host"] if nodes and "pd" in nodes else db_host()
-    base = f"http://{host}:{port('pd')}/pd/api/v1"
+    return f"http://{host}:{port('pd')}/pd/api/v1"
+
+
+def pd_status() -> dict:
+    base = pd_url()
     with urlopen(base + "/stores", timeout=2) as response:
         stores = json.load(response)["stores"]
     with urlopen(base + "/config/replicate", timeout=2) as response:
