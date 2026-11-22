@@ -4,6 +4,16 @@ Trung vị, min–max của TPS thành công và trung vị p99 trên các lần
 
 | engine | profile | client | kho | θ | hot | biến thể | slot | lô mã | tốc độ đến | khóa thứ tự | nowait | chế độ giao dịch | Mongo | SP | ytd | idem | ghi chú | lượt | valid | TPS median (min–max) | p99 median ms |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p1 |  | 50 | kín | False | False | default | a | False | False | True | mysql-20vcpu | 3 | 3/3 | 1304.1 (1289.4–1307.0) | 688.0 |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p1 |  | 50 | kín | False | False | default | a | False | False | True | mysql-24vcpu | 3 | 3/3 | 1232.3 (1227.5–1236.6) | 731.3 |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p2 | 27 | 50 | kín | False | False | default | a | False | False | True | mysql-20vcpu | 3 | 3/3 | 2040.2 (2022.5–2042.3) | 485.3 |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p2 | 27 | 50 | kín | False | False | default | a | False | False | True | mysql-24vcpu | 3 | 3/3 | 1808.4 (1797.2–1809.5) | 589.0 |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p2 | 3 | 50 | kín | False | False | default | a | False | False | True | mysql-20vcpu | 3 | 3/3 | 2041.8 (2010.3–2055.7) | 553.4 |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p2 | 3 | 50 | kín | False | False | default | a | False | False | True | mysql-24vcpu | 3 | 3/3 | 1827.6 (1801.4–1893.7) | 628.5 |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p2 | 9 | 50 | kín | False | False | default | a | False | False | True | mysql-20vcpu | 3 | 3/3 | 2010.7 (1977.0–2048.6) | 502.9 |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p2 | 9 | 50 | kín | False | False | default | a | False | False | True | mysql-24vcpu | 3 | 3/3 | 1818.8 (1808.0–1820.6) | 591.2 |
+| mysql | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | mysql-20vcpu | 3 | 3/3 | 1222.2 (1215.6–1237.9) | 479.1 |
+| mysql | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | mysql-24vcpu | 3 | 3/3 | 1140.8 (1090.3–1143.3) | 709.2 |
 | tidb | scaling | 64 | single-warehouse | 0.9 | False | p1 |  | 50 | kín | False | False | default | a | False | False | True | m23-tidb1 | 3 | 3/3 | 616.2 (588.5–634.2) | 912.1 |
 | tidb | scaling | 64 | single-warehouse | 0.9 | False | p1 |  | 50 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 751.2 (732.9–754.0) | 754.0 |
 | tidb | scaling | 64 | single-warehouse | 0.9 | False | p2 | 27 | 50 | kín | False | False | default | a | False | False | True | m23-tidb1 | 3 | 3/3 | 845.2 (825.5–908.1) | 197.5 |
@@ -28,12 +38,17 @@ Trung vị, min–max của TPS thành công và trung vị p99 trên các lần
 | tidb | scaling-autorandom | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb1 | 3 | 3/3 | 788.1 (744.6–834.0) | 302.3 |
 | tidb | scaling-autorandom | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 2222.2 (1854.2–2227.1) | 104.2 |
 
-## Hệ số tăng tốc (TiDB: 3 TiKV ÷ 1 TiKV; MySQL: 12 vCPU ÷ 8 vCPU)
+## Hệ số tăng tốc (TiDB: 3 TiKV ÷ 1 TiKV; MySQL: cỡ vCPU lớn ÷ cỡ vCPU nhỏ)
 
-Chỉ ghép các nhóm giống hệt nhau về mọi tham số khác. 3 nghĩa là thêm máy hiệu quả hoàn hảo, 1 nghĩa là vô ích.
+Chỉ ghép các nhóm giống hệt nhau về mọi tham số khác. Cột "TPS nhỏ" là 1 TiKV (TiDB) hoặc cỡ vCPU nhỏ (MySQL); "TPS lớn" là 3 TiKV hoặc cỡ vCPU lớn. Tăng tốc bằng tỉ số cỡ (3 với TiDB; 24÷20 = 1,2 với MySQL) nghĩa là mở rộng hiệu quả hoàn hảo, bằng 1 nghĩa là thêm tài nguyên vô ích.
 
-| engine | profile | client | kho | θ | hot | biến thể | slot | lô mã | vị trí | khóa orders | kho/đơn | TPS 1 TiKV | TPS 3 TiKV | tăng tốc |
+| engine | profile | client | kho | θ | hot | biến thể | slot | lô mã | vị trí | khóa orders | kho/đơn | TPS nhỏ | TPS lớn | tăng tốc |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p1 |  | 50 | none/stock | composite | 1-1 | 1304.1 | 1232.3 | 0.94 |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p2 | 27 | 50 | none/stock | composite | 1-1 | 2040.2 | 1808.4 | 0.89 |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p2 | 3 | 50 | none/stock | composite | 1-1 | 2041.8 | 1827.6 | 0.90 |
+| mysql | scaling | 64 | single-warehouse | 0.9 | False | p2 | 9 | 50 | none/stock | composite | 1-1 | 2010.7 | 1818.8 | 0.90 |
+| mysql | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | none/stock | composite | 1-1 | 1222.2 | 1140.8 | 0.93 |
 | tidb | scaling | 64 | single-warehouse | 0.9 | False | p1 |  | 50 | spread/stock | composite | 1-1 | 616.2 | 751.2 | 1.22 |
 | tidb | scaling | 64 | single-warehouse | 0.9 | False | p2 | 27 | 50 | spread/stock | composite | 1-1 | 845.2 | 2121.2 | 2.51 |
 | tidb | scaling | 64 | single-warehouse | 0.9 | False | p2 | 3 | 50 | spread/stock | composite | 1-1 | 707.1 | 1725.5 | 2.44 |
@@ -44,7 +59,7 @@ Chỉ ghép các nhóm giống hệt nhau về mọi tham số khác. 3 nghĩa l
 
 ## Kiểm tra warmup 30 giây
 
-69/69 lượt có chuỗi TPS theo giây; 16 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
+99/99 lượt có chuỗi TPS theo giây; 20 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
 
 | run_id | engine | profile | client | θ | drift % |
 | --- | --- | --- | --- | --- | --- |
@@ -57,9 +72,13 @@ Chỉ ghép các nhóm giống hệt nhau về mọi tham số khác. 3 nghĩa l
 | 5570624b6f2e4294b2ed956b4236857e | tidb | scaling | 64 | 0.0 | 21.7 |
 | 5c9cd3f6941e4ee4a99d1f40aa478179 | tidb | scaling-autoinc | 64 | 0.0 | -28.5 |
 | 6e640cbdf3fe4e319e4df95ba781f8bc | tidb | scaling | 64 | 0.0 | -16.1 |
+| 854161bb9f764656aff654b95314968c | mysql | scaling | 64 | 0.0 | -10.2 |
+| 864389e70d0d4c648085c1394936296b | mysql | scaling | 64 | 0.9 | -11.0 |
 | 8f1ed34bfd7145d98365911c49a97076 | tidb | scaling | 64 | 0.0 | 17.7 |
 | a53046f7d91b4dfea045bcc34872875e | tidb | scaling-autorandom | 64 | 0.0 | 14.8 |
+| ac232efb220d4bf5840cf1f48eaece17 | mysql | scaling | 64 | 0.9 | 10.3 |
 | c374d504614549be81d4f3751ec2abe8 | tidb | scaling | 64 | 0.9 | -11.8 |
+| c3ee986af58a4cf2a533de94fbd1d872 | mysql | scaling | 64 | 0.9 | 10.7 |
 | cb53a517511b40b0b40d895be33be26c | tidb | scaling | 64 | 0.9 | 44.3 |
 | d3f4b7c947f14de1993a87dac13a3178 | tidb | scaling-autorandom | 64 | 0.0 | -16.9 |
 | d96f9e6f08f243649ba97e6a9e22dab7 | tidb | scaling | 64 | 0.0 | 11.6 |

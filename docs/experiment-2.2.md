@@ -69,3 +69,24 @@ Chỉ chứng minh mã chạy đúng trên AWS; chưa kết luận về hiệu q
 ## Kết quả đo chính thức trên TiDB (AWS, 2026-11-22)
 
 `results/official/2.2-aws/tidb3/`: 145 lượt trên cụm 3 TiKV (W = 10, `configs/hotspot.toml`): T1 (P1 ở 5 mức θ × 8/64/256 client và P0), T2 (P2 N ∈ {1,3,9,27} có/không cấp mã theo lô), lượt kiểm luật, T4 (đòn bẩy TiDB lạc quan/bi quan, khóa theo thứ tự). 138 lượt VALID; 7 lượt INVALID đều là P0 (đọc rồi ghi) vi phạm luật đối soát do mất cập nhật, đúng dự kiến và không xếp hạng. T3 (P3, tải vòng mở) chưa đo vì chờ chọn `T3_RATES`. Phân tích số liệu xem `SUMMARY.md` cùng thư mục; cảnh báo warmup (`WARMUP_MAY_BE_SHORT`) có ở nhiều lượt, cần xem trước khi kết luận.
+
+## Kết quả đo chính thức trên MySQL (AWS, 2026-11-22)
+
+`results/official/2.2-aws/mysql/`: 157 lượt trên MySQL-chỉnh 8.4.8 (m6i.8xlarge giới hạn 24 vCPU/60 GiB, buffer pool 3 GiB, `innodb_flush_log_at_trx_commit=1`, `sync_binlog=1`, W = 10, `configs/hotspot.toml`, warmup 30 s + đo 60 s, 3 lần lặp). Gồm T1 (P1 ở 5 mức θ × 8/64/256 client, P0), T2 (P2 N ∈ {1,3,9,27} có/không cấp mã theo lô), lượt kiểm luật, T4 (khóa theo thứ tự, `NOWAIT`, stored procedure). **150/157 lượt VALID; 7 lượt INVALID đều là P0** (mất cập nhật, đúng dự đoán của đề, `docs/assumptions.md`). Chưa có T3 (tải vòng mở; `T3_RATES` đặt sau khi có số này). Chạy 04:17–09:15 (giờ máy tải), CPU máy tải tối đa 386% trên 1600% (24%, dưới ngưỡng 80%).
+
+TPS trung vị của ba lần lặp (p99 trung vị, ms trong ngoặc), một kho, P1 trừ khi ghi khác:
+
+| Cấu hình | 8 client | 64 client | 256 client |
+| --- | --- | --- | --- |
+| θ = 0 | 652,6 (83) | 1.416,2 (500) | 1.464,7 (1.078) |
+| θ = 0,5 | 656,2 (73) | 1.386,6 (518) | 1.489,9 (1.065) |
+| θ = 0,7 | 655,2 (82) | 1.391,9 (513) | 1.458,7 (1.066) |
+| θ = 0,9 | 659,1 (70) | 1.252,3 (476) | 1.283,0 (726) |
+| một món (mọi yêu cầu chọn một mặt hàng) | 412,0 (63) | 425,8 (474) | 427,4 (1.484) |
+
+- **Không có điểm gãy rõ trong θ ∈ [0, 0,7]**; TPS giảm khoảng 11% ở θ = 0,9 (64 client) và sụp xuống ~425 chỉ khi mọi yêu cầu chọn một món (một dòng tồn kho bị tuần tự hóa), gần như không đổi theo số client (412 → 427 khi 8 → 256 client) và p99 tăng tới 1,5 s.
+- **T2 (một món, 64 client, lô mã 50):** P2 N=27 đạt 2.741 TPS (6,4 lần P1 = 425,8), N=9 đạt 1.847, N=3 đạt 992, N=1 đạt 397 (không hơn P1, vì cùng một dòng khóa). Ở θ = 0,9: N=27 đạt 1.780 (+42% so với P1 1.252), N=3 và N=9 đạt khoảng 1.810 và 1.786: phần còn lại bị chặn ở chỗ khác chứ không còn là dòng tồn kho nóng.
+- **T4 (một món, 128 client, so với `legacy` 375):** stored procedure 633 (+69%), `NOWAIT` 644 (+72%), khóa theo thứ tự 379 (không khác `legacy`, vì đơn một món không có thứ tự khóa để sắp xếp). Ở θ = 0,9: `legacy` 1.202, stored procedure 1.550 (+29%), `NOWAIT` 1.235, khóa theo thứ tự 1.184. Mọi lượt T4 VALID.
+- **Lượt kiểm luật:** P1, P2, P3 đều VALID (3/3); P0 INVALID (0/1).
+- **Warmup:** `results/official/warmup-analysis-mysql.md`: 10/187 lượt ngoài khoảng ramp 0,9–1,1, không có lượt TPS thấp; trung vị ramp 0,99–1,03 nên giữ warmup 30 giây.
+- **Giới hạn:** T3 chưa đo; MongoDB chưa đo; số tuyệt đối không so với 2.1 (cùng W = 10 nhưng khác lượt chạy và cỡ máy).

@@ -97,3 +97,19 @@ Chỉ TiDB. Trước warmup của mỗi lượt (ngoài thời gian đo): chia `
 - **NOT TESTED:** hệ số tăng tốc và nhóm B ở cả hai cụm với TiDB server đủ lớn; E.a ở 64 client đủ 3 lần lặp; tác động của chuyển leader lên TPS (smoke 20 s chưa đủ).
 - Bài học hạ tầng: ở us-east-1c `m6i.large`, `m5.large` rồi cả `c6i.xlarge` đã hết capacity vào các thời điểm khác nhau (terraform thử lại tối đa 25 lần rồi báo lỗi; apply lại thì tạo nốt được; dry-run không phát hiện; xem lỗi bằng CloudTrail `RunInstances`); đĩa dữ liệu gắn trễ làm bootstrap PD lỗi sau 300 s (chạy lại `/var/lib/cloud/instance/scripts/part-001`); lỗi `env.sh` rỗng của `aws-tidb-up.sh` vẫn còn (viết tay).
 - **Chưa làm (Tầng 2/3):** E.b/E.c (async commit, 1PC, độ phân tán), E.d, nhóm R, tùy chọn độ trễ mạng, MongoDB chia shard, thêm TiKV khi đang chạy.
+
+## Kết quả đo chính thức: MySQL hai cỡ vCPU (AWS, 2026-11-22)
+
+`results/official/2.3-aws/mysql/`: 30 lượt VALID trên MySQL-chỉnh 8.4.8 (nhóm A, B, C; W = 12, `configs/scaling.toml`, 64 client, P1/P2, 3 lần lặp), mỗi cỡ 15 lượt: 24 vCPU/60 GiB (buffer pool 3 GiB, đo trước) rồi 20 vCPU/44 GiB (buffer pool 1 GiB, đo sau, cùng dataset, đổi cỡ bằng `docker compose up --force-recreate`). Không có nhóm D, E (chỉ có ý nghĩa với TiDB). Báo cáo gộp cả TiDB: `results/official/2.3-aws/SUMMARY-speedup.md`.
+
+| Cấu hình | TPS 20 vCPU | TPS 24 vCPU | 24 ÷ 20 |
+| --- | --- | --- | --- |
+| A: kho đều, θ = 0 | 1.222,2 | 1.140,8 | 0,93 |
+| B: một kho, θ = 0,9 | 1.304,1 | 1.232,3 | 0,94 |
+| C: P2 N=3 | 2.041,8 | 1.827,6 | 0,90 |
+| C: P2 N=9 | 2.010,7 | 1.818,8 | 0,90 |
+| C: P2 N=27 | 2.040,2 | 1.808,4 | 0,89 |
+
+- **MySQL không tăng tốc khi thêm CPU:** hệ số 0,89–0,94 (ngược lại: cỡ 24 vCPU chậm hơn cỡ 20 vCPU 6–11%, p99 cao hơn 7–58% tùy nhóm). So với TiDB 3 TiKV ÷ 1 TiKV: 1,98–2,82. Lượt 24 vCPU nằm trong cùng khoảng ba lần lặp chặt (chênh nội bộ vài %), nên khác biệt giữa hai cỡ lớn hơn nhiễu lặp.
+- **Nguyên nhân chưa được kiểm chứng.** Giả thuyết: MySQL bị chặn bởi ghi log bền (`sync_binlog=1` + `innodb_flush_log_at_trx_commit=1` trên một EBS), không phải CPU, nên thêm vCPU không giúp. Chưa giải thích được vì sao cỡ lớn chậm hơn; hai yếu tố gây nhiễu chưa tách được: (1) buffer pool khác nhau (3 GiB so với 1 GiB, cố ý theo cache TiKV, `docs/assumptions.md`) và (2) **thứ tự đo** (24 vCPU đo trước, 20 vCPU đo sau trên cùng dataset). Cần một lượt đối chứng (đo lại 24 vCPU sau 20 vCPU, hoặc cùng buffer pool) trước khi kết luận về nguyên nhân.
+- **Warmup:** `results/official/warmup-analysis-mysql.md`; trung vị ramp 1,03 (20 vCPU) và 0,99 (24 vCPU).
