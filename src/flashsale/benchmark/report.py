@@ -13,13 +13,16 @@ from .metrics import warmup_stability
 
 INDEX_COLUMNS = [
     "run_id", "engine", "version", "profile", "label", "repetition", "concurrency", "warehouse_mode", "theta",
-    "hot_item", "variant", "slots", "order_id_batch", "arrival_rate", "migration_strategy", "old_order_read_pct", "migration_duration_seconds", "lock_order", "nowait", "txn_mode", "mongo_design", "stored_procedure", "tikv_count", "orders_key", "placement", "placement_scope", "order_warehouses",
+    "hot_item", "variant", "slots", "order_id_batch", "arrival_rate", "migration_strategy", "old_order_read_pct",
+    "migration_batch_size", "migration_duration_seconds", "lock_order", "nowait", "txn_mode", "mongo_design",
+    "stored_procedure", "tikv_count", "orders_key", "placement", "placement_scope", "order_warehouses",
     "warehouse_groups", "vcpus", "inventory_mode", "payment_ytd", "idempotency", "client_timeout_seconds", "tps", "p50_ms",
     "p95_ms", "p99_ms", "abort_pct", "out_of_stock_pct", "retry_pct", "validation", "git_commit",
     "warmup_drift_pct", "loadgen_cpu_pct", "environment_mode", "run_note"]
 GROUP_KEYS = ("engine", "profile", "concurrency", "warehouse_mode", "theta", "hot_item", "variant", "slots",
-              "order_id_batch", "arrival_rate", "migration_strategy", "old_order_read_pct", "migration_duration_seconds", "lock_order", "nowait", "txn_mode", "mongo_design", "stored_procedure",
-              "migration_strategy", "old_order_read_pct", "tikv_count", "orders_key", "placement", "placement_scope", "order_warehouses", "warehouse_groups",
+              "order_id_batch", "arrival_rate", "migration_strategy", "old_order_read_pct", "migration_batch_size",
+              "lock_order", "nowait", "txn_mode", "mongo_design", "stored_procedure",
+              "tikv_count", "orders_key", "placement", "placement_scope", "order_warehouses", "warehouse_groups",
               "vcpus", "payment_ytd", "idempotency", "run_note")
 WARMUP_DRIFT_LIMIT_PCT = 10.0
 
@@ -58,6 +61,7 @@ def collect(results_dir: Path) -> list[dict[str, Any]]:
             "warehouse_groups": _config(manifest, "warehouse_groups", 0),
             "migration_strategy": result.get("migration_strategy", "none"),
             "old_order_read_pct": result.get("old_order_read_pct", 0.0),
+            "migration_batch_size": result.get("migration_batch_size") or (result.get("migration") or {}).get("batch_size"),
             "migration_duration_seconds": (result.get("migration") or {}).get("duration_seconds"),
             "payment_ytd": manifest.get("config", {}).get("payment_ytd"),
             "idempotency": result.get("idempotency", True),

@@ -203,6 +203,7 @@ def write_result(directory: Path, result: dict) -> None:
             "stored_procedure": result.get("stored_procedure", False),
             "migration_strategy": result.get("migration_strategy", "none"),
             "old_order_read_pct": result.get("old_order_read_pct", 0.0),
+            "migration_batch_size": result.get("migration_batch_size"),
             "migration_duration_seconds": (result.get("migration") or {}).get("duration_seconds")
             if phase == "measurement" else None,
             "order_id_batch": result.get("order_id_batch", 0),
