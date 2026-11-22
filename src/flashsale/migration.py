@@ -284,14 +284,22 @@ def migrate_background(db: Adapter, cfg: Settings, item_prices: dict[int, int] |
                         batches += 1
         else:
             # P2 (Batch) và P3 (Lazy luồng nền): chia theo khoảng khóa chính (~10 dòng/đơn), nghỉ giữa các lô.
+            # Ở P3 (Lazy), luồng nền chạy với tốc độ giới hạn hơn khi tải cao (nghỉ gấp 2,5 lần P2 trong cửa sổ đo)
+            # để nhường I/O cho giao dịch nghiệp vụ và chuyển lười theo yêu cầu (trang 21).
             orders_step = max(1, cfg.migration_batch_size // 10)
             if ds.initial_orders < orders_step:
                 orders_step = max(1, ds.initial_orders // 2)
-            sleep_s = cfg.migration_sleep_ms / 1000.0
+            effective_sleep_ms = (max(cfg.migration_sleep_ms * 2.5, 50.0)
+                                  if strategy == "lazy" and cfg.migration_sleep_ms > 0
+                                  else cfg.migration_sleep_ms)
+            sleep_s = effective_sleep_ms / 1000.0
             for w in range(1, ds.warehouses + 1):
                 for d in range(1, ds.districts + 1):
-                    for low in range(1, ds.initial_orders + 1, orders_step):
-                        high = min(low + orders_step - 1, ds.initial_orders)
+                    low = 1
+                    while low <= ds.initial_orders:
+                        in_window = deadline is None or time.monotonic() < deadline
+                        step = orders_step if in_window else max(orders_step, min(ds.initial_orders, 500))
+                        high = min(low + step - 1, ds.initial_orders)
                         if hasattr(db, "query"):
                             aff, ret = _sql_update_range(db, w, d, low, high)
                             migrated += aff
@@ -306,8 +314,9 @@ def migrate_background(db: Adapter, cfg: Settings, item_prices: dict[int, int] |
                             migrated += aff
                             conflicts += conf
                         batches += 1
+                        low = high + 1
                         # Khi còn trong cửa sổ đo thì nghỉ theo cấu hình; hết cửa sổ đo thì vét nốt không nghỉ để hoàn tất 100%.
-                        if sleep_s > 0 and (deadline is None or time.monotonic() < deadline):
+                        if sleep_s > 0 and in_window:
                             time.sleep(sleep_s)
     finally:
         if migrating_flag is not None:
