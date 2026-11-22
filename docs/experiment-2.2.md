@@ -90,3 +90,25 @@ TPS trung vị của ba lần lặp (p99 trung vị, ms trong ngoặc), một kh
 - **Lượt kiểm luật:** P1, P2, P3 đều VALID (3/3); P0 INVALID (0/1).
 - **Warmup:** `results/official/warmup-analysis-mysql.md`: 10/187 lượt ngoài khoảng ramp 0,9–1,1, không có lượt TPS thấp; trung vị ramp 0,99–1,03 nên giữ warmup 30 giây.
 - **Giới hạn:** T3 chưa đo; MongoDB chưa đo; số tuyệt đối không so với 2.1 (cùng W = 10 nhưng khác lượt chạy và cỡ máy).
+
+## Kết quả đo chính thức trên MongoDB (AWS, 2026-11-22)
+
+`results/official/2.2-aws/mongo/`: 135 lượt trên MongoDB 8.0.20, thiết kế (a) (giao dịch nhiều tài liệu, replica set một nút, `{w: majority, j: true}`), WiredTiger cache 3 GiB, m6i.8xlarge giới hạn 24 vCPU/60 GiB, W = 10, `configs/hotspot.toml`, warmup 30 s + đo 60 s, 3 lần lặp (chạy 11:37–16:25 giờ máy tải). **135/135 lượt VALID, kể cả P0** (khác MySQL, nơi 7 lượt P0 INVALID). Chưa có T3.
+
+TPS trung vị ba lần lặp (p99 trung vị, ms), một kho, P1 thiết kế (a):
+
+| Cấu hình | 8 client | 64 client | 256 client |
+| --- | --- | --- | --- |
+| θ = 0 | 538,5 (104) | 1.883,7 (346) | 2.421,0 (345) |
+| θ = 0,5 | 538,8 (103) | 1.879,8 (346) | 2.397,7 (345) |
+| θ = 0,7 | 538,0 (104) | 1.867,0 (346) | 2.373,2 (345) |
+| θ = 0,9 | 526,4 (109) | 1.698,1 (346) | 2.167,9 (345) |
+| một món | 402,9 (180) | 672,7 (338) | 789,5 (340) |
+
+- **Không có điểm gãy rõ trong θ ∈ [0, 0,7]**; θ = 0,9 thấp hơn ~10% ở 64 client; "một món" thấp hơn θ = 0 khoảng 2,8 lần ở 64 client (673 so với 1.884).
+- **T2 (một món, 64 client, lô mã 50):** P2 N=27 đạt 3.955 TPS (5,9 lần P1 = 672,7), N=9 đạt 2.854, N=3 đạt 1.603, N=1 đạt 807,5 (N=1 có lô mã hơn P1 một ít). Không lô mã ở N=9: 1.893, thấp hơn có lô (2.854): cấp mã đơn cũng là điểm nóng. Ở θ = 0,9: N=1 có lô 2.638 (+55% so với P1 1.698), N=3 2.997, N=9 3.060, N=27 3.169.
+- **T4, MongoDB thiết kế (b) (không giao dịch nhiều tài liệu), P1:** một món 128 client 8.354 TPS (p99 30 ms) so với (a) 845 (p99 341 ms), gấp ~9,9 lần; 32 client 2.797 so với 560. θ = 0,9, 128 client: (b) 5.839 so với (a) 2.157 (2,7 lần); 32 client 1.977 so với 1.268. Mọi lượt (b) VALID. Giới hạn (b) đã nêu ở trên: chưa thử giết tiến trình giữa trừ kho và ghi đơn.
+- **P0 trên MongoDB:** cả 6 điểm P0 (θ = 0 và 0,9, 8 và 64 client; một món 8/64 client) VALID, lượt kiểm luật P0 cũng VALID. Giải thích có thể là giao dịch nhiều tài liệu của MongoDB phát hiện xung đột ghi (WriteConflict) khi hai giao dịch cùng sửa một dòng tồn kho, nên "đọc rồi ghi" không mất cập nhật; chưa kiểm chứng riêng (chưa đọc bộ đếm lỗi `write_conflict` theo lượt cho kết luận này).
+- **Hằng số p99 ~340–350 ms** ở nhiều cấu hình (a) khác nhau (cả khi θ = 0): chưa rõ nguồn (có thể là chờ/backoff của giao dịch bị xung đột hoặc hàng đợi phía MongoDB); chưa điều tra, không suy diễn.
+- **Warmup:** `results/official/warmup-analysis-mongo.md`: 0/135 lượt ngoài khoảng ramp 0,9–1,1, trung vị ramp 1,00, CV trung vị 0,03; giữ warmup 30 giây.
+- **Giới hạn:** T3 chưa đo; số tuyệt đối không so với 2.1; so sánh giữa hệ dùng cỡ máy đã ghi ở `docs/assumptions.md`.
