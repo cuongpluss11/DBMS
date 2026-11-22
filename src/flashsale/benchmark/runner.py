@@ -423,6 +423,7 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
         "warehouse_groups": cfg.warehouse_groups, "placement_result": placement_evidence,
         "tikv_count": sum(name.startswith("tikv") for name in limits) or None,
         "migration_strategy": cfg.migration_strategy, "old_order_read_pct": cfg.old_order_read_pct,
+        "migration_batch_size": cfg.migration_batch_size if cfg.migration_strategy in ("batch", "lazy") else None,
         "migration": migration_result,
         "throttle_result": throttle_summary, "variant_setup": variant_setup,
         "client_timeout_seconds": cfg.client_timeout_seconds, "concurrency": cfg.concurrency, "warehouse_mode": cfg.warehouse_mode,
