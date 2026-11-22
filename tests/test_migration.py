@@ -263,3 +263,63 @@ def test_migration_settings_validation():
     ):
         with pytest.raises(ValueError):
             replace(base, **bad)
+
+
+def test_sql_eager_path_uses_warehouse_transaction_and_primary_key_prefix():
+    """Kiểm chứng nhánh SQL MySQL của prepare_migration, migrate_background(eager) và validate_migration."""
+    queries = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def execute(self, statement, params=()):
+            queries.append((statement, params))
+            return 30
+
+    class FakeConn:
+        def cursor(self):
+            return FakeCursor()
+
+    class FakeSQL:
+        tidb = False
+        connection = FakeConn()
+
+        @contextmanager
+        def atomic(self):
+            queries.append(("BEGIN", ()))
+            yield
+            queries.append(("COMMIT", ()))
+
+        def query(self, statement, params=()):
+            queries.append((statement, params))
+            if "SHOW COLUMNS" in statement:
+                return [{"Field": "ol_w_id"}] if "ALTER TABLE" not in str(queries) else [
+                    {"Field": "ol_discount"}, {"Field": "ol_mig_state"}
+                ]
+            if "COUNT(*)" in statement:
+                return [{"cnt": 0 if "ol_mig_state <> 'UNMIGRATED'" in statement else 60}]
+            if "SUM(" in statement:
+                return [{"old_rows": 60, "unmigrated": 0, "wrong_discount": 0}]
+            return []
+
+        def count(self, table):
+            return 60
+
+    db = FakeSQL()
+    ds = Dataset(1, 2, 10, 5, 3, 100)
+    prep = prepare_migration(db, ds)
+    assert prep["unmigrated_initial_rows"] == 60
+    assert any("ALTER TABLE order_line ADD COLUMN ol_discount" in q[0] for q in queries)
+
+    cfg = replace(read_settings(Path("configs/smoke.toml")), dataset=ds,
+                  migration_strategy="eager", migration_delay_seconds=0.0)
+    stats = migrate_background(db, cfg)
+    assert stats["migrated_background"] == 60 and stats["batches"] == 1
+    assert any("ol.ol_w_id = %s AND ol.ol_d_id = %s" in q[0] for q in queries)
+
+    check = validate_migration(db, ds, {"order_line": 60}, tagged_lines=0)
+    assert check["valid"] and check["unmigrated_rows"] == 0 and check["wrong_discount_rows"] == 0

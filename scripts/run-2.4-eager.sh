@@ -10,7 +10,13 @@ set -euo pipefail
 cd -- "$(dirname -- "$0")/.."
 
 if [[ ! -x .venv/bin/flashsale ]]; then
-    bash scripts/setup.sh
+    if ! bash scripts/setup.sh; then
+        printf 'Thiết lập .venv trực tiếp (cho phép VM 8 vCPU như m6i.2xlarge khi chờ duyệt quota)...\n' >&2
+        python3.12 -m venv .venv
+        .venv/bin/python -m pip install -r requirements-dev.txt
+        .venv/bin/python -m pip install --no-deps -e .
+        .venv/bin/python -m pytest -m 'not integration' -q
+    fi
 fi
 source .venv/bin/activate
 
