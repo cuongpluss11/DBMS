@@ -7,3 +7,9 @@ services:
     mem_limit: ${FLASHSALE_AWS_MEM:-24g}
     ports: !override
       - "0.0.0.0:${FLASHSALE_MONGO_PORT:-27018}:27017"
+    # MongoDB khuyen nghi nofile >= 64000. Mac dinh 1024 lam mongod het file descriptor khi >= ~256 client
+    # (P3 o 256 client: "Too many open files" roi mongod crash, 2026-11-22).
+    ulimits:
+      nofile:
+        soft: 64000
+        hard: 64000

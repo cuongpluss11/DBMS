@@ -1,0 +1,21 @@
+2026-11-22 18:49:16,543 INFO Bắt đầu mongo repetition=1 run_id=be80194bb2c04e728168a3e5977fc45b
+2026-11-22 18:53:55,741 ERROR run_id=be80194bb2c04e728168a3e5977fc45b lỗi giao thức: runner_failed: RuntimeError: Traceback (most recent call last):
+  File "/home/ubuntu/DBMS/src/flashsale/benchmark/runner.py", line 140, in group
+    warm, measured = result.result()
+                     ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/DBMS/src/flashsale/benchmark/runner.py", line 109, in client
+    barrier.wait()
+  File "/usr/lib/python3.12/threading.py", line 723, in wait
+    self._wait(timeout)
+  File "/usr/lib/python3.12/threading.py", line 763, in _wait
+    raise BrokenBarrierError
+threading.BrokenBarrierError
+; validation_failed: ServerSelectionTimeoutError: client is configured to connect to a replica set named 'flashsale' but this node belongs to a set named 'None', Timeout: 5.0s, Topology Description: <TopologyDescription id: 6b0339263f42b951a1109e34, topology_type: Single, servers: [<ServerDescription ('10.20.1.26', 27018) server_type: Unknown, rtt: None, error=ConfigurationError("client is configured to connect to a replica set named 'flashsale' but this node belongs to a set named 'None'")>]>

@@ -1,0 +1,21 @@
+2026-11-22 17:50:57,819 INFO Bắt đầu mongo repetition=1 run_id=7d002753024a43bd93f4a2a2a3432723
+2026-11-22 17:54:05,629 ERROR run_id=7d002753024a43bd93f4a2a2a3432723 lỗi giao thức: runner_failed: RuntimeError: Traceback (most recent call last):
+  File "/home/ubuntu/DBMS/src/flashsale/benchmark/runner.py", line 140, in group
+    warm, measured = result.result()
+                     ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/DBMS/src/flashsale/benchmark/runner.py", line 109, in client
+    barrier.wait()
+  File "/usr/lib/python3.12/threading.py", line 723, in wait
+    self._wait(timeout)
+  File "/usr/lib/python3.12/threading.py", line 763, in _wait
+    raise BrokenBarrierError
+threading.BrokenBarrierError
+
