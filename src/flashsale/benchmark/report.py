@@ -155,11 +155,12 @@ def markdown(summary: list[dict[str, Any]], warmup: list[dict[str, Any]],
             f"{item['valid']}/{item['runs']} | {_fmt(item['tps_median'])} ({_fmt(item['tps_min'])}–{_fmt(item['tps_max'])}) | "
             f"{_fmt(item['p99_median_ms'])} |")
     if speedup:
-        lines += ["", "## Hệ số tăng tốc (TiDB: 3 TiKV ÷ 1 TiKV; MySQL: 12 vCPU ÷ 8 vCPU)", "",
-                  "Chỉ ghép các nhóm giống hệt nhau về mọi tham số khác. 3 nghĩa là thêm máy hiệu quả hoàn hảo, 1 nghĩa "
-                  "là vô ích.", "",
+        lines += ["", "## Hệ số tăng tốc (TiDB: 3 TiKV ÷ 1 TiKV; MySQL: cỡ vCPU lớn ÷ cỡ vCPU nhỏ)", "",
+                  "Chỉ ghép các nhóm giống hệt nhau về mọi tham số khác. Cột \"TPS nhỏ\" là 1 TiKV (TiDB) hoặc cỡ vCPU "
+                  "nhỏ (MySQL); \"TPS lớn\" là 3 TiKV hoặc cỡ vCPU lớn. Tăng tốc bằng tỉ số cỡ (3 với TiDB; 24÷20 = 1,2 "
+                  "với MySQL) nghĩa là mở rộng hiệu quả hoàn hảo, bằng 1 nghĩa là thêm tài nguyên vô ích.", "",
                   "| engine | profile | client | kho | θ | hot | biến thể | slot | lô mã | vị trí | khóa orders | kho/đơn | "
-                  "TPS 1 TiKV | TPS 3 TiKV | tăng tốc |", "| " + " | ".join(["---"] * 15) + " |"]
+                  "TPS nhỏ | TPS lớn | tăng tốc |", "| " + " | ".join(["---"] * 15) + " |"]
         for item in speedup:
             lines.append(
                 f"| {item['engine']} | {item['profile']} | {item['concurrency']} | {item['warehouse_mode']} | "
