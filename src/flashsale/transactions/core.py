@@ -27,6 +27,7 @@ class TxnContext:
     design_b: bool = False
     stored_procedure: bool = False
     migration_strategy: str = "none"
+    migration_active: bool = True
     item_prices: dict[int, int] = field(default_factory=dict)
     migrated_on_demand: int = 0
     migration_conflicts: int = 0
@@ -261,7 +262,7 @@ def old_order(db: Adapter, req: Request, ctx: TxnContext | None = None) -> list[
         if price is None:
             price = required(db.one("item", {"i_id": line["ol_i_id"]}))["i_price"]
         discount = compute_discount(line["ol_quantity"], price)
-        if ctx is not None and ctx.migration_strategy == "lazy":
+        if ctx is not None and ctx.migration_strategy == "lazy" and ctx.migration_active:
             line_key = {
                 "ol_w_id": line["ol_w_id"], "ol_d_id": line["ol_d_id"],
                 "ol_o_id": line["ol_o_id"], "ol_number": line["ol_number"],
