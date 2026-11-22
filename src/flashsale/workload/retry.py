@@ -11,7 +11,7 @@ from .generator import Request
 MAX_RETRIES = 5
 ERRORS = ("timeout", "deadlock", "write_conflict", "connection", "duplicate_key",
           "transaction_abort", "database_error", "application_error", "out_of_stock",
-          "unknown_commit", "busy")
+          "unknown_commit", "busy", "lock_nowait")
 
 
 @dataclass(frozen=True)

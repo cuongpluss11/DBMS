@@ -1,0 +1,40 @@
+# Tổng hợp kết quả
+
+Trung vị, min–max của TPS thành công và trung vị p99 trên các lần lặp cùng cấu hình. `valid` là số lượt VALID trên tổng số lượt; lượt INVALID không được xếp hạng.
+
+| engine | profile | client | kho | θ | hot | biến thể | slot | lô mã | tốc độ đến | khóa thứ tự | nowait | chế độ giao dịch | Mongo | SP | ytd | idem | ghi chú | lượt | valid | TPS median (min–max) | p99 median ms |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| tidb | scaling | 64 | single-warehouse | 0.9 | False | p1 |  | 50 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 751.2 (732.9–754.0) | 754.0 |
+| tidb | scaling | 64 | single-warehouse | 0.9 | False | p2 | 27 | 50 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 2121.2 (1544.7–2187.9) | 73.3 |
+| tidb | scaling | 64 | single-warehouse | 0.9 | False | p2 | 3 | 50 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 1725.5 (1319.0–1736.8) | 387.8 |
+| tidb | scaling | 64 | single-warehouse | 0.9 | False | p2 | 9 | 50 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 2086.5 (1643.3–2301.1) | 95.4 |
+| tidb | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 2021.6 (1664.3–2158.2) | 132.8 |
+| tidb | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 1454.7 (1398.9–2045.7) | 202.3 |
+| tidb | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 1462.4 (1456.1–1795.6) | 203.3 |
+| tidb | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 1569.0 (1342.5–1828.7) | 163.1 |
+| tidb | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 1746.5 (1520.4–1764.7) | 135.0 |
+| tidb | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 1486.8 (1350.9–1789.2) | 157.5 |
+| tidb | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 1458.9 (1281.5–1579.9) | 209.2 |
+| tidb | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 1561.5 (1524.8–1620.2) | 189.0 |
+| tidb | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 1538.9 (1370.6–1610.2) | 183.4 |
+| tidb | scaling | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 2250.1 (2004.6–2323.4) | 102.3 |
+| tidb | scaling-autoinc | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 1682.3 (1636.1–1736.7) | 127.8 |
+| tidb | scaling-autorandom | 64 | uniform | 0.0 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True | m23-tidb3 | 3 | 3/3 | 2222.2 (1854.2–2227.1) | 104.2 |
+
+## Kiểm tra warmup 30 giây
+
+48/48 lượt có chuỗi TPS theo giây; 9 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
+
+| run_id | engine | profile | client | θ | drift % |
+| --- | --- | --- | --- | --- | --- |
+| 102530d2954e4cbcbcb4ef1649ad76f9 | tidb | scaling | 64 | 0.0 | 21.9 |
+| 2443655d560148dcad17f556119a401b | tidb | scaling | 64 | 0.0 | 24.4 |
+| 2af4a415cedc4b0e8c0447128a187e17 | tidb | scaling | 64 | 0.0 | -20.3 |
+| 5570624b6f2e4294b2ed956b4236857e | tidb | scaling | 64 | 0.0 | 21.7 |
+| 6e640cbdf3fe4e319e4df95ba781f8bc | tidb | scaling | 64 | 0.0 | -16.1 |
+| 8f1ed34bfd7145d98365911c49a97076 | tidb | scaling | 64 | 0.0 | 17.7 |
+| a53046f7d91b4dfea045bcc34872875e | tidb | scaling-autorandom | 64 | 0.0 | 14.8 |
+| d96f9e6f08f243649ba97e6a9e22dab7 | tidb | scaling | 64 | 0.0 | 11.6 |
+| e490a76b36ae4069a4ea7935bac1cc2c | tidb | scaling | 64 | 0.0 | -30.9 |
+
+Nếu có lượt lệch: kéo dài warmup cho MỌI hệ (đề, mục 2.1) rồi đo lại.

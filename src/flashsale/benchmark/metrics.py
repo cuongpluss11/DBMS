@@ -9,7 +9,7 @@ from typing import Any
 from flashsale.workload.generator import Request
 from flashsale.workload.retry import ERRORS, Outcome
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 def percentile(sorted_values: list[float], pct: int) -> float | None:
@@ -197,11 +197,14 @@ def write_result(directory: Path, result: dict) -> None:
                                             "warehouse_mode", "theta", "hot_item", "resource_limits")},
             "idempotency": result.get("idempotency", True),
             "variant": result.get("variant", "legacy"), "slots": result.get("slots"),
+            "arrival_rate": result.get("arrival_rate", 0.0), "lock_order": result.get("lock_order", False),
+            "nowait": result.get("nowait", False), "txn_mode": result.get("txn_mode", "default"),
+            "mongo_design": result.get("mongo_design", "a"),
+            "stored_procedure": result.get("stored_procedure", False),
             "migration_strategy": result.get("migration_strategy", "none"),
             "old_order_read_pct": result.get("old_order_read_pct", 0.0),
             "migration_duration_seconds": (result.get("migration") or {}).get("duration_seconds")
             if phase == "measurement" else None,
-            "arrival_rate": result.get("arrival_rate", 0.0),
             "order_id_batch": result.get("order_id_batch", 0),
             "client_timeout_seconds": result.get("client_timeout_seconds"),
             "phase": phase, **result[phase], **result["theoretical_selection"],

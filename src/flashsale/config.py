@@ -67,6 +67,31 @@ class Settings:
     p99_limit_ms: float = 500.0
     abort_limit_pct: float = 10.0
     limit_min: int = 1
+    # Mục 2.2, nhóm T4 (đòn bẩy riêng từng hệ; mặc định tắt = hành vi trước đó).
+    # lock_order: khóa/cập nhật các món của một đơn theo i_id tăng dần (MySQL, TiDB: tránh deadlock).
+    # nowait: SELECT ... FOR UPDATE NOWAIT trên dòng stock rồi thử lại (chỉ MySQL/TiDB, chỉ variant legacy).
+    # txn_mode: chế độ giao dịch của TiDB (default | optimistic | pessimistic).
+    lock_order: bool = False
+    nowait: bool = False
+    txn_mode: str = "default"
+    # Thiết kế MongoDB (đề mục 2.1): "a" = 9 collection + giao dịch nhiều tài liệu; "b" = nhúng order_line vào orders,
+    # trừ kho bằng một lệnh updateOne có điều kiện mỗi món, hoàn lại khi lỗi, KHÔNG có giao dịch nhiều tài liệu.
+    mongo_design: str = "a"
+    # T4 (MySQL): toàn bộ giao dịch đặt hàng trong MỘT stored procedure (một lần gọi qua mạng, khóa không bị giữ
+    # trong lúc chờ ứng dụng). Cùng logic khóa-rồi-ghi của `legacy`, nên chỉ dùng với variant legacy.
+    stored_procedure: bool = False
+    # Mục 2.3 (chỉ TiDB). Đơn nhiều kho (nhóm E, như TPC-C): mỗi đơn chạm [min, max] kho; nếu warehouse_groups > 0
+    # thì kho khác chỉ chọn trong cùng nhóm với kho nhà (W chia đều thành `warehouse_groups` nhóm liên tiếp).
+    order_warehouses_min: int = 1
+    order_warehouses_max: int = 1
+    warehouse_groups: int = 0
+    # Nhóm D: khóa chính của orders (composite = TPC-C; autoinc/auto_random = cột o_seq, UNIQUE phụ giữ khóa TPC-C).
+    orders_key: str = "composite"
+    # Đặt Region/leader: none (PD tự quyết) | spread (leader các kho rải đều các TiKV) | group (cả nhóm kho cùng một
+    # TiKV). Phạm vi: stock (cộng stock_slot của P2) hoặc all (thêm district, customer, orders, new_order, order_line).
+    placement: str = "none"
+    placement_scope: str = "stock"
+    placement_slot_items: int = 5
     # Mục 2.4 (Online Schema Evolution): mặc định tắt ("none", 0%) để mọi số đo 2.1–2.3 không đổi.
     migration_strategy: str = "none"
     old_order_read_pct: float = 0.0
@@ -89,6 +114,30 @@ class Settings:
         if (self.arrival_rate < 0 or self.queue_size < 1 or self.p99_limit_ms <= 0
                 or not 0 <= self.abort_limit_pct <= 100 or self.limit_min < 1):
             raise ValueError("Tham số tải vòng mở hoặc điều tiết không hợp lệ")
+        if self.txn_mode not in ("default", "optimistic", "pessimistic"):
+            raise ValueError("txn_mode phải là default, optimistic hoặc pessimistic")
+        if not 1 <= self.order_warehouses_min <= self.order_warehouses_max <= 4:
+            raise ValueError("Cần 1 <= order_warehouses_min <= order_warehouses_max <= 4")
+        if self.order_warehouses_max > 1 and (self.hot_item or self.stored_procedure or self.mongo_design != "a"
+                                              or self.warehouse_mode != "uniform"):
+            raise ValueError("Đơn nhiều kho cần kho nhà chọn đều (uniform), không hot_item, stored procedure hay (b)")
+        if self.warehouse_groups < 0 or self.placement_slot_items < 1:
+            raise ValueError("warehouse_groups không âm, placement_slot_items dương")
+        if self.orders_key not in ("composite", "autoinc", "auto_random"):
+            raise ValueError("orders_key phải là composite, autoinc hoặc auto_random")
+        if self.placement not in ("none", "spread", "group") or self.placement_scope not in ("stock", "all"):
+            raise ValueError("placement hoặc placement_scope không hợp lệ")
+        if self.placement == "group" and self.warehouse_groups < 1:
+            raise ValueError("placement group cần warehouse_groups >= 1")
+        if self.mongo_design not in ("a", "b"):
+            raise ValueError("mongo_design phải là a hoặc b")
+        if self.mongo_design == "b" and self.variant != "p1":
+            raise ValueError("Thiết kế (b) là P1 từng món không giao dịch: dùng variant p1")
+        if self.stored_procedure and (self.variant != "legacy" or self.nowait or self.mongo_design != "a"
+                                      or self.order_id_batch):
+            raise ValueError("stored_procedure chỉ dùng với variant legacy, không kèm nowait, thiết kế (b) hay lô mã đơn")
+        if self.nowait and self.variant != "legacy":
+            raise ValueError("nowait chỉ có nghĩa với variant legacy (P1 là một lệnh cập nhật, không có đọc khóa)")
         if self.client_timeout_seconds <= 0:
             raise ValueError("client_timeout_seconds phải dương")
         if self.warehouse_mode not in {"uniform", "single-warehouse"}:

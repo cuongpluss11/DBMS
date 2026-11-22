@@ -110,7 +110,9 @@ def test_every_profile_loads_and_matches_the_document():
     for name, cfg in profiles.items():
         if name == "smoke":
             continue
-        assert (cfg.dataset.warehouses, cfg.dataset.districts, cfg.dataset.items) == (10, 10, 100000)
+        # Mục 2.3 dùng W = 12 (3 nhóm × 4 kho cho nhóm E; đề cho phép tăng W); mọi profile khác W = 10.
+        wanted = 12 if name.startswith("scaling") else 10
+        assert (cfg.dataset.warehouses, cfg.dataset.districts, cfg.dataset.items) == (wanted, 10, 100000)
         assert (cfg.warmup_seconds, cfg.measurement_seconds) == (30, 60)
     assert profiles["baseline"].theta == 0 and profiles["baseline"].warehouse_mode == "uniform"
     assert profiles["baseline-single-warehouse"].warehouse_mode == "single-warehouse"

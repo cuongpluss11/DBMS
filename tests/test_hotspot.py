@@ -285,3 +285,187 @@ def test_summary_reports_slot_attempts_per_item():
     assert phase.summary(1)["slot_attempts_per_item"] is None
     phase.slot_attempts, phase.slot_items = 30, 20
     assert phase.summary(1)["slot_attempts_per_item"] == 1.5
+
+
+def test_t4_lock_order_sorts_items_and_nowait_is_forwarded(monkeypatch):
+    lookup_free(monkeypatch)
+    db = MemDB()
+    execute(db, order([(4, 1), (1, 1), (3, 1)]), TxnContext("p1", lock_order=True))
+    assert [row["ol_i_id"] for row in db.tables["order_line"]] == [1, 3, 4]
+    unordered = MemDB()
+    execute(unordered, order([(4, 1), (1, 1), (3, 1)], 1), TxnContext("p1"))
+    assert [row["ol_i_id"] for row in unordered.tables["order_line"]] == [4, 1, 3]
+
+    seen = []
+
+    class Recording(MemDB):
+        def one(self, table, key, *, lock=False, nowait=False):
+            seen.append((table, lock, nowait))
+            return super().one(table, key, lock=lock)
+
+    execute(Recording(), order([(1, 1)], 2), TxnContext(nowait=True))
+    assert ("stock", True, True) in seen and ("district", True, False) in seen
+    assert TxnContext().is_2_1 and not TxnContext(lock_order=True).is_2_1 and not TxnContext(nowait=True).is_2_1
+
+
+def test_t4_settings_and_error_classification():
+    from dataclasses import replace
+    from pathlib import Path
+    import pymysql
+    from flashsale.adapters.sql import classify
+    from flashsale.config import read_settings
+    base = read_settings(Path("configs/smoke.toml"))
+    assert replace(base, nowait=True, lock_order=True, txn_mode="optimistic").nowait
+    for bad in (dict(variant="p1", nowait=True), dict(txn_mode="fast")):
+        with pytest.raises(ValueError):
+            replace(base, **bad)
+    error = classify(pymysql.err.OperationalError(3572, "Statement aborted because lock(s) could not be acquired"))
+    assert (error.category, error.retryable) == ("lock_nowait", True)
+
+
+class DupKey(Exception):
+    pass
+
+
+class DesignBDB(MemDB):
+    """MemDB với các nguyên liệu riêng của MongoDB thiết kế (b)."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.fail_insert = None   # None | "duplicate" | "ambiguous"
+        self.lookup_fails = False
+
+    def take_counter(self, table, key, field, step=1):
+        row = self.match(table, key)[0]
+        value = row[field]
+        row[field] += step
+        return value
+
+    def as_db_error(self, exc):
+        return DBError("duplicate_key", True) if isinstance(exc, DupKey) else exc
+
+    def insert(self, table, row):
+        if table == "orders" and self.fail_insert == "duplicate":
+            raise DupKey()
+        if table == "orders" and self.fail_insert == "ambiguous":
+            super().insert(table, row)      # đã ghi nhưng báo lỗi (kết quả không xác định)
+            raise TimeoutError("lost ack")
+        super().insert(table, row)
+
+
+def test_design_b_commits_one_order_document_with_embedded_lines_and_no_transaction(monkeypatch):
+    lookup_free(monkeypatch)
+    db = DesignBDB(initial_next=50)
+    execute(db, order([(1, 3), (2, 4)]), TxnContext("p1", design_b=True))  # MemDB.atomic không được gọi
+    assert "begin" not in db.calls
+    assert (db.quantity(1), db.quantity(2)) == (7, 6)
+    document = db.tables["orders"][0]
+    assert document["o_id"] == 50 and [l["ol_i_id"] for l in document["order_lines"]] == [1, 2]
+    assert db.count("order_line") == 0 and db.count("new_order") == 1
+    assert db.match("district", {})[0]["d_next_o_id"] == 51
+
+
+def test_design_b_refunds_deducted_items_when_a_later_item_is_out_of_stock(monkeypatch):
+    lookup_free(monkeypatch)
+    db = DesignBDB(inventory=5)
+    with pytest.raises(DBError) as error:
+        execute(db, order([(1, 3), (2, 6)]), TxnContext("p1", design_b=True))
+    assert error.value.category == "out_of_stock"
+    assert (db.quantity(1), db.quantity(2)) == (5, 5)
+    stock = db.match("stock", {"s_i_id": 1})[0]
+    assert (stock["s_ytd"], stock["s_order_cnt"]) == (0, 0)
+    assert db.count("orders") == 0 and db.count("new_order") == 0
+
+
+def test_design_b_duplicate_request_refunds_and_is_reported_as_duplicate(monkeypatch):
+    lookup_free(monkeypatch)
+    db = DesignBDB()
+    db.fail_insert = "duplicate"
+    with pytest.raises(DBError) as error:
+        execute(db, order([(1, 3)]), TxnContext("p1", design_b=True))
+    assert error.value.category == "duplicate_key" and db.quantity(1) == 10
+
+
+def test_design_b_ambiguous_insert_keeps_stock_only_if_the_order_exists(monkeypatch):
+    db = DesignBDB()
+    db.fail_insert = "ambiguous"
+    state = {"present": True}
+    monkeypatch.setattr(core, "lookup", lambda database, req: ({"found": 1} if state["present"] else None)
+                        if not database.lookup_fails else (_ for _ in ()).throw(TimeoutError("read failed")))
+    execute(db, order([(1, 3)]), TxnContext("p1", design_b=True))   # đơn đã ghi: giữ kho, ghi tiếp new_order
+    assert db.quantity(1) == 7 and db.count("new_order") == 1
+    db2 = DesignBDB()
+    db2.fail_insert = "ambiguous"
+    db2.lookup_fails = True                                           # không đọc lại được: KHÔNG hoàn kho
+    with pytest.raises(TimeoutError):
+        execute(db2, order([(1, 3)]), TxnContext("p1", design_b=True))
+    assert db2.quantity(1) == 7
+
+
+def test_design_b_settings_and_validator_use_embedded_lines():
+    from dataclasses import replace
+    from pathlib import Path
+    from flashsale.config import read_settings
+    from flashsale.validation.checks import validate
+    base = read_settings(Path("configs/smoke.toml"))
+    assert replace(base, variant="p1", mongo_design="b").mongo_design == "b"
+    for bad in (dict(mongo_design="b"), dict(mongo_design="c")):
+        with pytest.raises(ValueError):
+            replace(base, **bad)
+
+    class Fake:
+        def __init__(self):
+            self.asked = []
+
+        def rows(self, table, fields, tagged=False):
+            self.asked.append(table)
+            if table == "stock":
+                return iter([dict(s_w_id=1, s_i_id=i, s_quantity=10 - (3 if i == 1 else 0)) for i in range(1, 4)])
+            return iter([dict(o_w_id=1, o_d_id=1, o_id=2, o_ol_cnt=1, request_id="run-a", run_id="run")])
+
+        def embedded_lines(self):
+            self.asked.append("embedded")
+            return iter([dict(ol_w_id=1, ol_d_id=1, ol_o_id=2, ol_number=1, ol_supply_w_id=1, ol_i_id=1,
+                              ol_quantity=3, run_id="run")])
+
+        def count(self, table):
+            return {"orders": 1, "new_order": 1, "order_line": 0}[table]
+
+        def doc_reconciliation(self, inventory, initial_orders, embedded=False):
+            assert embedded
+            return []
+
+    fake = Fake()
+    report = validate(fake, Dataset(1, 1, 3, 1, 1, 10), "run", ["run-a"],
+                      {"orders": 0, "new_order": 0, "order_line": 0}, embedded=True)
+    assert report["status"] == "VALID", report["errors"]
+    assert "embedded" in fake.asked and "order_line" not in fake.asked
+
+
+def test_stored_procedure_path_is_one_call_without_app_transaction_and_validates_settings(monkeypatch):
+    from dataclasses import replace
+    from pathlib import Path
+    from flashsale.adapters.sql import NEW_ORDER_PROCEDURE, classify
+    from flashsale.config import read_settings
+    import pymysql
+    calls = []
+
+    class Proc(MemDB):
+        def call_new_order(self, *args):
+            calls.append(args)
+
+    lookup_free(monkeypatch)
+    db = Proc()
+    execute(db, order([(4, 1), (1, 2)]), TxnContext(stored_procedure=True, lock_order=True))
+    assert len(calls) == 1 and "begin" not in db.calls
+    assert calls[0][5] == [(1, 2), (4, 1)]                      # lock_order sắp xếp trước khi gọi
+    assert not TxnContext(stored_procedure=True).is_2_1
+    assert "FOR UPDATE" in NEW_ORDER_PROCEDURE and "START TRANSACTION" in NEW_ORDER_PROCEDURE
+    assert "s_dist_10" in NEW_ORDER_PROCEDURE
+    error = classify(pymysql.err.OperationalError(1644, "out_of_stock"))
+    assert (error.category, error.retryable) == ("out_of_stock", False)
+    base = read_settings(Path("configs/smoke.toml"))
+    assert replace(base, stored_procedure=True, lock_order=True).stored_procedure
+    for bad in (dict(variant="p1"), dict(nowait=True), dict(order_id_batch=5)):
+        with pytest.raises(ValueError):
+            replace(base, stored_procedure=True, **bad)

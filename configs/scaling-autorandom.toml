@@ -1,0 +1,31 @@
+# Mục 2.3 (TiDB: thêm máy có cứu được Flash-sale không?). W = 12 (chia đều 3 nhóm × 4 kho cho nhóm E; đề cho phép
+# tăng W). Tồn 10^9 (lượt đo tốc độ), 64 client, mặc định P1, θ = 0, kho đều, tách Region theo kho và rải leader.
+# Nhóm, θ, số slot, số kho mỗi đơn... đổi bằng tùy chọn CLI (xem scripts/run-matrix-2.3.sh).
+label = "scaling"
+workers_per_process = 8
+concurrency = 64
+warehouse_mode = "uniform"
+theta = 0
+hot_item = false
+warmup_seconds = 30
+measurement_seconds = 60
+repetitions = 3
+seed = 2026
+payment_ytd = false
+jitter = false
+variant = "p1"
+slots = 1
+hot_items = 100
+order_id_batch = 0
+orders_key = "auto_random"
+placement = "spread"
+placement_scope = "stock"
+warehouse_groups = 3
+
+[dataset]
+warehouses = 12
+districts = 10
+items = 100000
+customers = 3000
+initial_orders = 3000
+inventory = 1000000000

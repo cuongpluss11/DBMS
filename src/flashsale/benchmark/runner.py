@@ -15,6 +15,8 @@ from uuid import uuid4
 from flashsale.adapters.base import Adapter, Endpoint, open_adapter
 from flashsale.config import Settings, uses_migration, uses_slots
 from flashsale.data.loader import prepare_slots
+from flashsale.data.placement import PD, apply_layout, hot_regions, unfreeze_scheduling
+from flashsale.infra import pd_url
 from flashsale.infra import cpu_sampler, setting
 from flashsale.migration import load_item_prices, migrate_background, prepare_migration
 from flashsale.validation.checks import validate
@@ -33,6 +35,8 @@ def make_context(cfg: Settings, zipf: Zipf, repetition: int, worker: int,
     ctx = TxnContext(cfg.variant, cfg.slots,
                      frozenset(zipf.item_ids[:cfg.hot_items]) if uses_slots(cfg.variant) else frozenset(),
                      cfg.order_id_batch, rng=Random(f"{cfg.seed}:{repetition}:{worker}:slots"),
+                     lock_order=cfg.lock_order, nowait=cfg.nowait, design_b=cfg.mongo_design == "b",
+                     stored_procedure=cfg.stored_procedure,
                      migration_strategy=cfg.migration_strategy, item_prices=item_prices or {})
     return None if ctx.is_2_1 else ctx
 
@@ -50,7 +54,7 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
 
     db = None
     try:
-        db = open_adapter(endpoint, timeout=cfg.client_timeout_seconds)
+        db = open_adapter(endpoint, timeout=cfg.client_timeout_seconds, txn_mode=cfg.txn_mode)
         jitter = Random(f"{cfg.seed}:{repetition}:{worker}:jitter") if cfg.jitter else None
         ctx = make_context(cfg, zipf, repetition, worker, item_prices=item_prices)
         phases = []
@@ -318,6 +322,12 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
                                    "limit_min": cfg.limit_min, "limit_max": cfg.concurrency}
                                   if cfg.variant == "p3" else None), "prepare_seconds": None}
     throttle_summary = None
+    if evidence["indexed"] and cfg.stored_procedure:
+        try:
+            db.install_procedures()
+        except Exception as exc:
+            evidence = {**evidence, "indexed": False}
+            protocol_errors.append(f"procedure_install_failed: {type(exc).__name__}: {exc}")
     if evidence["indexed"] and uses_slots(cfg.variant):
         began = time.monotonic()
         try:
@@ -326,6 +336,19 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
         except Exception as exc:
             evidence = {**evidence, "indexed": False}
             protocol_errors.append(f"slot_prepare_failed: {type(exc).__name__}: {exc}")
+    placement_evidence = None
+    placed_pd = None
+    if evidence["indexed"] and cfg.placement != "none":
+        try:
+            if endpoint.engine != "tidb":
+                raise RuntimeError("placement chỉ áp dụng cho TiDB")
+            placed_pd = PD(pd_url())
+            placement_evidence = apply_layout(db, placed_pd, cfg, zipf.item_ids,
+                                              cfg.slots if uses_slots(cfg.variant) else None)
+        except Exception as exc:
+            evidence = {**evidence, "indexed": False}
+            protocol_errors.append(f"placement_failed: {type(exc).__name__}: {exc}")
+            placed_pd = None
     if evidence["indexed"] and uses_migration(cfg.migration_strategy):
         began = time.monotonic()
         try:
@@ -364,6 +387,13 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
                 protocol_errors.append("unresolved_commit")
     elif not protocol_errors:
         protocol_errors.append("indexed_access_not_confirmed")
+    if placed_pd is not None:
+        # Khôi phục bộ lập lịch của PD dù lượt chạy thành công hay không; ghi Region nóng sau lượt đo.
+        placement_evidence["hot_regions_after"] = hot_regions(db)
+        try:
+            unfreeze_scheduling(placed_pd, placement_evidence["previous_schedule"])
+        except Exception as exc:
+            protocol_errors.append(f"placement_restore_failed: {type(exc).__name__}: {exc}")
     validation = {"status": "INVALID", "rules": dict.fromkeys(
         ("nonnegative", "reconciliation", "idempotency")), "errors": {}, "committed_orders": None}
     # With an incomplete client log, stock rules can still be checked and
@@ -371,7 +401,7 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
     if evidence["indexed"]:
         try:
             validation = validate(db, cfg.dataset, run_id, expected or (), dataset_state["counts"],
-                                  slots=uses_slots(cfg.variant),
+                                  slots=uses_slots(cfg.variant), embedded=cfg.mongo_design == "b",
                                   migration=uses_migration(cfg.migration_strategy))
             if expected is None:
                 validation["rules"]["idempotency"] = None
@@ -386,6 +416,12 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
         "version": server["version"], "label": cfg.label, "repetition": repetition,
         "seed": cfg.seed, "idempotency": cfg.idempotency, "variant": cfg.variant, "slots": variant_setup["slots"],
         "hot_items": variant_setup["hot_items"], "order_id_batch": cfg.order_id_batch, "arrival_rate": cfg.arrival_rate,
+        "lock_order": cfg.lock_order, "nowait": cfg.nowait, "txn_mode": cfg.txn_mode,
+        "mongo_design": cfg.mongo_design, "stored_procedure": cfg.stored_procedure,
+        "placement": cfg.placement, "placement_scope": cfg.placement_scope, "orders_key": cfg.orders_key,
+        "order_warehouses": [cfg.order_warehouses_min, cfg.order_warehouses_max],
+        "warehouse_groups": cfg.warehouse_groups, "placement_result": placement_evidence,
+        "tikv_count": sum(name.startswith("tikv") for name in limits) or None,
         "migration_strategy": cfg.migration_strategy, "old_order_read_pct": cfg.old_order_read_pct,
         "migration": migration_result,
         "throttle_result": throttle_summary, "variant_setup": variant_setup,
