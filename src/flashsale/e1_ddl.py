@@ -393,7 +393,7 @@ def run_e1_once(target: Endpoint, cfg: Settings, scenario: str, repetition: int,
             "old_order_read_pct": run_cfg.old_order_read_pct,
             "warmup": warm_summary,
             "measurement": meas_summary,
-            "warmup_stability": warmup_stability(tps_series),
+            "warmup_stability": warmup_stability(tps_series["warmup"], tps_series["measurement"]),
             "ddl": {
                 **(ddl_box["result"] or {}),
                 "start_second": ddl_box["start_second"],

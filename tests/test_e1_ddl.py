@@ -67,9 +67,13 @@ class FakeMongoAdapter:
 
 
 def test_compute_max_freeze_seconds() -> None:
+    from flashsale.benchmark.metrics import warmup_stability
+
     assert compute_max_freeze_seconds([1200.0, 1150.0, 0.0, 0.0, 0.0, 900.0, 0.0, 0.0]) == 3
     assert compute_max_freeze_seconds([500.0, 600.0, 700.0]) == 0
     assert compute_max_freeze_seconds([]) == 0
+    ws = warmup_stability([100.0] * 10, [100.0] * 10)
+    assert ws["drift_pct"] == 0.0
 
 
 def test_mysql_e1_instant_copy_index_and_cleanup() -> None:
