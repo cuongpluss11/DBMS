@@ -1,0 +1,1670 @@
+[
+  {
+    "schema_version": 5,
+    "run_id": "62a136051dc34dce8165096e2a365458",
+    "engine": "mysql",
+    "version": "8.4.8",
+    "label": "hotspot",
+    "repetition": 1,
+    "seed": 2026,
+    "idempotency": true,
+    "variant": "p0",
+    "slots": null,
+    "hot_items": null,
+    "order_id_batch": 0,
+    "arrival_rate": 0.0,
+    "lock_order": false,
+    "nowait": false,
+    "txn_mode": "default",
+    "mongo_design": "a",
+    "stored_procedure": false,
+    "placement": "none",
+    "placement_scope": "stock",
+    "orders_key": "composite",
+    "order_warehouses": [
+      1,
+      1
+    ],
+    "warehouse_groups": 0,
+    "placement_result": null,
+    "tikv_count": null,
+    "migration_strategy": "none",
+    "old_order_read_pct": 0.0,
+    "migration": null,
+    "throttle_result": null,
+    "variant_setup": {
+      "variant": "p0",
+      "slots": null,
+      "hot_items": null,
+      "order_id_batch": 0,
+      "arrival_rate": 0.0,
+      "queue_size": null,
+      "throttle": null,
+      "prepare_seconds": null
+    },
+    "client_timeout_seconds": 15.0,
+    "concurrency": 8,
+    "warehouse_mode": "single-warehouse",
+    "theta": 0.9,
+    "hot_item": false,
+    "inventory_mode": "performance",
+    "resource_limits": {
+      "cpus": 24.0,
+      "memory_bytes": 64424509440
+    },
+    "theoretical_selection": {
+      "rank1_pct": 4.505990589609496,
+      "top100_pct": 28.958787085480257
+    },
+    "warmup": {
+      "seconds": 30,
+      "tps": 505.8,
+      "success": 15174,
+      "failed": 0,
+      "drained_requests": 8,
+      "new_order_success": 7587,
+      "payment_success": 7587,
+      "old_order_success": 0,
+      "p50_ms": 9.833054000409902,
+      "p95_ms": 39.20301499965717,
+      "p99_ms": 53.638272999705805,
+      "abort_pct": 0.0,
+      "rejected": 0,
+      "rejected_pct": 0.0,
+      "unserved_at_deadline": 0,
+      "queue_wait_mean_ms": null,
+      "queue_wait_p99_ms": null,
+      "out_of_stock_pct": 0.0,
+      "retry_pct": 0.006590220113351786,
+      "retry_attempts": 1,
+      "error_counts": {
+        "timeout": 0,
+        "deadlock": 1,
+        "write_conflict": 0,
+        "connection": 0,
+        "duplicate_key": 0,
+        "transaction_abort": 0,
+        "database_error": 0,
+        "application_error": 0,
+        "out_of_stock": 0,
+        "unknown_commit": 0,
+        "busy": 0,
+        "lock_nowait": 0
+      },
+      "failure_counts": {
+        "timeout": 0,
+        "deadlock": 0,
+        "write_conflict": 0,
+        "connection": 0,
+        "duplicate_key": 0,
+        "transaction_abort": 0,
+        "database_error": 0,
+        "application_error": 0,
+        "out_of_stock": 0,
+        "unknown_commit": 0,
+        "busy": 0,
+        "lock_nowait": 0
+      },
+      "request_error_pct": {
+        "timeout": 0.0,
+        "deadlock": 0.006590220113351786,
+        "write_conflict": 0.0
+      },
+      "rank_draws": 22863,
+      "observed_rank1_pct": 4.588199273936054,
+      "observed_top100_pct": 28.920089227135545,
+      "out_of_stock_all": 0,
+      "unknown_commits_all": 0,
+      "slot_attempts": null,
+      "slot_attempts_per_item": null,
+      "read_migrated_p99_ms": null,
+      "read_clean_p99_ms": null,
+      "migrated_on_demand": null,
+      "migration_conflicts": null
+    },
+    "measurement": {
+      "seconds": 60,
+      "tps": 507.78333333333336,
+      "success": 30467,
+      "failed": 0,
+      "drained_requests": 8,
+      "new_order_success": 15231,
+      "payment_success": 15236,
+      "old_order_success": 0,
+      "p50_ms": 9.772785000677686,
+      "p95_ms": 39.552809999804595,
+      "p99_ms": 53.10327999995934,
+      "abort_pct": 0.0,
+      "rejected": 0,
+      "rejected_pct": 0.0,
+      "unserved_at_deadline": 0,
+      "queue_wait_mean_ms": null,
+      "queue_wait_p99_ms": null,
+      "out_of_stock_pct": 0.0,
+      "retry_pct": 0.00656447960087964,
+      "retry_attempts": 2,
+      "error_counts": {
+        "timeout": 0,
+        "deadlock": 2,
+        "write_conflict": 0,
+        "connection": 0,
+        "duplicate_key": 0,
+        "transaction_abort": 0,
+        "database_error": 0,
+        "application_error": 0,
+        "out_of_stock": 0,
+        "unknown_commit": 0,
+        "busy": 0,
+        "lock_nowait": 0
+      },
+      "failure_counts": {
+        "timeout": 0,
+        "deadlock": 0,
+        "write_conflict": 0,
+        "connection": 0,
+        "duplicate_key": 0,
+        "transaction_abort": 0,
+        "database_error": 0,
+        "application_error": 0,
+        "out_of_stock": 0,
+        "unknown_commit": 0,
+        "busy": 0,
+        "lock_nowait": 0
+      },
+      "request_error_pct": {
+        "timeout": 0.0,
+        "deadlock": 0.00656447960087964,
+        "write_conflict": 0.0
+      },
+      "rank_draws": 45511,
+      "observed_rank1_pct": 4.420909230735426,
+      "observed_top100_pct": 28.913888949924193,
+      "out_of_stock_all": 0,
+      "unknown_commits_all": 0,
+      "slot_attempts": null,
+      "slot_attempts_per_item": null,
+      "read_migrated_p99_ms": null,
+      "read_clean_p99_ms": null,
+      "migrated_on_demand": null,
+      "migration_conflicts": null
+    },
+    "lock_wait_ms": 84403,
+    "server_deadlocks": 2,
+    "container_cpu_pct": {
+      "mysql": 68.59914958187962
+    },
+    "loadgen_cpu_pct": 117.33388609793137,
+    "resource_warnings": [],
+    "validation": {
+      "status": "INVALID",
+      "rules": {
+        "nonnegative": true,
+        "reconciliation": false,
+        "idempotency": true
+      },
+      "errors": {
+        "nonnegative": [],
+        "reconciliation": [
+          {
+            "warehouse": 1,
+            "item": 2634,
+            "stock_initial": 1000000000,
+            "stock_final": 999999987,
+            "sold": 23,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 4475,
+            "stock_initial": 1000000000,
+            "stock_final": 999999770,
+            "sold": 231,
+            "delta": -1
+          },
+          {
+            "warehouse": 1,
+            "item": 4739,
+            "stock_initial": 1000000000,
+            "stock_final": 999999131,
+            "sold": 910,
+            "delta": -41
+          },
+          {
+            "warehouse": 1,
+            "item": 5152,
+            "stock_initial": 1000000000,
+            "stock_final": 999999803,
+            "sold": 206,
+            "delta": -9
+          },
+          {
+            "warehouse": 1,
+            "item": 5229,
+            "stock_initial": 1000000000,
+            "stock_final": 999999963,
+            "sold": 43,
+            "delta": -6
+          },
+          {
+            "warehouse": 1,
+            "item": 5861,
+            "stock_initial": 1000000000,
+            "stock_final": 999997383,
+            "sold": 3034,
+            "delta": -417
+          },
+          {
+            "warehouse": 1,
+            "item": 6315,
+            "stock_initial": 1000000000,
+            "stock_final": 999999688,
+            "sold": 313,
+            "delta": -1
+          },
+          {
+            "warehouse": 1,
+            "item": 7321,
+            "stock_initial": 1000000000,
+            "stock_final": 999999992,
+            "sold": 10,
+            "delta": -2
+          },
+          {
+            "warehouse": 1,
+            "item": 7489,
+            "stock_initial": 1000000000,
+            "stock_final": 999999765,
+            "sold": 240,
+            "delta": -5
+          },
+          {
+            "warehouse": 1,
+            "item": 7585,
+            "stock_initial": 1000000000,
+            "stock_final": 999999877,
+            "sold": 124,
+            "delta": -1
+          },
+          {
+            "warehouse": 1,
+            "item": 7654,
+            "stock_initial": 1000000000,
+            "stock_final": 999999849,
+            "sold": 152,
+            "delta": -1
+          },
+          {
+            "warehouse": 1,
+            "item": 8797,
+            "stock_initial": 1000000000,
+            "stock_final": 999999524,
+            "sold": 494,
+            "delta": -18
+          },
+          {
+            "warehouse": 1,
+            "item": 9137,
+            "stock_initial": 1000000000,
+            "stock_final": 999999796,
+            "sold": 218,
+            "delta": -14
+          },
+          {
+            "warehouse": 1,
+            "item": 10561,
+            "stock_initial": 1000000000,
+            "stock_final": 999999879,
+            "sold": 138,
+            "delta": -17
+          },
+          {
+            "warehouse": 1,
+            "item": 11189,
+            "stock_initial": 1000000000,
+            "stock_final": 999999287,
+            "sold": 762,
+            "delta": -49
+          },
+          {
+            "warehouse": 1,
+            "item": 11497,
+            "stock_initial": 1000000000,
+            "stock_final": 999998691,
+            "sold": 1408,
+            "delta": -99
+          },
+          {
+            "warehouse": 1,
+            "item": 12629,
+            "stock_initial": 1000000000,
+            "stock_final": 999999867,
+            "sold": 136,
+            "delta": -3
+          },
+          {
+            "warehouse": 1,
+            "item": 13411,
+            "stock_initial": 1000000000,
+            "stock_final": 999999007,
+            "sold": 1023,
+            "delta": -30
+          },
+          {
+            "warehouse": 1,
+            "item": 13724,
+            "stock_initial": 1000000000,
+            "stock_final": 999999413,
+            "sold": 610,
+            "delta": -23
+          },
+          {
+            "warehouse": 1,
+            "item": 13744,
+            "stock_initial": 1000000000,
+            "stock_final": 999999501,
+            "sold": 504,
+            "delta": -5
+          },
+          {
+            "warehouse": 1,
+            "item": 14276,
+            "stock_initial": 1000000000,
+            "stock_final": 999999549,
+            "sold": 456,
+            "delta": -5
+          },
+          {
+            "warehouse": 1,
+            "item": 15197,
+            "stock_initial": 1000000000,
+            "stock_final": 999999736,
+            "sold": 272,
+            "delta": -8
+          },
+          {
+            "warehouse": 1,
+            "item": 17113,
+            "stock_initial": 1000000000,
+            "stock_final": 999999731,
+            "sold": 289,
+            "delta": -20
+          },
+          {
+            "warehouse": 1,
+            "item": 17484,
+            "stock_initial": 1000000000,
+            "stock_final": 999999903,
+            "sold": 100,
+            "delta": -3
+          },
+          {
+            "warehouse": 1,
+            "item": 17584,
+            "stock_initial": 1000000000,
+            "stock_final": 999999180,
+            "sold": 855,
+            "delta": -35
+          },
+          {
+            "warehouse": 1,
+            "item": 17709,
+            "stock_initial": 1000000000,
+            "stock_final": 999999613,
+            "sold": 397,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 18182,
+            "stock_initial": 1000000000,
+            "stock_final": 999999797,
+            "sold": 204,
+            "delta": -1
+          },
+          {
+            "warehouse": 1,
+            "item": 19727,
+            "stock_initial": 1000000000,
+            "stock_final": 999999817,
+            "sold": 192,
+            "delta": -9
+          },
+          {
+            "warehouse": 1,
+            "item": 19943,
+            "stock_initial": 1000000000,
+            "stock_final": 999999731,
+            "sold": 272,
+            "delta": -3
+          },
+          {
+            "warehouse": 1,
+            "item": 20198,
+            "stock_initial": 1000000000,
+            "stock_final": 999999982,
+            "sold": 19,
+            "delta": -1
+          },
+          {
+            "warehouse": 1,
+            "item": 20201,
+            "stock_initial": 1000000000,
+            "stock_final": 999999975,
+            "sold": 33,
+            "delta": -8
+          },
+          {
+            "warehouse": 1,
+            "item": 20826,
+            "stock_initial": 1000000000,
+            "stock_final": 999999892,
+            "sold": 112,
+            "delta": -4
+          },
+          {
+            "warehouse": 1,
+            "item": 21489,
+            "stock_initial": 1000000000,
+            "stock_final": 999999910,
+            "sold": 97,
+            "delta": -7
+          },
+          {
+            "warehouse": 1,
+            "item": 22220,
+            "stock_initial": 1000000000,
+            "stock_final": 999999966,
+            "sold": 35,
+            "delta": -1
+          },
+          {
+            "warehouse": 1,
+            "item": 22965,
+            "stock_initial": 1000000000,
+            "stock_final": 999999891,
+            "sold": 116,
+            "delta": -7
+          },
+          {
+            "warehouse": 1,
+            "item": 24105,
+            "stock_initial": 1000000000,
+            "stock_final": 999999916,
+            "sold": 91,
+            "delta": -7
+          },
+          {
+            "warehouse": 1,
+            "item": 24161,
+            "stock_initial": 1000000000,
+            "stock_final": 999998964,
+            "sold": 1076,
+            "delta": -40
+          },
+          {
+            "warehouse": 1,
+            "item": 25025,
+            "stock_initial": 1000000000,
+            "stock_final": 999999743,
+            "sold": 265,
+            "delta": -8
+          },
+          {
+            "warehouse": 1,
+            "item": 25526,
+            "stock_initial": 1000000000,
+            "stock_final": 999999963,
+            "sold": 47,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 25884,
+            "stock_initial": 1000000000,
+            "stock_final": 999998514,
+            "sold": 1599,
+            "delta": -113
+          },
+          {
+            "warehouse": 1,
+            "item": 28261,
+            "stock_initial": 1000000000,
+            "stock_final": 999997930,
+            "sold": 2341,
+            "delta": -271
+          },
+          {
+            "warehouse": 1,
+            "item": 28623,
+            "stock_initial": 1000000000,
+            "stock_final": 999999503,
+            "sold": 500,
+            "delta": -3
+          },
+          {
+            "warehouse": 1,
+            "item": 28927,
+            "stock_initial": 1000000000,
+            "stock_final": 999998791,
+            "sold": 1289,
+            "delta": -80
+          },
+          {
+            "warehouse": 1,
+            "item": 28929,
+            "stock_initial": 1000000000,
+            "stock_final": 999999857,
+            "sold": 149,
+            "delta": -6
+          },
+          {
+            "warehouse": 1,
+            "item": 29579,
+            "stock_initial": 1000000000,
+            "stock_final": 999999386,
+            "sold": 647,
+            "delta": -33
+          },
+          {
+            "warehouse": 1,
+            "item": 29706,
+            "stock_initial": 1000000000,
+            "stock_final": 999999682,
+            "sold": 342,
+            "delta": -24
+          },
+          {
+            "warehouse": 1,
+            "item": 30040,
+            "stock_initial": 1000000000,
+            "stock_final": 999993438,
+            "sold": 9141,
+            "delta": -2579
+          },
+          {
+            "warehouse": 1,
+            "item": 30200,
+            "stock_initial": 1000000000,
+            "stock_final": 999999865,
+            "sold": 145,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 30247,
+            "stock_initial": 1000000000,
+            "stock_final": 999997628,
+            "sold": 2633,
+            "delta": -261
+          },
+          {
+            "warehouse": 1,
+            "item": 31782,
+            "stock_initial": 1000000000,
+            "stock_final": 999999882,
+            "sold": 125,
+            "delta": -7
+          },
+          {
+            "warehouse": 1,
+            "item": 32300,
+            "stock_initial": 1000000000,
+            "stock_final": 999998088,
+            "sold": 2062,
+            "delta": -150
+          },
+          {
+            "warehouse": 1,
+            "item": 34043,
+            "stock_initial": 1000000000,
+            "stock_final": 999999714,
+            "sold": 288,
+            "delta": -2
+          },
+          {
+            "warehouse": 1,
+            "item": 34664,
+            "stock_initial": 1000000000,
+            "stock_final": 999999727,
+            "sold": 286,
+            "delta": -13
+          },
+          {
+            "warehouse": 1,
+            "item": 35021,
+            "stock_initial": 1000000000,
+            "stock_final": 999999735,
+            "sold": 266,
+            "delta": -1
+          },
+          {
+            "warehouse": 1,
+            "item": 35269,
+            "stock_initial": 1000000000,
+            "stock_final": 999999419,
+            "sold": 610,
+            "delta": -29
+          },
+          {
+            "warehouse": 1,
+            "item": 36761,
+            "stock_initial": 1000000000,
+            "stock_final": 999999573,
+            "sold": 450,
+            "delta": -23
+          },
+          {
+            "warehouse": 1,
+            "item": 36814,
+            "stock_initial": 1000000000,
+            "stock_final": 999999812,
+            "sold": 196,
+            "delta": -8
+          },
+          {
+            "warehouse": 1,
+            "item": 36905,
+            "stock_initial": 1000000000,
+            "stock_final": 999999618,
+            "sold": 394,
+            "delta": -12
+          },
+          {
+            "warehouse": 1,
+            "item": 38466,
+            "stock_initial": 1000000000,
+            "stock_final": 999999195,
+            "sold": 832,
+            "delta": -27
+          },
+          {
+            "warehouse": 1,
+            "item": 38699,
+            "stock_initial": 1000000000,
+            "stock_final": 999999930,
+            "sold": 78,
+            "delta": -8
+          },
+          {
+            "warehouse": 1,
+            "item": 38706,
+            "stock_initial": 1000000000,
+            "stock_final": 999999486,
+            "sold": 530,
+            "delta": -16
+          },
+          {
+            "warehouse": 1,
+            "item": 39182,
+            "stock_initial": 1000000000,
+            "stock_final": 999999163,
+            "sold": 898,
+            "delta": -61
+          },
+          {
+            "warehouse": 1,
+            "item": 39680,
+            "stock_initial": 1000000000,
+            "stock_final": 999999663,
+            "sold": 346,
+            "delta": -9
+          },
+          {
+            "warehouse": 1,
+            "item": 39992,
+            "stock_initial": 1000000000,
+            "stock_final": 999999996,
+            "sold": 14,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 40379,
+            "stock_initial": 1000000000,
+            "stock_final": 999999970,
+            "sold": 37,
+            "delta": -7
+          },
+          {
+            "warehouse": 1,
+            "item": 41745,
+            "stock_initial": 1000000000,
+            "stock_final": 999996118,
+            "sold": 4764,
+            "delta": -882
+          },
+          {
+            "warehouse": 1,
+            "item": 42030,
+            "stock_initial": 1000000000,
+            "stock_final": 999999343,
+            "sold": 668,
+            "delta": -11
+          },
+          {
+            "warehouse": 1,
+            "item": 42992,
+            "stock_initial": 1000000000,
+            "stock_final": 999998362,
+            "sold": 1746,
+            "delta": -108
+          },
+          {
+            "warehouse": 1,
+            "item": 43232,
+            "stock_initial": 1000000000,
+            "stock_final": 999999545,
+            "sold": 466,
+            "delta": -11
+          },
+          {
+            "warehouse": 1,
+            "item": 43662,
+            "stock_initial": 1000000000,
+            "stock_final": 999999321,
+            "sold": 701,
+            "delta": -22
+          },
+          {
+            "warehouse": 1,
+            "item": 44945,
+            "stock_initial": 1000000000,
+            "stock_final": 999999400,
+            "sold": 610,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 45296,
+            "stock_initial": 1000000000,
+            "stock_final": 999999932,
+            "sold": 72,
+            "delta": -4
+          },
+          {
+            "warehouse": 1,
+            "item": 45553,
+            "stock_initial": 1000000000,
+            "stock_final": 999999936,
+            "sold": 71,
+            "delta": -7
+          },
+          {
+            "warehouse": 1,
+            "item": 45965,
+            "stock_initial": 1000000000,
+            "stock_final": 999999613,
+            "sold": 404,
+            "delta": -17
+          },
+          {
+            "warehouse": 1,
+            "item": 46508,
+            "stock_initial": 1000000000,
+            "stock_final": 999999975,
+            "sold": 33,
+            "delta": -8
+          },
+          {
+            "warehouse": 1,
+            "item": 47232,
+            "stock_initial": 1000000000,
+            "stock_final": 999999593,
+            "sold": 414,
+            "delta": -7
+          },
+          {
+            "warehouse": 1,
+            "item": 48748,
+            "stock_initial": 1000000000,
+            "stock_final": 999990861,
+            "sold": 16534,
+            "delta": -7395
+          },
+          {
+            "warehouse": 1,
+            "item": 48815,
+            "stock_initial": 1000000000,
+            "stock_final": 999999877,
+            "sold": 133,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 49774,
+            "stock_initial": 1000000000,
+            "stock_final": 999999567,
+            "sold": 453,
+            "delta": -20
+          },
+          {
+            "warehouse": 1,
+            "item": 50202,
+            "stock_initial": 1000000000,
+            "stock_final": 999995125,
+            "sold": 6217,
+            "delta": -1342
+          },
+          {
+            "warehouse": 1,
+            "item": 50472,
+            "stock_initial": 1000000000,
+            "stock_final": 999999760,
+            "sold": 246,
+            "delta": -6
+          },
+          {
+            "warehouse": 1,
+            "item": 51940,
+            "stock_initial": 1000000000,
+            "stock_final": 999999907,
+            "sold": 98,
+            "delta": -5
+          },
+          {
+            "warehouse": 1,
+            "item": 52196,
+            "stock_initial": 1000000000,
+            "stock_final": 999999503,
+            "sold": 507,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 52350,
+            "stock_initial": 1000000000,
+            "stock_final": 999999311,
+            "sold": 724,
+            "delta": -35
+          },
+          {
+            "warehouse": 1,
+            "item": 53658,
+            "stock_initial": 1000000000,
+            "stock_final": 999998988,
+            "sold": 1053,
+            "delta": -41
+          },
+          {
+            "warehouse": 1,
+            "item": 54013,
+            "stock_initial": 1000000000,
+            "stock_final": 999999456,
+            "sold": 552,
+            "delta": -8
+          },
+          {
+            "warehouse": 1,
+            "item": 54882,
+            "stock_initial": 1000000000,
+            "stock_final": 999999836,
+            "sold": 172,
+            "delta": -8
+          },
+          {
+            "warehouse": 1,
+            "item": 55960,
+            "stock_initial": 1000000000,
+            "stock_final": 999999890,
+            "sold": 112,
+            "delta": -2
+          },
+          {
+            "warehouse": 1,
+            "item": 56601,
+            "stock_initial": 1000000000,
+            "stock_final": 999999626,
+            "sold": 407,
+            "delta": -33
+          },
+          {
+            "warehouse": 1,
+            "item": 56849,
+            "stock_initial": 1000000000,
+            "stock_final": 999999449,
+            "sold": 556,
+            "delta": -5
+          },
+          {
+            "warehouse": 1,
+            "item": 57400,
+            "stock_initial": 1000000000,
+            "stock_final": 999999937,
+            "sold": 68,
+            "delta": -5
+          },
+          {
+            "warehouse": 1,
+            "item": 59488,
+            "stock_initial": 1000000000,
+            "stock_final": 999999642,
+            "sold": 364,
+            "delta": -6
+          },
+          {
+            "warehouse": 1,
+            "item": 60737,
+            "stock_initial": 1000000000,
+            "stock_final": 999999900,
+            "sold": 102,
+            "delta": -2
+          },
+          {
+            "warehouse": 1,
+            "item": 62943,
+            "stock_initial": 1000000000,
+            "stock_final": 999999644,
+            "sold": 360,
+            "delta": -4
+          },
+          {
+            "warehouse": 1,
+            "item": 63081,
+            "stock_initial": 1000000000,
+            "stock_final": 999999654,
+            "sold": 352,
+            "delta": -6
+          },
+          {
+            "warehouse": 1,
+            "item": 63899,
+            "stock_initial": 1000000000,
+            "stock_final": 999999164,
+            "sold": 856,
+            "delta": -20
+          },
+          {
+            "warehouse": 1,
+            "item": 64341,
+            "stock_initial": 1000000000,
+            "stock_final": 999999837,
+            "sold": 172,
+            "delta": -9
+          },
+          {
+            "warehouse": 1,
+            "item": 64390,
+            "stock_initial": 1000000000,
+            "stock_final": 999998759,
+            "sold": 1345,
+            "delta": -104
+          },
+          {
+            "warehouse": 1,
+            "item": 65074,
+            "stock_initial": 1000000000,
+            "stock_final": 999999957,
+            "sold": 53,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 65799,
+            "stock_initial": 1000000000,
+            "stock_final": 999999739,
+            "sold": 275,
+            "delta": -14
+          },
+          {
+            "warehouse": 1,
+            "item": 67222,
+            "stock_initial": 1000000000,
+            "stock_final": 999999125,
+            "sold": 915,
+            "delta": -40
+          },
+          {
+            "warehouse": 1,
+            "item": 67323,
+            "stock_initial": 1000000000,
+            "stock_final": 999998345,
+            "sold": 1783,
+            "delta": -128
+          },
+          {
+            "warehouse": 1,
+            "item": 67925,
+            "stock_initial": 1000000000,
+            "stock_final": 999999468,
+            "sold": 550,
+            "delta": -18
+          },
+          {
+            "warehouse": 1,
+            "item": 68389,
+            "stock_initial": 1000000000,
+            "stock_final": 999999929,
+            "sold": 73,
+            "delta": -2
+          },
+          {
+            "warehouse": 1,
+            "item": 69864,
+            "stock_initial": 1000000000,
+            "stock_final": 999999605,
+            "sold": 401,
+            "delta": -6
+          },
+          {
+            "warehouse": 1,
+            "item": 70562,
+            "stock_initial": 1000000000,
+            "stock_final": 999999606,
+            "sold": 418,
+            "delta": -24
+          },
+          {
+            "warehouse": 1,
+            "item": 71329,
+            "stock_initial": 1000000000,
+            "stock_final": 999999622,
+            "sold": 383,
+            "delta": -5
+          },
+          {
+            "warehouse": 1,
+            "item": 72473,
+            "stock_initial": 1000000000,
+            "stock_final": 999999668,
+            "sold": 337,
+            "delta": -5
+          },
+          {
+            "warehouse": 1,
+            "item": 72599,
+            "stock_initial": 1000000000,
+            "stock_final": 999999983,
+            "sold": 23,
+            "delta": -6
+          },
+          {
+            "warehouse": 1,
+            "item": 73125,
+            "stock_initial": 1000000000,
+            "stock_final": 999999739,
+            "sold": 271,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 74278,
+            "stock_initial": 1000000000,
+            "stock_final": 999997207,
+            "sold": 3285,
+            "delta": -492
+          },
+          {
+            "warehouse": 1,
+            "item": 74311,
+            "stock_initial": 1000000000,
+            "stock_final": 999999988,
+            "sold": 14,
+            "delta": -2
+          },
+          {
+            "warehouse": 1,
+            "item": 74561,
+            "stock_initial": 1000000000,
+            "stock_final": 999998982,
+            "sold": 1046,
+            "delta": -28
+          },
+          {
+            "warehouse": 1,
+            "item": 74587,
+            "stock_initial": 1000000000,
+            "stock_final": 999999772,
+            "sold": 238,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 75024,
+            "stock_initial": 1000000000,
+            "stock_final": 999999389,
+            "sold": 633,
+            "delta": -22
+          },
+          {
+            "warehouse": 1,
+            "item": 75429,
+            "stock_initial": 1000000000,
+            "stock_final": 999996701,
+            "sold": 3770,
+            "delta": -471
+          },
+          {
+            "warehouse": 1,
+            "item": 75442,
+            "stock_initial": 1000000000,
+            "stock_final": 999999802,
+            "sold": 202,
+            "delta": -4
+          },
+          {
+            "warehouse": 1,
+            "item": 75752,
+            "stock_initial": 1000000000,
+            "stock_final": 999999238,
+            "sold": 776,
+            "delta": -14
+          },
+          {
+            "warehouse": 1,
+            "item": 76632,
+            "stock_initial": 1000000000,
+            "stock_final": 999999245,
+            "sold": 772,
+            "delta": -17
+          },
+          {
+            "warehouse": 1,
+            "item": 77022,
+            "stock_initial": 1000000000,
+            "stock_final": 999998626,
+            "sold": 1452,
+            "delta": -78
+          },
+          {
+            "warehouse": 1,
+            "item": 77034,
+            "stock_initial": 1000000000,
+            "stock_final": 999999807,
+            "sold": 196,
+            "delta": -3
+          },
+          {
+            "warehouse": 1,
+            "item": 77227,
+            "stock_initial": 1000000000,
+            "stock_final": 999999929,
+            "sold": 77,
+            "delta": -6
+          },
+          {
+            "warehouse": 1,
+            "item": 77526,
+            "stock_initial": 1000000000,
+            "stock_final": 999999412,
+            "sold": 615,
+            "delta": -27
+          },
+          {
+            "warehouse": 1,
+            "item": 78104,
+            "stock_initial": 1000000000,
+            "stock_final": 999999986,
+            "sold": 21,
+            "delta": -7
+          },
+          {
+            "warehouse": 1,
+            "item": 78922,
+            "stock_initial": 1000000000,
+            "stock_final": 999999239,
+            "sold": 815,
+            "delta": -54
+          },
+          {
+            "warehouse": 1,
+            "item": 80054,
+            "stock_initial": 1000000000,
+            "stock_final": 999999939,
+            "sold": 66,
+            "delta": -5
+          },
+          {
+            "warehouse": 1,
+            "item": 80138,
+            "stock_initial": 1000000000,
+            "stock_final": 999999669,
+            "sold": 339,
+            "delta": -8
+          },
+          {
+            "warehouse": 1,
+            "item": 80221,
+            "stock_initial": 1000000000,
+            "stock_final": 999999648,
+            "sold": 357,
+            "delta": -5
+          },
+          {
+            "warehouse": 1,
+            "item": 81238,
+            "stock_initial": 1000000000,
+            "stock_final": 999999883,
+            "sold": 127,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 81377,
+            "stock_initial": 1000000000,
+            "stock_final": 999999800,
+            "sold": 210,
+            "delta": -10
+          },
+          {
+            "warehouse": 1,
+            "item": 84408,
+            "stock_initial": 1000000000,
+            "stock_final": 999999694,
+            "sold": 320,
+            "delta": -14
+          },
+          {
+            "warehouse": 1,
+            "item": 86801,
+            "stock_initial": 1000000000,
+            "stock_final": 999999930,
+            "sold": 74,
+            "delta": -4
+          },
+          {
+            "warehouse": 1,
+            "item": 86867,
+            "stock_initial": 1000000000,
+            "stock_final": 999999668,
+            "sold": 343,
+            "delta": -11
+          },
+          {
+            "warehouse": 1,
+            "item": 87552,
+            "stock_initial": 1000000000,
+            "stock_final": 999999551,
+            "sold": 458,
+            "delta": -9
+          },
+          {
+            "warehouse": 1,
+            "item": 87602,
+            "stock_initial": 1000000000,
+            "stock_final": 999998022,
+            "sold": 2121,
+            "delta": -143
+          },
+          {
+            "warehouse": 1,
+            "item": 92195,
+            "stock_initial": 1000000000,
+            "stock_final": 999999841,
+            "sold": 165,
+            "delta": -6
+          },
+          {
+            "warehouse": 1,
+            "item": 92231,
+            "stock_initial": 1000000000,
+            "stock_final": 999998795,
+            "sold": 1241,
+            "delta": -36
+          },
+          {
+            "warehouse": 1,
+            "item": 92369,
+            "stock_initial": 1000000000,
+            "stock_final": 999999988,
+            "sold": 15,
+            "delta": -3
+          },
+          {
+            "warehouse": 1,
+            "item": 92820,
+            "stock_initial": 1000000000,
+            "stock_final": 999999993,
+            "sold": 8,
+            "delta": -1
+          },
+          {
+            "warehouse": 1,
+            "item": 92950,
+            "stock_initial": 1000000000,
+            "stock_final": 999999886,
+            "sold": 116,
+            "delta": -2
+          },
+          {
+            "warehouse": 1,
+            "item": 93672,
+            "stock_initial": 1000000000,
+            "stock_final": 999999387,
+            "sold": 620,
+            "delta": -7
+          },
+          {
+            "warehouse": 1,
+            "item": 93858,
+            "stock_initial": 1000000000,
+            "stock_final": 999999606,
+            "sold": 402,
+            "delta": -8
+          },
+          {
+            "warehouse": 1,
+            "item": 97213,
+            "stock_initial": 1000000000,
+            "stock_final": 999999798,
+            "sold": 205,
+            "delta": -3
+          },
+          {
+            "warehouse": 1,
+            "item": 97263,
+            "stock_initial": 1000000000,
+            "stock_final": 999999845,
+            "sold": 162,
+            "delta": -7
+          },
+          {
+            "warehouse": 1,
+            "item": 98862,
+            "stock_initial": 1000000000,
+            "stock_final": 999999762,
+            "sold": 252,
+            "delta": -14
+          },
+          {
+            "warehouse": 1,
+            "item": 99710,
+            "stock_initial": 1000000000,
+            "stock_final": 999999962,
+            "sold": 47,
+            "delta": -9
+          },
+          {
+            "warehouse": 1,
+            "item": 99891,
+            "stock_initial": 1000000000,
+            "stock_final": 999999896,
+            "sold": 111,
+            "delta": -7
+          },
+          {
+            "warehouse": 1,
+            "item": 99896,
+            "stock_initial": 1000000000,
+            "stock_final": 999999979,
+            "sold": 28,
+            "delta": -7
+          },
+          {
+            "doc_sql_check": [
+              {
+                "s_w_id": 1,
+                "s_i_id": 2634,
+                "s_quantity": 999999987,
+                "sold": "23"
+              },
+              {
+                "s_w_id": 1,
+                "s_i_id": 4475,
+                "s_quantity": 999999770,
+                "sold": "231"
+              },
+              {
+                "s_w_id": 1,
+                "s_i_id": 4739,
+                "s_quantity": 999999131,
+                "sold": "910"
+              },
+              {
+                "s_w_id": 1,
+                "s_i_id": 5152,
+                "s_quantity": 999999803,
+                "sold": "206"
+              },
+              {
+                "s_w_id": 1,
+                "s_i_id": 5229,
+                "s_quantity": 999999963,
+                "sold": "43"
+              }
+            ]
+          }
+        ],
+        "idempotency": []
+      },
+      "committed_orders": 22830,
+      "tagged_rows": {
+        "orders": 22830,
+        "order_line": 68079
+      },
+      "doc_check": {
+        "violations": 10,
+        "sample": [
+          {
+            "s_w_id": 1,
+            "s_i_id": 2634,
+            "s_quantity": 999999987,
+            "sold": "23"
+          },
+          {
+            "s_w_id": 1,
+            "s_i_id": 4475,
+            "s_quantity": 999999770,
+            "sold": "231"
+          },
+          {
+            "s_w_id": 1,
+            "s_i_id": 4739,
+            "s_quantity": 999999131,
+            "sold": "910"
+          },
+          {
+            "s_w_id": 1,
+            "s_i_id": 5152,
+            "s_quantity": 999999803,
+            "sold": "206"
+          },
+          {
+            "s_w_id": 1,
+            "s_i_id": 5229,
+            "s_quantity": 999999963,
+            "sold": "43"
+          }
+        ]
+      },
+      "protocol_errors": []
+    },
+    "tps_series": {
+      "warmup": [
+        495,
+        510,
+        497,
+        496,
+        527,
+        503,
+        509,
+        525,
+        528,
+        505,
+        508,
+        494,
+        501,
+        498,
+        512,
+        505,
+        496,
+        503,
+        524,
+        495,
+        499,
+        505,
+        485,
+        493,
+        505,
+        495,
+        513,
+        525,
+        524,
+        499
+      ],
+      "measurement": [
+        500,
+        503,
+        509,
+        521,
+        522,
+        504,
+        505,
+        512,
+        488,
+        496,
+        513,
+        495,
+        486,
+        492,
+        504,
+        526,
+        510,
+        517,
+        515,
+        516,
+        499,
+        508,
+        512,
+        517,
+        513,
+        515,
+        490,
+        505,
+        507,
+        533,
+        511,
+        500,
+        502,
+        499,
+        504,
+        493,
+        503,
+        510,
+        539,
+        519,
+        500,
+        509,
+        517,
+        526,
+        507,
+        498,
+        494,
+        492,
+        496,
+        480,
+        507,
+        518,
+        514,
+        512,
+        523,
+        525,
+        511,
+        502,
+        496,
+        527
+      ]
+    },
+    "p99_series": {
+      "warmup": [
+        60.75799399968673,
+        50.51082599948131,
+        56.355804999839165,
+        52.60011199970904,
+        53.05167500046082,
+        52.21523300042463,
+        46.704342999873916,
+        49.63007900005323,
+        48.72934600007284,
+        46.60766200049693,
+        47.27401999934955,
+        58.624553000299784,
+        54.94313899998815,
+        49.4965099996989,
+        50.69800399996893,
+        52.657189999990806,
+        58.04163599987078,
+        57.632275000287336,
+        51.88315000032162,
+        56.552750000264496,
+        50.36495600052149,
+        53.02272999961133,
+        56.7936160005047,
+        58.03630900027201,
+        58.285723000153666,
+        58.881893000034324,
+        52.27223800011416,
+        47.97496900027909,
+        51.85159000029671,
+        54.11741600073583
+      ],
+      "measurement": [
+        49.064752999584016,
+        51.821664000271994,
+        50.69828999967285,
+        43.79821099973924,
+        51.80663800001639,
+        48.64602300040133,
+        50.450165000256675,
+        56.4852539991989,
+        53.810280000107014,
+        58.24033899989445,
+        48.97298900050373,
+        67.76879699918936,
+        57.65434600016306,
+        57.57815400011168,
+        51.77995699978055,
+        57.09805500009679,
+        45.78136100008123,
+        50.27976899964415,
+        49.231676000090374,
+        57.60261000068567,
+        49.884777999977814,
+        56.53340200024104,
+        59.60251000033168,
+        52.80828600007226,
+        48.09475599995494,
+        49.633003999588254,
+        62.178440999559825,
+        58.7192769999092,
+        50.387625000439584,
+        48.03402699963044,
+        51.18548600057693,
+        52.157848000206286,
+        50.828698000259465,
+        53.886826999587356,
+        53.32366299990099,
+        65.30523400033417,
+        48.567155999990064,
+        52.071587000682484,
+        53.92280599971855,
+        51.858379999430326,
+        53.79945200002112,
+        54.82763200052432,
+        52.600535999772546,
+        52.3054699997374,
+        56.364685000517056,
+        59.07081599980302,
+        52.282285000728734,
+        57.1262729999944,
+        57.34162099997775,
+        57.63235700032965,
+        47.204986999531684,
+        48.44230500020785,
+        51.67744499976834,
+        48.53863900007127,
+        48.14409600021463,
+        49.876629000209505,
+        54.681849000189686,
+        47.7895099993475,
+        50.815028000215534,
+        53.10327999995934
+      ]
+    },
+    "warmup_stability": {
+      "window_seconds": 10,
+      "warmup_tail_tps": 502.0,
+      "measurement_head_tps": 504.5,
+      "drift_pct": 0.49800796812749004
+    }
+  }
+]

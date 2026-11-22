@@ -1,0 +1,11 @@
+09:29:12 Bắt đầu ma trận 2.3: engine=mysql tier=b dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-mysql24b
+09:29:12 Điểm 1: b-hot (configs/scaling.toml --variant p1 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+09:35:10 Xong 1 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-mysql24b/report
+{
+  "runs": 163,
+  "groups": 59,
+  "invalid": 7,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 15,
+  "out_dir": "/home/ubuntu/m23-mysql24b/report"
+}
