@@ -99,8 +99,8 @@ Cập nhật bảng mỗi ngày: `Chưa làm / Đang làm / Đã đo / Cắt`, g
 | 2.3 | Script đặt Region/leader, đơn nhiều kho, `AUTO_RANDOM` | Lực | Đang làm | Mã và unit test xong (PD/TiDB giả lập); đơn nhiều kho thử trên MySQL Docker; smoke TiDB 1 TiKV thật (AWS, sơ bộ): placement, PD API, AUTO_RANDOM/AUTO_INCREMENT hoạt động; chuyển leader giữa 3 TiKV cũng hoạt động (tidb3, sơ bộ); cần TiDB server lớn hơn trước khi đo hệ số tăng tốc; xem `docs/experiment-2.3.md` |
 | 2.3 | Nhóm A, B, C, D, E.a (1 và 3 TiKV) | Lực | Đã đo (TiDB) | 1 TiKV (21 lượt) và 3 TiKV (48 lượt gồm E.a) đều VALID: `results/official/2.3-aws/tidb1/`, `tidb3/`, hệ số tăng tốc ở `SUMMARY-speedup.md`; còn mốc MySQL hai cỡ vCPU |
 | 2.4 | Thiết kế (lược đồ đích, ba cách chuyển, kiểm tra đúng đắn) | Cường | Đang làm | gửi nhóm xem trước khi code nhiều |
-| 2.4 | Giao dịch "Xem đơn cũ" | Cường | Đang làm (mã xong, đã test unit; chưa test DB thật) | mặc định tắt (`old_order_read_pct = 0.0`) |
-| 2.4 | Eager, Batch nền, Lazy trên MySQL rồi MongoDB; kiểm tra đúng đắn | Cường | Chưa làm | |
+| 2.4 | Giao dịch "Xem đơn cũ" | Cường | Đang làm (đã chạy trên MySQL thật) | mặc định tắt (`old_order_read_pct = 0.0`); đã test và chạy W=10 (`q=25%`) trên MySQL 8.4.8; MongoDB/TiDB chưa chạy DB thật |
+| 2.4 | Eager, Batch nền, Lazy trên MySQL rồi MongoDB; kiểm tra đúng đắn | Cường | Đang làm (đã đo Eager MySQL, sơ bộ) | Mã Eager/Batch/Lazy và validator migration xong; Eager MySQL W=10 (`q=25%`) đạt 3/3 VALID trên 1 VM Docker `c6i.4xlarge` (`results/official/2.4-eager/`, TPS trung vị 704,9, p99 896,6 ms, run_id `8ac1530ebd024e278910b14d2b5e2c01`, `69951e0b70ee425580b975bb5c0e7304`, `f3f544f26e9e4b3e8c74416587d2b015`); Batch, Lazy và MongoDB/TiDB chưa đo |
 | 2.4 | Đo chính thức (q = 5% và 50%) | Cường | Chưa làm | slot `mysql` Ngày 10, `mongo` Ngày 11 |
 | 2.5 | Ma trận đánh đổi và câu trả lời câu hỏi tổng | Cường | Chưa làm | bản nháp Ngày 12 |
 | Báo cáo | Kiểm trích dẫn (`docs/citation-check.md`) | Duy Anh | Chưa làm | |
