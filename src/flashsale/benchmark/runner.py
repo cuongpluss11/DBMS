@@ -71,6 +71,7 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
                 feed.start(start, deadline)
             attempts, items = (ctx.slot_attempts, ctx.slot_items) if ctx else (0, 0)
             on_demand, mig_conflicts = (ctx.migrated_on_demand, ctx.migration_conflicts) if ctx else (0, 0)
+            mig_activate_at = (start + cfg.migration_delay_seconds) if i == 1 else float("inf")
             while time.monotonic() < deadline:
                 if feed:
                     item = feed.get(deadline)
@@ -83,6 +84,8 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
                 if hot:
                     throttle.acquire()
                 began = time.monotonic()
+                if ctx is not None:
+                    ctx.migration_active = began >= mig_activate_at
                 try:
                     outcome = run_request(db, req, jitter=jitter, ctx=ctx)
                 finally:
