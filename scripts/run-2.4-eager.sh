@@ -62,6 +62,31 @@ for item in runs:
 PY
 }
 
+find_existing_dataset() {
+    local engine="$1"
+    local profile="$2"
+    python - "$engine" "$profile" <<'PY'
+import json, sys
+from pathlib import Path
+from flashsale.config import read_settings
+from flashsale.data.loader import fingerprint
+
+engine, profile = sys.argv[1], Path(sys.argv[2])
+cfg = read_settings(profile)
+fp = fingerprint(cfg.dataset, cfg.seed, cfg.idempotency)
+ds_dir = Path("results/datasets")
+if ds_dir.is_dir():
+    for path in sorted(ds_dir.glob(f"{engine}-flashsale_*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if data.get("fingerprint") == fp and "counts" in data:
+                print(data["database"])
+                sys.exit(0)
+        except Exception:
+            pass
+PY
+}
+
 for ENGINE in "${ENGINES[@]}"; do
     printf '\n=== [2.4 Eager P1] Hệ: %s | Profile: %s | q=%s%% ===\n' "$ENGINE" "$PROFILE" "$Q_PCT"
     ENG_EVIDENCE="$EVIDENCE_DIR/$ENGINE"
@@ -80,8 +105,15 @@ for ENGINE in "${ENGINES[@]}"; do
             | tee "$ENG_EVIDENCE/eager-runs.json"
         copy_runs "$ENG_EVIDENCE/eager-runs.json"
     else
-        flashsale load "$ENGINE" --config "$PROFILE" | tee "$ENG_EVIDENCE/load.json"
-        DATASET="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["database"])' "$ENG_EVIDENCE/load.json")"
+        DATASET="${FLASHSALE_DATASET:-$(find_existing_dataset "$ENGINE" "$PROFILE")}"
+        if [[ -n "$DATASET" ]]; then
+            printf 'Tái sử dụng dataset đã nạp trên VM: %s (đang reset về trạng thái chuẩn)...\n' "$DATASET"
+            flashsale reset "$ENGINE" --config "$PROFILE" --dataset "$DATASET" --confirm "$DATASET" \
+                | tee "$ENG_EVIDENCE/load.json"
+        else
+            flashsale load "$ENGINE" --config "$PROFILE" | tee "$ENG_EVIDENCE/load.json"
+            DATASET="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["database"])' "$ENG_EVIDENCE/load.json")"
+        fi
         flashsale run "$ENGINE" --config "$PROFILE" --dataset "$DATASET" \
             --migration-strategy eager --old-order-read-pct "$Q_PCT" \
             --repetitions "$REPS" --reset-between \

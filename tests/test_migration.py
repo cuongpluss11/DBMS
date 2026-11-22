@@ -323,3 +323,111 @@ def test_sql_eager_path_uses_warehouse_transaction_and_primary_key_prefix():
 
     check = validate_migration(db, ds, {"order_line": 60}, tagged_lines=0)
     assert check["valid"] and check["unmigrated_rows"] == 0 and check["wrong_discount_rows"] == 0
+
+
+def test_mongo_eager_batch_reset_and_durable_write_concern():
+    """Kiểm chứng nhánh MongoDB của prepare_migration, reset_migration và migrate_background (eager/batch)."""
+
+    class FakeBulkResult:
+        def __init__(self, modified_count):
+            self.modified_count = modified_count
+
+    class FakeCollection:
+        def __init__(self, docs):
+            self.docs = docs
+            self.write_concerns = []
+            self.bulk_calls = 0
+
+        def with_options(self, *, write_concern=None):
+            self.write_concerns.append(write_concern)
+            return self
+
+        def _match(self, doc, filt):
+            for k, v in filt.items():
+                val = doc.get(k)
+                if isinstance(v, dict):
+                    if "$lte" in v and not (val is not None and val <= v["$lte"]):
+                        return False
+                    if "$gte" in v and not (val is not None and val >= v["$gte"]):
+                        return False
+                    if "$ne" in v and val == v["$ne"]:
+                        return False
+                    if "$in" in v and val not in v["$in"]:
+                        return False
+                elif val != v:
+                    return False
+            return True
+
+        def find_one(self, filt, proj=None):
+            for doc in self.docs:
+                if self._match(doc, filt):
+                    return dict(doc)
+            return None
+
+        def find(self, filt, proj=None):
+            return [dict(doc) for doc in self.docs if self._match(doc, filt)]
+
+        def count_documents(self, filt):
+            return sum(1 for doc in self.docs if self._match(doc, filt))
+
+        def update_many(self, filt, update):
+            for doc in self.docs:
+                if self._match(doc, filt):
+                    for field in update.get("$unset", {}):
+                        doc.pop(field, None)
+                    for field, val in update.get("$set", {}).items():
+                        doc[field] = val
+
+        def bulk_write(self, ops, ordered=False):
+            self.bulk_calls += 1
+            modified = 0
+            for op in ops:
+                filt = op._filter
+                set_vals = op._doc["$set"]
+                for doc in self.docs:
+                    if self._match(doc, filt):
+                        doc.update(set_vals)
+                        modified += 1
+            return FakeBulkResult(modified)
+
+    class FakeMongo:
+        def __init__(self, docs, items):
+            self.col = FakeCollection(docs)
+            self.db = {"order_line": self.col}
+            self._items = items
+
+        def rows(self, table, fields, *, tagged=False):
+            source = self._items if table == "item" else self.col.docs
+            for row in source:
+                yield {f: row.get(f) for f in fields}
+
+        def count(self, table):
+            return len(self.col.docs)
+
+    ds = Dataset(1, 2, 3, 5, 2, 100)
+    items = [dict(i_id=1, i_price=1000), dict(i_id=2, i_price=3000), dict(i_id=3, i_price=6000)]
+    docs = [
+        dict(_id=1, ol_w_id=1, ol_d_id=1, ol_o_id=1, ol_number=1, ol_i_id=1, ol_quantity=5),
+        dict(_id=2, ol_w_id=1, ol_d_id=1, ol_o_id=2, ol_number=1, ol_i_id=2, ol_quantity=4),
+        dict(_id=3, ol_w_id=1, ol_d_id=2, ol_o_id=1, ol_number=1, ol_i_id=3, ol_quantity=2),
+    ]
+    db = FakeMongo(docs, items)
+    prep = prepare_migration(db, ds)
+    assert prep["unmigrated_initial_rows"] == 3
+
+    base_cfg = read_settings(Path("configs/smoke.toml"))
+    eager_cfg = replace(base_cfg, dataset=ds, migration_strategy="eager", migration_delay_seconds=0.0)
+    stats = migrate_background(db, eager_cfg)
+    assert stats["migrated_background"] == 3 and db.col.bulk_calls == 2
+    assert all(wc.document.get("w") == "majority" and wc.document.get("j") is True for wc in db.col.write_concerns)
+    check = validate_migration(db, ds, {"order_line": 3}, tagged_lines=0)
+    assert check["valid"] and check["unmigrated_rows"] == 0 and check["wrong_discount_rows"] == 0
+
+    # Reset phải xóa ol_discount và ol_mig_state trên MongoDB để chạy lại Batch.
+    prepare_migration(db, ds)
+    assert all("ol_mig_state" not in d and "ol_discount" not in d for d in docs)
+    batch_cfg = replace(base_cfg, dataset=ds, migration_strategy="batch",
+                        migration_batch_size=10, migration_sleep_ms=0.0, migration_delay_seconds=0.0)
+    bstats = migrate_background(db, batch_cfg)
+    assert bstats["migrated_background"] == 3
+    assert validate_migration(db, ds, {"order_line": 3}, tagged_lines=0)["valid"]

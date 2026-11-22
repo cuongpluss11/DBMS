@@ -55,13 +55,18 @@ def prepare_migration(db: Adapter, cfg: Dataset) -> dict[str, Any]:
         )[0]["cnt"]
         return {"unmigrated_initial_rows": int(unmigrated)}
     if hasattr(db, "db"):
-        dirty = db.db["order_line"].count_documents(
-            {"ol_o_id": {"$lte": cfg.initial_orders}, "ol_mig_state": "MIGRATED"}
+        dirty = db.db["order_line"].find_one(
+            {"ol_o_id": {"$lte": cfg.initial_orders}, "ol_mig_state": "MIGRATED"}, {"_id": 1}
         )
-        if dirty:
+        if dirty is not None:
             reset_migration(db, cfg)
-        unmigrated = db.db["order_line"].count_documents(
-            {"ol_o_id": {"$lte": cfg.initial_orders}, "ol_mig_state": {"$ne": "MIGRATED"}}
+        unmigrated = sum(
+            db.db["order_line"].count_documents(
+                {"ol_w_id": w, "ol_d_id": d, "ol_o_id": {"$lte": cfg.initial_orders},
+                 "ol_mig_state": {"$ne": "MIGRATED"}}
+            )
+            for w in range(1, cfg.warehouses + 1)
+            for d in range(1, cfg.districts + 1)
         )
         return {"unmigrated_initial_rows": int(unmigrated)}
     if hasattr(db, "tables"):
@@ -93,10 +98,13 @@ def reset_migration(db: Adapter, cfg: Dataset) -> None:
                 )
         return
     if hasattr(db, "db"):
-        db.db["order_line"].update_many(
-            {"ol_o_id": {"$lte": cfg.initial_orders}, "ol_mig_state": "MIGRATED"},
-            {"$unset": {"ol_discount": "", "ol_mig_state": ""}},
-        )
+        # Chia theo (ol_w_id, ol_d_id) để dùng đúng chỉ mục logical_pk và tránh quá tải oplog khi reset 3 triệu dòng.
+        for w in range(1, cfg.warehouses + 1):
+            for d in range(1, cfg.districts + 1):
+                db.db["order_line"].update_many(
+                    {"ol_w_id": w, "ol_d_id": d, "ol_o_id": {"$lte": cfg.initial_orders}, "ol_mig_state": "MIGRATED"},
+                    {"$unset": {"ol_discount": "", "ol_mig_state": ""}},
+                )
         return
     if hasattr(db, "tables"):
         for row in db.tables.get("order_line", ()):
@@ -141,15 +149,19 @@ def _sql_update_range(db: Any, w: int, d: int | None, low: int, high: int) -> tu
 
 def _mongo_update_range(db: Any, w: int, d: int, low: int, high: int,
                         item_prices: dict[int, int]) -> tuple[int, int, int]:
-    """Cập nhật có điều kiện theo lô trên MongoDB bằng UpdateMany gom theo mức ol_discount (mỗi document nguyên tử)."""
+    """Cập nhật có điều kiện theo lô trên MongoDB bằng UpdateMany gom theo mức ol_discount (mỗi document nguyên tử,
+    giữ đúng độ bền writeConcern majority + j:true ngang với MySQL/TiDB)."""
     from pymongo import UpdateMany
     from pymongo.errors import PyMongoError
+    from pymongo.write_concern import WriteConcern
     from flashsale.adapters.mongo import classify
 
+    col = db.db["order_line"]
+    durable_col = col.with_options(write_concern=WriteConcern("majority", j=True)) if hasattr(col, "with_options") else col
     retries = 0
     while True:
         try:
-            cursor = db.db["order_line"].find(
+            cursor = col.find(
                 {"ol_w_id": w, "ol_d_id": d, "ol_o_id": {"$gte": low, "$lte": high},
                  "ol_mig_state": {"$ne": "MIGRATED"}},
                 {"_id": 1, "ol_i_id": 1, "ol_quantity": 1},
@@ -169,7 +181,7 @@ def _mongo_update_range(db: Any, w: int, d: int, low: int, high: int,
                 )
                 for disc, ids in groups.items()
             ]
-            res = db.db["order_line"].bulk_write(ops, ordered=False)
+            res = durable_col.bulk_write(ops, ordered=False)
             migrated = int(res.modified_count)
             conflicts = max(0, scanned - migrated)
             return migrated, conflicts, retries
