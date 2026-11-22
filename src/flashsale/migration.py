@@ -42,14 +42,24 @@ def prepare_migration(db: Adapter, cfg: Dataset) -> dict[str, Any]:
             db.query("ALTER TABLE order_line ADD COLUMN ol_discount BIGINT NULL")
         if "ol_mig_state" not in cols:
             db.query("ALTER TABLE order_line ADD COLUMN ol_mig_state VARCHAR(16) NOT NULL DEFAULT 'UNMIGRATED'")
-        reset_migration(db, cfg)
+        dirty = db.query(
+            "SELECT COUNT(*) AS cnt FROM order_line WHERE ol_o_id <= %s "
+            "AND (ol_mig_state <> 'UNMIGRATED' OR ol_discount IS NOT NULL)",
+            (cfg.initial_orders,),
+        )[0]["cnt"]
+        if dirty:
+            reset_migration(db, cfg)
         unmigrated = db.query(
             "SELECT COUNT(*) AS cnt FROM order_line WHERE ol_o_id <= %s AND ol_mig_state = 'UNMIGRATED'",
             (cfg.initial_orders,),
         )[0]["cnt"]
         return {"unmigrated_initial_rows": int(unmigrated)}
     if hasattr(db, "db"):
-        reset_migration(db, cfg)
+        dirty = db.db["order_line"].count_documents(
+            {"ol_o_id": {"$lte": cfg.initial_orders}, "ol_mig_state": "MIGRATED"}
+        )
+        if dirty:
+            reset_migration(db, cfg)
         unmigrated = db.db["order_line"].count_documents(
             {"ol_o_id": {"$lte": cfg.initial_orders}, "ol_mig_state": {"$ne": "MIGRATED"}}
         )
@@ -223,12 +233,21 @@ def migrate_background(db: Adapter, cfg: Settings, item_prices: dict[int, int] |
         if strategy == "eager":
             # P1 (Eager): chuyển tập trung toàn bộ dữ liệu cũ, không điều tiết tốc độ (sleep = 0).
             if hasattr(db, "query") and not getattr(db, "tidb", False):
-                # MySQL InnoDB: chạy câu UPDATE tập trung lớn theo từng kho; nếu kẹt khóa lặp lại thì hạ xuống theo quận.
+                # MySQL InnoDB: gom cả kho (~300.000 dòng ở W=10) trong một giao dịch tập trung, đi đúng tiền tố
+                # khóa chính (ol_w_id, ol_d_id, ol_o_id <= initial_orders) để không quét sang các dòng đơn mới > 3000.
                 for w in range(1, ds.warehouses + 1):
                     try:
-                        aff, ret = _sql_update_range(db, w, None, 1, ds.initial_orders)
-                        migrated += aff
-                        retries += ret
+                        with db.atomic():
+                            for d in range(1, ds.districts + 1):
+                                with db.connection.cursor() as cursor:
+                                    aff = cursor.execute(
+                                        f"UPDATE order_line ol JOIN item i ON i.i_id = ol.ol_i_id "
+                                        f"SET ol.ol_discount = {SQL_DISCOUNT_EXPR}, ol.ol_mig_state = 'MIGRATED' "
+                                        f"WHERE ol.ol_w_id = %s AND ol.ol_d_id = %s "
+                                        f"AND ol.ol_o_id BETWEEN 1 AND %s AND ol.ol_mig_state = 'UNMIGRATED'",
+                                        (w, d, ds.initial_orders),
+                                    )
+                                migrated += int(aff)
                         batches += 1
                     except DBError:
                         retries += 1
