@@ -64,3 +64,8 @@ Stack `mysql` (MySQL-chỉnh, buffer pool 3 GiB, c6i.4xlarge giới hạn 12 vCP
 | P1, θ=0,9 (không "1 món") | 1.167 | 277 | VALID |
 
 Chỉ chứng minh mã chạy đúng trên AWS; chưa kết luận về hiệu quả (cần T1/T2 đủ 3 lần lặp 30 + 60 s). Bằng chứng lưu ở `.work/g1-smoke-aws/` (không đưa lên Git).
+
+
+## Kết quả đo chính thức trên TiDB (AWS, 2026-11-22)
+
+`results/official/2.2-aws/tidb3/`: 145 lượt trên cụm 3 TiKV (W = 10, `configs/hotspot.toml`): T1 (P1 ở 5 mức θ × 8/64/256 client và P0), T2 (P2 N ∈ {1,3,9,27} có/không cấp mã theo lô), lượt kiểm luật, T4 (đòn bẩy TiDB lạc quan/bi quan, khóa theo thứ tự). 138 lượt VALID; 7 lượt INVALID đều là P0 (đọc rồi ghi) vi phạm luật đối soát do mất cập nhật, đúng dự kiến và không xếp hạng. T3 (P3, tải vòng mở) chưa đo vì chờ chọn `T3_RATES`. Phân tích số liệu xem `SUMMARY.md` cùng thư mục; cảnh báo warmup (`WARMUP_MAY_BE_SHORT`) có ở nhiều lượt, cần xem trước khi kết luận.

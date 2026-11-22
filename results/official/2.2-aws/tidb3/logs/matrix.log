@@ -1,0 +1,101 @@
+20:52:56 Bắt đầu ma trận 2.2: engine=tidb tier=t1 dry=0 B=50 hot_items=100 log=/home/ubuntu/m22-tidb3
+20:52:56 Điểm 1: t1-p1-0-c8 (configs/hotspot.toml --variant p1 --theta 0 --no-hot-item --concurrency 8)
+20:58:48 Điểm 2: t1-p1-0.5-c8 (configs/hotspot.toml --variant p1 --theta 0.5 --no-hot-item --concurrency 8)
+21:04:49 Điểm 3: t1-p1-0.7-c8 (configs/hotspot.toml --variant p1 --theta 0.7 --no-hot-item --concurrency 8)
+21:10:56 Điểm 4: t1-p1-0.9-c8 (configs/hotspot.toml --variant p1 --theta 0.9 --no-hot-item --concurrency 8)
+21:17:01 Điểm 5: t1-p1-hot-c8 (configs/hotspot.toml --variant p1 --theta 0 --hot-item --concurrency 8)
+21:22:44 Điểm 6: t1-p1-0-c64 (configs/hotspot.toml --variant p1 --theta 0 --no-hot-item --concurrency 64)
+21:29:05 Điểm 7: t1-p1-0.5-c64 (configs/hotspot.toml --variant p1 --theta 0.5 --no-hot-item --concurrency 64)
+21:35:55 Điểm 8: t1-p1-0.7-c64 (configs/hotspot.toml --variant p1 --theta 0.7 --no-hot-item --concurrency 64)
+21:42:55 Điểm 9: t1-p1-0.9-c64 (configs/hotspot.toml --variant p1 --theta 0.9 --no-hot-item --concurrency 64)
+21:50:22 Điểm 10: t1-p1-hot-c64 (configs/hotspot.toml --variant p1 --theta 0 --hot-item --concurrency 64)
+21:56:38 Điểm 11: t1-p1-0-c256 (configs/hotspot.toml --variant p1 --theta 0 --no-hot-item --concurrency 256)
+22:03:24 Điểm 12: t1-p1-0.5-c256 (configs/hotspot.toml --variant p1 --theta 0.5 --no-hot-item --concurrency 256)
+22:10:18 Điểm 13: t1-p1-0.7-c256 (configs/hotspot.toml --variant p1 --theta 0.7 --no-hot-item --concurrency 256)
+22:17:50 Điểm 14: t1-p1-0.9-c256 (configs/hotspot.toml --variant p1 --theta 0.9 --no-hot-item --concurrency 256)
+22:24:59 Điểm 15: t1-p1-hot-c256 (configs/hotspot.toml --variant p1 --theta 0 --hot-item --concurrency 256)
+22:31:30 Điểm 16: t1-p0-0-c8 (configs/hotspot.toml --variant p0 --theta 0 --no-hot-item --concurrency 8)
+22:33:24 Điểm 16 (t1-p0-0-c8): INVALID như dự kiến (P0, mất cập nhật); tiếp tục
+22:33:24 Điểm 17: t1-p0-0.9-c8 (configs/hotspot.toml --variant p0 --theta 0.9 --no-hot-item --concurrency 8)
+22:35:39 Điểm 17 (t1-p0-0.9-c8): INVALID như dự kiến (P0, mất cập nhật); tiếp tục
+22:35:39 Điểm 18: t1-p0-hot-c8 (configs/hotspot.toml --variant p0 --theta 0 --hot-item --concurrency 8)
+22:37:36 Điểm 18 (t1-p0-hot-c8): INVALID như dự kiến (P0, mất cập nhật); tiếp tục
+22:37:36 Điểm 19: t1-p0-0-c64 (configs/hotspot.toml --variant p0 --theta 0 --no-hot-item --concurrency 64)
+22:39:29 Điểm 19 (t1-p0-0-c64): INVALID như dự kiến (P0, mất cập nhật); tiếp tục
+22:39:29 Điểm 20: t1-p0-0.9-c64 (configs/hotspot.toml --variant p0 --theta 0.9 --no-hot-item --concurrency 64)
+22:41:55 Điểm 20 (t1-p0-0.9-c64): INVALID như dự kiến (P0, mất cập nhật); tiếp tục
+22:41:55 Điểm 21: t1-p0-hot-c64 (configs/hotspot.toml --variant p0 --theta 0 --hot-item --concurrency 64)
+22:43:59 Điểm 21 (t1-p0-hot-c64): INVALID như dự kiến (P0, mất cập nhật); tiếp tục
+22:43:59 Xong 21 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m22-tidb3/report
+{
+  "runs": 99,
+  "groups": 37,
+  "invalid": 6,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 17,
+  "out_dir": "/home/ubuntu/m22-tidb3/report"
+}
+22:43:59 Bắt đầu ma trận 2.2: engine=tidb tier=t2 dry=0 B=50 hot_items=100 log=/home/ubuntu/m22-tidb3
+22:43:59 Điểm 1: t2-p2-n1-batch-0.9 (configs/hotspot.toml --variant p2 --slots 1 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 64)
+22:50:49 Điểm 2: t2-p2-n3-batch-0.9 (configs/hotspot.toml --variant p2 --slots 3 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 64)
+22:59:01 Điểm 3: t2-p2-n9-batch-0.9 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 64)
+23:08:50 Điểm 4: t2-p2-n27-batch-0.9 (configs/hotspot.toml --variant p2 --slots 27 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 64)
+23:18:28 Điểm 5: t2-p2-n1-nobatch-0.9 (configs/hotspot.toml --variant p2 --slots 1 --hot-items 100 --order-id-batch 0 --theta 0.9 --no-hot-item --concurrency 64)
+23:26:36 Điểm 6: t2-p2-n9-nobatch-0.9 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 0 --theta 0.9 --no-hot-item --concurrency 64)
+23:33:45 Điểm 7: t2-p2-n1-batch-hot (configs/hotspot.toml --variant p2 --slots 1 --hot-items 100 --order-id-batch 50 --theta 0 --hot-item --concurrency 64)
+23:40:38 Điểm 8: t2-p2-n3-batch-hot (configs/hotspot.toml --variant p2 --slots 3 --hot-items 100 --order-id-batch 50 --theta 0 --hot-item --concurrency 64)
+23:46:55 Điểm 9: t2-p2-n9-batch-hot (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0 --hot-item --concurrency 64)
+23:53:33 Điểm 10: t2-p2-n27-batch-hot (configs/hotspot.toml --variant p2 --slots 27 --hot-items 100 --order-id-batch 50 --theta 0 --hot-item --concurrency 64)
+00:00:55 Điểm 11: t2-p2-n1-nobatch-hot (configs/hotspot.toml --variant p2 --slots 1 --hot-items 100 --order-id-batch 0 --theta 0 --hot-item --concurrency 64)
+00:07:29 Điểm 12: t2-p2-n9-nobatch-hot (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 0 --theta 0 --hot-item --concurrency 64)
+00:14:01 Xong 12 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m22-tidb3/report
+{
+  "runs": 135,
+  "groups": 49,
+  "invalid": 6,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 22,
+  "out_dir": "/home/ubuntu/m22-tidb3/report"
+}
+00:14:02 Bắt đầu ma trận 2.2: engine=tidb tier=c dry=0 B=50 hot_items=100 log=/home/ubuntu/m22-tidb3
+00:19:42 Đã nạp dataset flashsale_334fa819d7f74455ade3f377b2a6ebfe từ configs/correctness.toml
+00:19:42 Điểm 1: c-p0 (configs/correctness.toml --variant p0)
+00:21:43 Điểm 1 (c-p0): INVALID như dự kiến (P0, mất cập nhật); tiếp tục
+00:21:43 Điểm 2: c-p1 (configs/correctness.toml --variant p1)
+00:27:22 Điểm 3: c-p2-n9 (configs/correctness.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50)
+00:33:07 Điểm 4: c-p3-n9 (configs/correctness.toml --variant p3 --slots 9 --hot-items 100 --order-id-batch 50)
+00:39:02 Xong 4 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m22-tidb3/report
+{
+  "runs": 145,
+  "groups": 53,
+  "invalid": 7,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 23,
+  "out_dir": "/home/ubuntu/m22-tidb3/report"
+}
+00:39:02 Bắt đầu ma trận 2.2: engine=tidb tier=t4 dry=0 B=50 hot_items=100 log=/home/ubuntu/m22-tidb3
+00:39:02 Điểm 1: t4-legacy-0.9-c32 (configs/hotspot.toml --variant legacy --theta 0.9 --no-hot-item --concurrency 32)
+00:45:22 Điểm 2: t4-lockorder-0.9-c32 (configs/hotspot.toml --variant legacy --lock-order --theta 0.9 --no-hot-item --concurrency 32)
+00:52:07 Điểm 3: t4-p1-optimistic-0.9-c32 (configs/hotspot.toml --variant p1 --txn-mode optimistic --theta 0.9 --no-hot-item --concurrency 32)
+00:58:36 Điểm 4: t4-p1-pessimistic-0.9-c32 (configs/hotspot.toml --variant p1 --txn-mode pessimistic --theta 0.9 --no-hot-item --concurrency 32)
+01:05:02 Điểm 5: t4-legacy-hot-c32 (configs/hotspot.toml --variant legacy --theta 0 --hot-item --concurrency 32)
+01:10:57 Điểm 6: t4-lockorder-hot-c32 (configs/hotspot.toml --variant legacy --lock-order --theta 0 --hot-item --concurrency 32)
+01:16:39 Điểm 7: t4-p1-optimistic-hot-c32 (configs/hotspot.toml --variant p1 --txn-mode optimistic --theta 0 --hot-item --concurrency 32)
+01:22:21 Điểm 8: t4-p1-pessimistic-hot-c32 (configs/hotspot.toml --variant p1 --txn-mode pessimistic --theta 0 --hot-item --concurrency 32)
+01:27:47 Điểm 9: t4-legacy-0.9-c128 (configs/hotspot.toml --variant legacy --theta 0.9 --no-hot-item --concurrency 128)
+01:33:53 Điểm 10: t4-lockorder-0.9-c128 (configs/hotspot.toml --variant legacy --lock-order --theta 0.9 --no-hot-item --concurrency 128)
+01:40:35 Điểm 11: t4-p1-optimistic-0.9-c128 (configs/hotspot.toml --variant p1 --txn-mode optimistic --theta 0.9 --no-hot-item --concurrency 128)
+01:47:00 Điểm 12: t4-p1-pessimistic-0.9-c128 (configs/hotspot.toml --variant p1 --txn-mode pessimistic --theta 0.9 --no-hot-item --concurrency 128)
+01:53:14 Điểm 13: t4-legacy-hot-c128 (configs/hotspot.toml --variant legacy --theta 0 --hot-item --concurrency 128)
+01:59:08 Điểm 14: t4-lockorder-hot-c128 (configs/hotspot.toml --variant legacy --lock-order --theta 0 --hot-item --concurrency 128)
+02:04:45 Điểm 15: t4-p1-optimistic-hot-c128 (configs/hotspot.toml --variant p1 --txn-mode optimistic --theta 0 --hot-item --concurrency 128)
+02:10:47 Điểm 16: t4-p1-pessimistic-hot-c128 (configs/hotspot.toml --variant p1 --txn-mode pessimistic --theta 0 --hot-item --concurrency 128)
+02:16:22 Xong 16 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m22-tidb3/report
+{
+  "runs": 193,
+  "groups": 69,
+  "invalid": 7,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 36,
+  "out_dir": "/home/ubuntu/m22-tidb3/report"
+}

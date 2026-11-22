@@ -53,6 +53,32 @@ Chỉ TiDB. Trước warmup của mỗi lượt (ngoài thời gian đo): chia `
 
 Điều đọc được từ số đo (chưa có phía 3 TiKV nên **chưa có hệ số tăng tốc**): (1) tải đều (A) nhanh hơn tải dồn (B) 1,8 lần, p99 4,5 lần thấp hơn; (2) chia món nóng thành N slot (P2) cải thiện B: N = 9 và 27 đạt ≈ 1,4 lần TPS và p99 giảm từ 912 ms xuống 287 và 197 ms, còn N = 3 chưa cải thiện rõ (TPS trung vị 707, p99 950 ms); (3) ở 1 TiKV, TiKV duy nhất chạm 100% CPU của 2 vCPU ở nhóm A, tức nút thắt là TiKV, đúng điều kiện để thêm TiKV có tác dụng; (4) `AUTO_RANDOM` nhỉnh hơn khóa tự tăng chỉ ≈ 3% (788 so với 766), nằm trong nhiễu giữa các lần lặp, nên ở 1 TiKV chưa thấy tác dụng như dự đoán (dự đoán nói về điểm nóng khi thêm máy, cần so ở 3 TiKV); cả hai đều thấp hơn khóa TPC-C ghép (1.136), nên đổi lược đồ sang `o_seq` + UNIQUE phụ tự nó tốn thêm chi phí ghi chỉ mục. **Lưu ý chất lượng:** `warmup_drift_pct` vượt ±10% ở một số lượt (ví dụ nhóm D autoinc −28,5% và 29,2%; N = 27 lượt 3 là 44,3%; A lượt 1 là 11,7%) nên 30 giây warmup có thể chưa đủ cho TiDB ở các điểm đó; cần xem `tps_per_second.csv` trước khi dùng số của các lượt này làm kết luận, và `flashsale report` đã đánh dấu `WARMUP_MAY_BE_SHORT`.
 
+## Kết quả đo chính thức: cụm 3 TiKV và hệ số tăng tốc (AWS, 2026-11-22)
+
+`results/official/2.3-aws/tidb3/` (48 lượt, tất cả VALID) cùng cấu hình với cụm 1 TiKV (TiDB server c6i.4xlarge, 3 × TiKV m6i.large, W = 12, 64 client, 3 × (30 s + 60 s), `--placement spread`). Bảng ghép cặp ở `results/official/2.3-aws/SUMMARY-speedup.md`.
+
+| Nhóm | TPS 1 TiKV | TPS 3 TiKV | Tăng tốc (3 là hoàn hảo) |
+| --- | --- | --- | --- |
+| A: θ=0, kho đều | 1.136 | 2.250 | 1,98 |
+| B: θ=0,9, một kho | 616 | 751 | 1,22 |
+| C: B + N = 3 slot | 707 | 1.726 | 2,44 |
+| C: N = 9 slot | 849 | 2.087 | 2,46 |
+| C: N = 27 slot | 845 | 2.121 | 2,51 |
+| D: khóa `o_seq` tự tăng | 766 | 1.682 | 2,20 |
+| D: khóa `AUTO_RANDOM` | 788 | 2.222 | 2,82 |
+
+Đọc được: (1) điểm nóng chặn việc mở rộng: B chỉ tăng 1,22 lần khi thêm 2 TiKV, trong khi chia món nóng thành slot (P2) đưa hệ số lên ≈ 2,5; (2) tải đều (A) đạt 1,98, chưa tới 3 vì TiDB server và `history`/`orders` vẫn tranh chấp một phần; (3) `AUTO_RANDOM` đạt 2,82 so với 2,20 của khóa tự tăng: dự đoán về điểm nóng ghi `orders` khi thêm máy được ủng hộ ở 3 TiKV (ở 1 TiKV hai kiểu khóa gần như bằng nhau). Nhiều lượt có `warmup_drift_pct` vượt ±10% (16/69 lượt cả hai cụm; một số lên tới 44%), nên các hệ số này là mức ước lượng thô, cần xem `tps_per_second.csv` và có thể phải kéo dài warmup.
+
+### Nhóm E.a (3 TiKV, đơn nhiều kho, `--placement-scope all`, θ=0, kho đều, 3 lần mỗi điểm)
+
+| Vị trí leader | 1 kho/đơn | 2 kho/đơn | 3–4 kho/đơn |
+| --- | --- | --- | --- |
+| PD tự quyết (`none`) | 1.569 TPS, p99 163 | 1.746, 135 | 1.487, 158 |
+| Tách (`spread`) | 1.459, 209 | 1.562, 189 | 1.539, 183 |
+| Chung theo nhóm (`group`) | 2.022, 133 | 1.455, 202 | 1.462, 203 |
+
+(TPS trung vị, p99 ms.) `group` nhanh nhất khi đơn chỉ chạm một kho (+29% so với `none`) nhưng mất lợi thế khi đơn trải 2–4 kho; chênh lệch giữa `none`, `spread` ở 2–4 kho nằm trong nhiễu giữa các lần lặp (min–max chồng nhau), nên chưa kết luận được ngoài mô thức trên. Điểm `e-spread-k3-4` đã đo lại sau khi sửa lỗi PD HTTP 500 (bản cũ nằm ngoài kết quả).
+
 ## Đã kiểm thử / chưa kiểm thử
 
 - Unit test với PD và TiDB giả lập (`tests/test_scaling.py`; toàn bộ 75 test không cần DBMS PASS). Đơn nhiều kho trên MySQL 8.4.8 thật (Docker máy dev, sơ bộ): smoke 1, 2 và 3–4 kho/đơn đều VALID với hết hàng thực.
