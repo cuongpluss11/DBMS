@@ -121,4 +121,38 @@ Các điểm đo phụ theo đề dùng cùng cách chạy, chỉ đổi `--conf
 
 **[Nghiệm thu mục 2.1](docs/acceptance-2.1.md)** có kết quả đo thật, khác biệt so với đề và danh sách NOT TESTED; dữ liệu chính thức ở [results/official/2.1/](results/official/2.1/INDEX.csv). [Hướng dẫn cho nhóm](docs/trien-khai-2.1.md) có lệnh baseline một kho, lượt kiểm luật, lượt so sánh ba hệ và cách bàn giao kết quả. Xem thêm [ánh xạ yêu cầu](docs/requirements-2.1.md), [các quyết định thực nghiệm](docs/assumptions.md) và [định nghĩa trường kết quả](docs/experiment-2.1.md). Mục 2.2 đang làm: biến thể trừ kho P0/P1/P2 và lệnh chạy ở [docs/experiment-2.2.md](docs/experiment-2.2.md) (mã và test đơn vị, chưa có số đo). Mục 2.3 (TiDB): nhóm A–E.a, đặt Region/leader, hệ số tăng tốc ở [docs/experiment-2.3.md](docs/experiment-2.3.md) (mã và test đơn vị, chưa có số đo).
 
+## Mục 2.4 – Online Schema Evolution trên MySQL (Eager P1, Batch P2, Lazy P3)
+
+Thực nghiệm đổi lược đồ khi đang bán hàng (thêm `ol_discount` và `ol_mig_state` vào ~3 triệu dòng `order_line` ở `W=10`, tải nền Flash-sale `64 client`, `θ=0,5` kèm giao dịch đọc `"Xem đơn cũ"` chiếm tỉ lệ `q`). Cách chạy:
+
+```bash
+bash scripts/run-2.4-eager.sh mysql                          # P1 – Eager (q=25%)
+bash scripts/run-2.4-batch.sh mysql                          # P2 – Batch nền (lô 1.000 và 5.000 dòng, q=25%)
+Q_LIST="5 25 50" bash scripts/run-2.4-lazy.sh mysql          # P3 – Lazy (quét q = 5%, 25%, 50%)
+```
+
+### Tổng quan kết quả thực nghiệm trên MySQL 8.4.8 (18/18 lượt VALID, 1 VM Docker `c6i.4xlarge`, MySQL-chỉnh 3 GiB buffer pool)
+
+**1. So sánh 3 chiến lược chuyển dữ liệu ở cùng tải nền (`q = 25%`, thí nghiệm E2):**
+
+| Chiến lược | TPS trung vị *(min–max)* | Giảm TPS so với nền *(~1.636 TPS)* | p99 toàn pha *(ms)* | Đỉnh p99 theo giây *(ms)* | Chờ khóa `lock_wait_ms` | `read_clean` / `read_migrated` p99 *(ms)* | Hoàn tất migration *(s)* |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **P1 – Eager** ([2.4-eager](results/official/2.4-eager/SUMMARY.md)) | **704,9** *(684,2–773,2)* | **-56,7%** | **896,6** | **8.202,9** | **2.047.178** *(~2.047 s)* | 13,8 / — | **71,3 s** |
+| **P2 – Batch 5.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **1.104,8** *(1.094,2–1.106,0)* | **-31,3%** | **619,5** | **978,7** | **370.797** *(~371 s)* | 15,3 / — | **89,7 s** |
+| **P2 – Batch 1.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **1.255,2** *(1.254,7–1.349,5)* | **-24,1%** | **578,2** | **743,5** | **360.239** *(~360 s)* | 15,4 / — | **106,5 s** |
+| **P3 – Lazy (`q=25%`)** ([2.4-lazy](results/official/2.4-lazy/SUMMARY.md)) | **1.069,8** *(1.066,6–1.072,6)* | **-34,6%** | **588,5** | **736,1** | **220.298** *(~220 s)* | **16,5 / 575,0** | **97,6 s** |
+
+**2. Ảnh hưởng của tỉ lệ truy cập dữ liệu cũ `q` trên Lazy P3 (thí nghiệm E3, [2.4-lazy](results/official/2.4-lazy/SUMMARY.md)):**
+
+| Tỉ lệ `q` (`"Xem đơn cũ"`) | TPS warmup *(nền)* | TPS đo *(Lazy P3)* | Mức giảm TPS so với nền | p50 / p99 toàn pha *(ms)* | `read_clean` / `read_migrated` p99 *(ms)* | Dòng chuyển theo yêu cầu (`migrated_on_demand`) | Xung đột migration | Chờ khóa `lock_wait_ms` | Hoàn tất *(s)* |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **`q = 5%`** | 1.363,9 | **1.027,1** *(1.022,1–1.106,2)* | **-24,7%** | 20,1 / **603,8** | **15,1 / 608,7** | **27.515** *(0,92%)* | 12 | 361.890 | **99,2 s** |
+| **`q = 25%`** | 1.636,3 | **1.069,8** *(1.066,6–1.072,6)* | **-34,6%** | 22,6 / **588,5** | **16,5 / 575,0** | **141.056** *(4,70%)* | 19 | 220.298 | **97,6 s** |
+| **`q = 50%`** | 2.274,7 | **1.165,4** *(1.152,3–1.187,3)* | **-48,8%** | 24,3 / **553,3** | **17,2 / 535,1** | **294.463** *(9,82%)* | 95 | 109.690 | **95,6 s** |
+
+**Góc nhìn tổng quan trên MySQL InnoDB:**
+- **Eager (P1)** xong nhanh nhất (`71,3 s`) nhưng giữ khóa trên cả kho (`lock_wait_ms = 2.047 s`), làm sụt **56,7% TPS** và gây các đợt đóng băng độ trễ đuôi lên tới **8,2 giây**.
+- **Batch nền (P2, lô `1.000` dòng)** đạt **thông lượng cao nhất (`1.255,2 TPS`, chỉ giảm `24,1%`)** và cắt hoàn toàn gai độ trễ (`p99 = 578,2 ms`), vì mỗi lô gom 1.000 dòng vào **1 lần `COMMIT` (`fsync`) duy nhất** ở nền trong khi giao dịch đọc `"Xem đơn cũ"` vẫn là truy vấn đọc thuần (`p99 = 15,4 ms`).
+- **Lazy (P3)** có **thời gian chờ khóa thấp nhất (`lock_wait_ms = 220 s` ở `q=25%`, giảm 9,3 lần so với Eager)** vì mỗi lượt chuyển theo yêu cầu chỉ khóa ~10 dòng của đúng 1 đơn. Tuy nhiên, khi triển khai ở tầng ứng dụng với độ bền `flush_log_at_trx_commit=1` + `sync_binlog=1`, mỗi đơn cũ chưa chuyển bị đọc trúng phải chịu **1 lần `UPDATE + COMMIT` (`fsync`) ngay trên đường xử lý truy vấn** khiến `read_migrated_p99_ms` lên tới **535–609 ms** (gấp ~35 lần đọc sạch `15–17 ms`). Vì vậy Lazy rất hiệu quả khi tỉ lệ đọc đơn cũ thấp (`q = 5%`, giảm TPS `-24,7%`), nhưng khi `q` tăng lên `25%–50%` thì mức suy giảm so với nền lớn dần (`-34,6%` → `-48,8%`), nên trên MySQL InnoDB bị giới hạn bởi `fsync` đĩa, **Batch nền lô 1.000 dòng** vẫn nhỉnh hơn Lazy về TPS tổng thể.
+
 [Câu lệnh SQL và MongoDB để trình bày](docs/cau-lenh-dbms-2.1.md) có ví dụ chép vào trình soạn truy vấn, gồm EXPLAIN, New-Order, Payment và rollback.
