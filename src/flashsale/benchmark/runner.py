@@ -13,11 +13,12 @@ import traceback
 from uuid import uuid4
 
 from flashsale.adapters.base import Adapter, Endpoint, open_adapter
-from flashsale.config import Settings, uses_slots
+from flashsale.config import Settings, uses_migration, uses_slots
 from flashsale.data.loader import prepare_slots
 from flashsale.data.placement import PD, apply_layout, hot_regions, unfreeze_scheduling
 from flashsale.infra import pd_url
 from flashsale.infra import cpu_sampler, setting
+from flashsale.migration import load_item_prices, migrate_background, prepare_migration
 from flashsale.validation.checks import validate
 from flashsale.workload.generator import Generator, Zipf
 from flashsale.transactions.core import TxnContext
@@ -26,15 +27,17 @@ from flashsale.workload.throttle import ABORT_CATEGORIES, ArrivalFeed, SharedThr
 from .metrics import Phase, SCHEMA_VERSION, warmup_stability, write_json, write_result, write_series
 
 
-def make_context(cfg: Settings, zipf: Zipf, repetition: int, worker: int) -> TxnContext | None:
-    """None = đường chạy của 2.1 (legacy, không cấp mã theo lô): giữ nguyên hành vi và số đo cũ."""
+def make_context(cfg: Settings, zipf: Zipf, repetition: int, worker: int,
+                 item_prices: dict[int, int] | None = None) -> TxnContext | None:
+    """None = đường chạy của 2.1 (legacy, không cấp mã theo lô, không migration): giữ nguyên hành vi và số đo cũ."""
     from random import Random
 
     ctx = TxnContext(cfg.variant, cfg.slots,
                      frozenset(zipf.item_ids[:cfg.hot_items]) if uses_slots(cfg.variant) else frozenset(),
                      cfg.order_id_batch, rng=Random(f"{cfg.seed}:{repetition}:{worker}:slots"),
                      lock_order=cfg.lock_order, nowait=cfg.nowait, design_b=cfg.mongo_design == "b",
-                     stored_procedure=cfg.stored_procedure)
+                     stored_procedure=cfg.stored_procedure,
+                     migration_strategy=cfg.migration_strategy, item_prices=item_prices or {})
     return None if ctx.is_2_1 else ctx
 
 
@@ -45,14 +48,15 @@ def is_hot(req, ctx: TxnContext | None) -> bool:
 
 
 def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetition: int,
-           worker: int, barrier, deadlines, throttle=None, feeds=None) -> tuple[Phase, Phase]:
+           worker: int, barrier, deadlines, throttle=None, feeds=None,
+           item_prices: dict[int, int] | None = None) -> tuple[Phase, Phase]:
     from random import Random
 
     db = None
     try:
         db = open_adapter(endpoint, timeout=cfg.client_timeout_seconds, txn_mode=cfg.txn_mode)
         jitter = Random(f"{cfg.seed}:{repetition}:{worker}:jitter") if cfg.jitter else None
-        ctx = make_context(cfg, zipf, repetition, worker)
+        ctx = make_context(cfg, zipf, repetition, worker, item_prices=item_prices)
         phases = []
         for i, name in enumerate(("warmup", "measurement")):
             phase = Phase()
@@ -66,6 +70,7 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
             if feed:
                 feed.start(start, deadline)
             attempts, items = (ctx.slot_attempts, ctx.slot_items) if ctx else (0, 0)
+            on_demand, mig_conflicts = (ctx.migrated_on_demand, ctx.migration_conflicts) if ctx else (0, 0)
             while time.monotonic() < deadline:
                 if feed:
                     item = feed.get(deadline)
@@ -91,9 +96,12 @@ def client(endpoint: Endpoint, cfg: Settings, zipf: Zipf, run_id: str, repetitio
                     # Độ trễ tính từ lúc yêu cầu đến, gồm hàng đợi ứng dụng và cổng điều tiết (đề, mục 2.2).
                     wait = (began - arrival) * 1000
                     outcome = replace(outcome, latency_ms=(now - arrival) * 1000)
-                phase.record(req, outcome, now <= deadline, int(now - start), wait)
+                phase.record(req, outcome, now <= deadline, int(now - start), wait,
+                             bool(ctx and ctx.last_read_migrated))
             if ctx:
                 phase.slot_attempts, phase.slot_items = ctx.slot_attempts - attempts, ctx.slot_items - items
+                phase.migrated_on_demand = ctx.migrated_on_demand - on_demand
+                phase.migration_conflicts = ctx.migration_conflicts - mig_conflicts
             phases.append(phase)
             barrier.wait()
         return phases[0], phases[1]
@@ -109,6 +117,13 @@ def group(endpoint, cfg, run_id, repetition, workers, barrier, deadlines, output
     try:
         zipf = Zipf(cfg.dataset.items, cfg.theta, cfg.seed, cfg.hot_item)
         warmup, measurement = Phase(), Phase()
+        item_prices = None
+        if uses_migration(cfg.migration_strategy) or cfg.old_order_read_pct > 0:
+            price_db = open_adapter(endpoint, timeout=max(cfg.client_timeout_seconds, 120.0))
+            try:
+                item_prices = load_item_prices(price_db)
+            finally:
+                price_db.close()
         feeds = None
         if cfg.arrival_rate > 0:
             # Một bộ phát yêu cầu mỗi process và phase; phần tốc độ đến tỉ lệ với số client của process.
@@ -117,7 +132,7 @@ def group(endpoint, cfg, run_id, repetition, workers, barrier, deadlines, output
                      for name in ("warmup", "measurement")]
         with ThreadPoolExecutor(max_workers=len(workers)) as executor:
             results = [executor.submit(client, endpoint, cfg, zipf, run_id, repetition,
-                                       index, barrier, deadlines, throttle, feeds) for index in workers]
+                                       index, barrier, deadlines, throttle, feeds, item_prices) for index in workers]
             for result in results:
                 warm, measured = result.result()
                 warmup.merge(warm)
@@ -154,7 +169,7 @@ def get_counters(db: Adapter) -> dict:
 
 
 def phases(endpoint: Endpoint, cfg: Settings, db: Adapter, run_id: str,
-           repetition: int, limits: dict) -> tuple[Phase, Phase, dict, dict, dict | None]:
+           repetition: int, limits: dict) -> tuple[Phase, Phase, dict, dict, dict | None, dict | None]:
     ctx = mp.get_context("spawn")
     barrier = ctx.Barrier(cfg.concurrency + 1, timeout=120)
     deadlines = ctx.Array("d", 2, lock=False)
@@ -164,10 +179,26 @@ def phases(endpoint: Endpoint, cfg: Settings, db: Adapter, run_id: str,
     stop = Event()
     sampler = None
     controller = None
+    mig_thread = None
+    mig_box: dict = {"result": None, "error": None}
     # P3: một bộ điều tiết dùng chung mọi process; bộ điều khiển chạy ở process này, mỗi giây một bước.
     throttle = (SharedThrottle(ctx, cfg.concurrency, cfg.limit_min, cfg.concurrency, cfg.p99_limit_ms,
                                cfg.abort_limit_pct) if cfg.variant == "p3" else None)
     trace: list[dict] = []
+
+    def run_migration_worker(measure_start: float, measure_deadline: float) -> None:
+        mig_db = None
+        try:
+            mig_db = open_adapter(endpoint, timeout=max(cfg.client_timeout_seconds, 600.0))
+            mig_box["result"] = migrate_background(
+                mig_db, cfg, measure_start=measure_start, deadline=measure_deadline, stop=stop
+            )
+        except BaseException as exc:
+            mig_box["error"] = f"{type(exc).__name__}: {exc}"
+        finally:
+            if mig_db is not None:
+                mig_db.close()
+
     try:
         for first in range(0, cfg.concurrency, cfg.workers_per_process):
             workers = range(first, min(cfg.concurrency, first + cfg.workers_per_process))
@@ -184,9 +215,20 @@ def phases(endpoint: Endpoint, cfg: Settings, db: Adapter, run_id: str,
         barrier.wait(timeout=cfg.warmup_seconds + 120)
         initial = get_counters(db)
         start_phase(barrier, deadlines, 1, cfg.measurement_seconds)
+        if uses_migration(cfg.migration_strategy):
+            mig_thread = Thread(
+                target=run_migration_worker,
+                args=(deadlines[1] - cfg.measurement_seconds, deadlines[1]),
+                daemon=True,
+            )
+            mig_thread.start()
         sampler = Thread(target=sample_cpu, args=(limits, deadlines[1], stop, samples), daemon=True)
         sampler.start()
         barrier.wait(timeout=cfg.measurement_seconds + 120)
+        if mig_thread is not None:
+            mig_thread.join(timeout=600)
+            if mig_box["error"]:
+                raise RuntimeError(f"migration_worker_failed: {mig_box['error']}")
         final = get_counters(db)
         stop.set()
         warmup, measurement = Phase(), Phase()
@@ -207,7 +249,14 @@ def phases(endpoint: Endpoint, cfg: Settings, db: Adapter, run_id: str,
             summary = {"initial_limit": cfg.concurrency, "final_limit": throttle.limit.value,
                        "min_limit": min(limits_seen), "adjustments": sum(
                            step["limit_after"] != step["limit_before"] for step in trace), "trace": trace}
-        return warmup, measurement, counters, cpu, summary
+        mig_result = mig_box["result"]
+        if mig_result is not None:
+            mig_result["migrated_on_demand"] = measurement.migrated_on_demand
+            mig_result["client_conflicts"] = measurement.migration_conflicts
+            mig_result["migration_conflicts"] = (
+                mig_result.get("background_conflicts", 0) + measurement.migration_conflicts
+            )
+        return warmup, measurement, counters, cpu, summary, mig_result
     except Exception as exc:
         with suppress(Empty):
             _, _, error = queue.get(timeout=2)
@@ -216,6 +265,8 @@ def phases(endpoint: Endpoint, cfg: Settings, db: Adapter, run_id: str,
         raise RuntimeError(f"Runner gián đoạn: {exc!r}") from exc
     finally:
         stop.set()
+        if mig_thread is not None:
+            mig_thread.join(timeout=5)
         if controller is not None:
             controller.join(timeout=3)
         if sampler is not None:
@@ -261,6 +312,8 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
     measurement = unavailable_phase(cfg.measurement_seconds)
     expected = None
     tps_series = None
+    p99_series = None
+    migration_result = None
     variant_setup = {"variant": cfg.variant, "slots": cfg.slots if uses_slots(cfg.variant) else None,
                      "hot_items": cfg.hot_items if uses_slots(cfg.variant) else None,
                      "order_id_batch": cfg.order_id_batch, "arrival_rate": cfg.arrival_rate,
@@ -296,9 +349,19 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
             evidence = {**evidence, "indexed": False}
             protocol_errors.append(f"placement_failed: {type(exc).__name__}: {exc}")
             placed_pd = None
+    if evidence["indexed"] and uses_migration(cfg.migration_strategy):
+        began = time.monotonic()
+        try:
+            variant_setup["migration_prepare"] = prepare_migration(db, cfg.dataset)
+            variant_setup["migration_prepare_seconds"] = time.monotonic() - began
+        except Exception as exc:
+            evidence = {**evidence, "indexed": False}
+            protocol_errors.append(f"migration_prepare_failed: {type(exc).__name__}: {exc}")
     if evidence["indexed"]:
         try:
-            warm, measured, counters, cpu, throttle_summary = phases(endpoint, cfg, db, run_id, repetition, limits)
+            warm, measured, counters, cpu, throttle_summary, migration_result = phases(
+                endpoint, cfg, db, run_id, repetition, limits
+            )
         except Exception as exc:
             protocol_errors.append(f"runner_failed: {type(exc).__name__}: {exc}")
         else:
@@ -307,9 +370,16 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
             expected = sorted(warm.successful_orders + measured.successful_orders)
             tps_series = {"warmup": warm.series_list(cfg.warmup_seconds),
                           "measurement": measured.series_list(cfg.measurement_seconds)}
-            write_series(directory / "tps_per_second.csv", tps_series)
+            p99_series = {"warmup": warm.p99_series_list(cfg.warmup_seconds),
+                          "measurement": measured.p99_series_list(cfg.measurement_seconds)}
+            if uses_migration(cfg.migration_strategy):
+                mig_win = ((migration_result or {}).get("start_second"), (migration_result or {}).get("end_second"))
+                write_series(directory / "tps_per_second.csv", tps_series, p99_series, mig_win)
+            else:
+                write_series(directory / "tps_per_second.csv", tps_series)
             write_json(directory / "successful_new_orders.json", expected)
-            if cfg.label in {"correctness", "smoke"} and warm.out_of_stock_all + measured.out_of_stock_all == 0:
+            if cfg.label in {"correctness", "smoke"} and not uses_migration(cfg.migration_strategy) and (
+                    warm.out_of_stock_all + measured.out_of_stock_all == 0):
                 protocol_errors.append("out_of_stock_not_observed")
             if measured.successes.total() == 0:
                 protocol_errors.append("no_success_in_measurement")
@@ -331,7 +401,8 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
     if evidence["indexed"]:
         try:
             validation = validate(db, cfg.dataset, run_id, expected or (), dataset_state["counts"],
-                                  slots=uses_slots(cfg.variant), embedded=cfg.mongo_design == "b")
+                                  slots=uses_slots(cfg.variant), embedded=cfg.mongo_design == "b",
+                                  migration=uses_migration(cfg.migration_strategy))
             if expected is None:
                 validation["rules"]["idempotency"] = None
         except Exception as exc:
@@ -351,6 +422,8 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
         "order_warehouses": [cfg.order_warehouses_min, cfg.order_warehouses_max],
         "warehouse_groups": cfg.warehouse_groups, "placement_result": placement_evidence,
         "tikv_count": sum(name.startswith("tikv") for name in limits) or None,
+        "migration_strategy": cfg.migration_strategy, "old_order_read_pct": cfg.old_order_read_pct,
+        "migration": migration_result,
         "throttle_result": throttle_summary, "variant_setup": variant_setup,
         "client_timeout_seconds": cfg.client_timeout_seconds, "concurrency": cfg.concurrency, "warehouse_mode": cfg.warehouse_mode,
         "theta": cfg.theta, "hot_item": cfg.hot_item,
@@ -364,6 +437,7 @@ def run_one(endpoint: Endpoint, cfg: Settings, db: Adapter, repetition: int, out
         "resource_warnings": cpu_warnings(cpu, limits) + loadgen_warnings(cpu.get("loadgen")),
         "validation": validation,
         "tps_series": tps_series,
+        "p99_series": p99_series,
         "warmup_stability": warmup_stability(**tps_series) if tps_series else None,
     }
     write_result(directory, result)

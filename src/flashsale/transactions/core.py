@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import random
 
 from flashsale.adapters.base import Adapter, DBError, Row
+from flashsale.migration import compute_discount
 from flashsale.workload.generator import Request
 
 # ol_dist_info của P0/P1/P2 là hằng: không đọc dòng stock chỉ để lấy chuỗi đệm (đọc thêm sẽ giữ khóa lâu hơn
@@ -12,7 +13,7 @@ DIST_FILLER = "FLASHSALE-NO-DIST-INFO"
 
 @dataclass
 class TxnContext:
-    """Trạng thái của MỘT worker cho các biến thể mục 2.2 (mỗi worker có adapter riêng nên không chia sẻ)."""
+    """Trạng thái của MỘT worker cho các biến thể mục 2.2 và 2.4 (mỗi worker có adapter riêng nên không chia sẻ)."""
     variant: str = "legacy"
     slots: int = 1
     hot_items: frozenset[int] = frozenset()
@@ -25,14 +26,22 @@ class TxnContext:
     nowait: bool = False
     design_b: bool = False
     stored_procedure: bool = False
+    migration_strategy: str = "none"
+    item_prices: dict[int, int] = field(default_factory=dict)
+    migrated_on_demand: int = 0
+    migration_conflicts: int = 0
+    last_read_migrated: bool = False
 
     @property
     def is_2_1(self) -> bool:
         return (self.variant == "legacy" and self.order_id_batch == 0 and not self.lock_order
-                and not self.nowait and not self.design_b and not self.stored_procedure)
+                and not self.nowait and not self.design_b and not self.stored_procedure
+                and self.migration_strategy == "none")
 
 
 def lookup(db: Adapter, req: Request) -> Row | None:
+    if req.kind == "old_order":
+        return None
     table = "orders" if req.kind == "new_order" else "history"
     return db.one(table, {"request_id": req.request_id})
 
@@ -44,6 +53,8 @@ def required(row: Row | None) -> Row:
 
 
 def execute(db: Adapter, req: Request, ctx: TxnContext | None = None) -> None:
+    if ctx is not None:
+        ctx.last_read_migrated = False
     if ctx is not None and ctx.design_b and req.kind == "new_order":
         # Thiết kế (b): KHÔNG có giao dịch nhiều tài liệu (xem new_order_b).
         if not (req.idempotent and lookup(db, req) is not None):
@@ -68,6 +79,8 @@ def execute(db: Adapter, req: Request, ctx: TxnContext | None = None) -> None:
                 new_order(db, req)
             else:
                 new_order(db, req, ctx)
+        elif req.kind == "old_order":
+            old_order(db, req, ctx)
         else:
             payment(db, req)
 
@@ -153,10 +166,14 @@ def new_order(db: Adapter, req: Request, ctx: TxnContext | None = None) -> None:
             take_stock(db, req, ctx, item, quantity, sw)
             price = required(db.one("item", {"i_id": item}))["i_price"]
             dist_info = DIST_FILLER
-        lines.append(dict(ol_w_id=w, ol_d_id=d, ol_o_id=order_id, ol_number=line_number,
-                          ol_i_id=item, ol_supply_w_id=sw, ol_quantity=quantity, ol_delivery_d=None,
-                          ol_amount=quantity * price, ol_dist_info=dist_info,
-                          run_id=req.run_id))
+        line = dict(ol_w_id=w, ol_d_id=d, ol_o_id=order_id, ol_number=line_number,
+                    ol_i_id=item, ol_supply_w_id=sw, ol_quantity=quantity, ol_delivery_d=None,
+                    ol_amount=quantity * price, ol_dist_info=dist_info,
+                    run_id=req.run_id)
+        if ctx is not None and ctx.migration_strategy != "none":
+            line["ol_discount"] = compute_discount(quantity, price)
+            line["ol_mig_state"] = "MIGRATED"
+        lines.append(line)
     db.insert("orders", dict(o_w_id=w, o_d_id=d, o_id=order_id, o_c_id=req.customer,
                             o_entry_d=datetime.now(timezone.utc).replace(tzinfo=None),
                             o_carrier_id=None, o_ol_cnt=len(lines), o_all_local=all_local,
@@ -226,6 +243,41 @@ def _new_order_b(db: Adapter, req: Request) -> None:
                     except Exception:
                         continue
         raise
+
+
+def old_order(db: Adapter, req: Request, ctx: TxnContext | None = None) -> list[Row]:
+    """Giao dịch đọc 'Xem đơn cũ' (mục 2.4). Chọn một đơn nạp sẵn và đọc các dòng order_line của đơn đó.
+    Ở P1 (eager) và P2 (batch): ứng dụng đọc tương thích cả dòng cũ lẫn mới. Ở P3 (lazy): nếu gặp dòng
+    UNMIGRATED thì chuyển dòng đó bằng cập nhật có điều kiện ngay trước khi trả kết quả."""
+    key = {"ol_w_id": req.warehouse, "ol_d_id": req.district, "ol_o_id": req.order_id}
+    lines = db.many("order_line", key)
+    if not lines:
+        raise DBError("application_error")
+    migrated_any = False
+    for line in lines:
+        if line.get("ol_mig_state") == "MIGRATED" and line.get("ol_discount") is not None:
+            continue
+        price = ctx.item_prices.get(line["ol_i_id"]) if ctx and ctx.item_prices else None
+        if price is None:
+            price = required(db.one("item", {"i_id": line["ol_i_id"]}))["i_price"]
+        discount = compute_discount(line["ol_quantity"], price)
+        if ctx is not None and ctx.migration_strategy == "lazy":
+            line_key = {
+                "ol_w_id": line["ol_w_id"], "ol_d_id": line["ol_d_id"],
+                "ol_o_id": line["ol_o_id"], "ol_number": line["ol_number"],
+                "ol_mig_state": "UNMIGRATED",
+            }
+            changed = db.change("order_line", line_key,
+                                set_values={"ol_discount": discount, "ol_mig_state": "MIGRATED"})
+            if changed == 1:
+                ctx.migrated_on_demand += 1
+                migrated_any = True
+            else:
+                ctx.migration_conflicts += 1
+        line["ol_discount"] = discount
+    if ctx is not None:
+        ctx.last_read_migrated = migrated_any
+    return lines
 
 
 def payment(db: Adapter, req: Request) -> None:

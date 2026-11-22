@@ -10,7 +10,7 @@ import sys
 from flashsale.adapters.base import Endpoint, open_adapter
 from flashsale.benchmark.metrics import write_json
 from flashsale.benchmark.runner import run_one
-from flashsale.config import VARIANTS, Settings, read_settings, uses_slots
+from flashsale.config import MIGRATION_STRATEGIES, VARIANTS, Settings, read_settings, uses_migration, uses_slots
 from flashsale.data.loader import fingerprint, load, reset
 from flashsale.infra import (BUDGET_CPUS, BUDGET_MEMORY_BYTES, ENGINES, ROOT, active_engines, container_limits, endpoint, enforce_one,
                             host_info, pd_status, project_lock, ready, remote_nodes, source_hashes, setting, start, stop, tcp_rtt_ms)
@@ -205,11 +205,13 @@ def parser() -> argparse.ArgumentParser:
 
 VARIANT_FIELDS = ("variant", "slots", "hot_items", "order_id_batch", "arrival_rate", "queue_size",
                   "p99_limit_ms", "abort_limit_pct", "limit_min", "lock_order", "nowait", "txn_mode", "mongo_design", "stored_procedure", "order_warehouses_min",
-                  "order_warehouses_max", "warehouse_groups", "placement", "placement_scope", "placement_slot_items")
+                  "order_warehouses_max", "warehouse_groups", "placement", "placement_scope", "placement_slot_items",
+                  "migration_strategy", "old_order_read_pct", "migration_batch_size", "migration_sleep_ms",
+                  "migration_delay_seconds")
 
 
 def add_variant_arguments(command) -> None:
-    """Biến thể trừ kho của mục 2.2 (mặc định `legacy` = 2.1, không đổi)."""
+    """Biến thể trừ kho của mục 2.2 và chiến lược chuyển dữ liệu của mục 2.4 (mặc định tắt để 2.1 không đổi)."""
     command.add_argument("--variant", choices=VARIANTS,
                          help="legacy (2.1), p0 đọc rồi ghi, p1 cập nhật có điều kiện, p2 chia tồn kho thành slot, "
                               "p3 = p2 + điều tiết thích ứng")
@@ -247,6 +249,16 @@ def add_variant_arguments(command) -> None:
                               "(cần --variant p1)")
     command.add_argument("--txn-mode", choices=("default", "optimistic", "pessimistic"), dest="txn_mode",
                          help="T4: chế độ giao dịch của TiDB")
+    command.add_argument("--migration-strategy", choices=MIGRATION_STRATEGIES, dest="migration_strategy",
+                         help="Mục 2.4: none, eager (P1), batch (P2), lazy (P3)")
+    command.add_argument("--old-order-read-pct", type=float, dest="old_order_read_pct",
+                         help="Mục 2.4: tỉ lệ %% giao dịch 'Xem đơn cũ' (q = 5, 25, 50)")
+    command.add_argument("--migration-batch-size", type=int, dest="migration_batch_size",
+                         help="Mục 2.4 P2/P3: cỡ lô chuyển nền (ví dụ 1000 hoặc 5000 dòng)")
+    command.add_argument("--migration-sleep-ms", type=float, dest="migration_sleep_ms",
+                         help="Mục 2.4 P2/P3: thời gian nghỉ giữa các lô nền (ms)")
+    command.add_argument("--migration-delay-seconds", type=float, dest="migration_delay_seconds",
+                         help="Mục 2.4: số giây đầu pha đo trước khi kích hoạt migration")
 
 
 def execute_command(args) -> dict | list:
@@ -282,7 +294,8 @@ def execute_command(args) -> dict | list:
             return validate(db, Dataset(**manifest["config"]["dataset"]), args.run_id, expected,
                             manifest["dataset_state"]["counts"],
                             slots=uses_slots(manifest["config"].get("variant", "legacy")),
-                            embedded=manifest["config"].get("mongo_design") == "b")
+                            embedded=manifest["config"].get("mongo_design") == "b",
+                            migration=uses_migration(manifest["config"].get("migration_strategy", "none")))
 
     target = endpoint(engine, getattr(args, "dataset", None))
     if command in {"reset", "drop"} and target.database != args.confirm:

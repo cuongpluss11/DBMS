@@ -215,6 +215,17 @@ class SQLAdapter:
             raise classify(exc) from exc
         return result[0] if result else None
 
+    def many(self, table: str, key: Row) -> list[Row]:
+        where, values = keys(key)
+        try:
+            if not self.in_transaction and not self.connection.open:
+                self.connection.ping(reconnect=True)
+            return self.query(f"SELECT * FROM {table}{where}", values)
+        except pymysql.MySQLError as exc:
+            if self.in_transaction:
+                raise
+            raise classify(exc) from exc
+
     def change(self, table: str, key: Row, *, set_values: Row | None = None,
                increment: Row | None = None, changed_only: bool = False,
                between: dict[str, tuple[int, int]] | None = None,

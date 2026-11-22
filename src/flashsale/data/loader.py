@@ -142,9 +142,12 @@ def load(db: Adapter, cfg: Dataset, seed: int, batch_size: int = 1000) -> dict[s
 
 
 def reset(db: Adapter, cfg: Dataset) -> None:
+    from flashsale.migration import reset_migration
+
     db.drop_slots()  # bảng phụ của P2; dòng stock đã chuyển tồn sang slot được khôi phục ngay bên dưới
     for table in ("order_line", "new_order", "orders"):
         db.delete_tagged(table, "run_id")
+    reset_migration(db, cfg)
     db.delete_tagged("history", "request_id")
     for warehouse in range(1, cfg.warehouses + 1):
         # Chia lô để không vượt giới hạn kích thước giao dịch (TiDB) khi nhiều dòng đã bị đổi.

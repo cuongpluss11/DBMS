@@ -218,3 +218,39 @@ def test_idempotency_off_replay_creates_duplicate_order(dataset_idempotency_off)
     assert db.count("orders") == counts["orders"] + 2
     report = validate(db, config, run_id, [req.request_id], counts)
     assert report["status"] == "INVALID" and report["rules"]["idempotency"] is False
+
+
+def test_online_schema_migration_eager_and_lazy_contract(dataset):
+    """Mục 2.4: chuẩn bị lược đồ ol_discount/ol_mig_state, Xem đơn cũ (lazy & eager), chuyển dữ liệu và validator."""
+    from dataclasses import replace
+    from flashsale.migration import load_item_prices, migrate_background, prepare_migration
+
+    db, config, counts = dataset
+    base_cfg = read_settings(Path("configs/smoke.toml"))
+    run_id = "d" * 32
+    prep = prepare_migration(db, config)
+    assert prep["unmigrated_initial_rows"] == counts["order_line"]
+    prices = load_item_prices(db)
+
+    # 1. Thử Lazy (P3): đọc đơn cũ 1 chuyển theo yêu cầu, sau đó luồng nền vét hết phần còn lại.
+    lazy_ctx = TxnContext("p1", migration_strategy="lazy", item_prices=prices)
+    read_req = Request(run_id + "-read1", run_id, "old_order", 1, 1, 0, order_id=1, idempotent=False)
+    assert run_request(db, read_req, ctx=lazy_ctx).status == "success"
+    assert lazy_ctx.migrated_on_demand > 0 and lazy_ctx.last_read_migrated
+    new_req = Request(run_id + "-new1", run_id, "new_order", 1, 1, 1, ((1, 2),))
+    assert run_request(db, new_req, ctx=lazy_ctx).status == "success"
+    lazy_cfg = replace(base_cfg, migration_strategy="lazy", migration_sleep_ms=0.0, migration_delay_seconds=0.0)
+    stats = migrate_background(db, lazy_cfg, prices)
+    assert stats["migrated_background"] + lazy_ctx.migrated_on_demand == counts["order_line"]
+    report = validate(db, config, run_id, [new_req.request_id], counts, migration=True)
+    assert report["status"] == "VALID", report["errors"]
+    assert report["rules"]["migration"] is True
+
+    # 2. Reset rồi thử Eager (P1): chuyển tập trung toàn bộ dữ liệu cũ.
+    reset(db, config)
+    eager_cfg = replace(base_cfg, migration_strategy="eager", migration_delay_seconds=0.0)
+    eager_stats = migrate_background(db, eager_cfg, prices)
+    assert eager_stats["migrated_background"] == counts["order_line"]
+    eager_report = validate(db, config, "", [], counts, migration=True)
+    assert eager_report["status"] == "VALID", eager_report["errors"]
+    reset(db, config)

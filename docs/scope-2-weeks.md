@@ -98,8 +98,8 @@ Cập nhật bảng mỗi ngày: `Chưa làm / Đang làm / Đã đo / Cắt`, g
 | 2.2 | T4 (5 đòn bẩy) | Lực | Đã đo trên TiDB | T4 TiDB đã đo (`results/official/2.2-aws/tidb3/`); MySQL, MongoDB chưa đo. Mã xong 5/5 (khóa theo thứ tự, NOWAIT, TiDB lạc quan/bi quan, MongoDB (b), stored procedure; thử được trên Docker MySQL/MongoDB, TiDB NOT TESTED); chưa đo |
 | 2.3 | Script đặt Region/leader, đơn nhiều kho, `AUTO_RANDOM` | Lực | Đang làm | Mã và unit test xong (PD/TiDB giả lập); đơn nhiều kho thử trên MySQL Docker; smoke TiDB 1 TiKV thật (AWS, sơ bộ): placement, PD API, AUTO_RANDOM/AUTO_INCREMENT hoạt động; chuyển leader giữa 3 TiKV cũng hoạt động (tidb3, sơ bộ); cần TiDB server lớn hơn trước khi đo hệ số tăng tốc; xem `docs/experiment-2.3.md` |
 | 2.3 | Nhóm A, B, C, D, E.a (1 và 3 TiKV) | Lực | Đã đo (TiDB) | 1 TiKV (21 lượt) và 3 TiKV (48 lượt gồm E.a) đều VALID: `results/official/2.3-aws/tidb1/`, `tidb3/`, hệ số tăng tốc ở `SUMMARY-speedup.md`; còn mốc MySQL hai cỡ vCPU |
-| 2.4 | Thiết kế (lược đồ đích, ba cách chuyển, kiểm tra đúng đắn) | Cường | Chưa làm | gửi nhóm xem trước khi code nhiều |
-| 2.4 | Giao dịch "Xem đơn cũ" | Cường | Chưa làm | mặc định tắt |
+| 2.4 | Thiết kế (lược đồ đích, ba cách chuyển, kiểm tra đúng đắn) | Cường | Đang làm | gửi nhóm xem trước khi code nhiều |
+| 2.4 | Giao dịch "Xem đơn cũ" | Cường | Đang làm (mã xong, đã test unit; chưa test DB thật) | mặc định tắt (`old_order_read_pct = 0.0`) |
 | 2.4 | Eager, Batch nền, Lazy trên MySQL rồi MongoDB; kiểm tra đúng đắn | Cường | Chưa làm | |
 | 2.4 | Đo chính thức (q = 5% và 50%) | Cường | Chưa làm | slot `mysql` Ngày 10, `mongo` Ngày 11 |
 | 2.5 | Ma trận đánh đổi và câu trả lời câu hỏi tổng | Cường | Chưa làm | bản nháp Ngày 12 |

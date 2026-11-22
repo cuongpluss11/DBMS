@@ -154,10 +154,22 @@ class MongoAdapter:
                 raise
             raise classify(exc) from exc
 
+    def many(self, table: str, key: Row) -> list[Row]:
+        try:
+            return list(self.db[table].find(key, {"_id": 0}, session=self.session))
+        except PyMongoError as exc:
+            if self.session is not None:
+                raise
+            raise classify(exc) from exc
+
     def change(self, table: str, key: Row, *, set_values: Row | None = None,
                increment: Row | None = None, changed_only: bool = False,
                between: dict[str, tuple[int, int]] | None = None,
                at_least: Row | None = None) -> int:
+        key = dict(key)
+        if key.get("ol_mig_state") == "UNMIGRATED":
+            # Mục 2.4: trên MongoDB, document cũ thiếu trường ol_mig_state (hoặc null) được coi là UNMIGRATED.
+            key["ol_mig_state"] = {"$in": ["UNMIGRATED", None]}
         key = {**key, **{name: {"$gte": low, "$lte": high} for name, (low, high) in (between or {}).items()}}
         # P1: điều kiện `cột >= giá trị` nằm trong bộ lọc của chính lệnh cập nhật (một tài liệu, nguyên tử).
         key.update({name: {"$gte": minimum} for name, minimum in (at_least or {}).items()})

@@ -1,4 +1,5 @@
 """Mục 2.2, P3 và tải vòng mở: logic điều tiết và hàng đợi (không cần DBMS)."""
+"""Mục 2.2, P3 và tải vòng mở: logic điều tiết và hàng đợi (không cần DBMS)."""
 import multiprocessing as mp
 import threading
 import time
