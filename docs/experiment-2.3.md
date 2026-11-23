@@ -94,9 +94,9 @@ Chỉ TiDB. Trước warmup của mỗi lượt (ngoài thời gian đo): chia `
   - C, P2 N=9 với `--placement spread`: `stock_slot` 46 Region rải 16/15/15 lên ba TiKV, VALID.
   - Sau cả bốn lượt PD trở lại đúng cấu hình ban đầu (không scheduler nào tạm dừng; giới hạn 4, 2048, 4, 8).
   - **Lưu ý quan trọng cho kết luận 2.3:** ở cả bốn điểm máy chủ TiDB (4 vCPU) chạm 100% CPU (`tidb_cpu_100pct_of_limit`) trong khi mỗi TiKV chỉ 55–141% trên 400%; TPS ≈ 800–1.000 gần như không đổi giữa 1 và 3 TiKV (1.100 ở cụm 1 TiKV, 1.000 ở cụm 3 TiKV, hai cấu hình khác lần chạy và TiKV nên chỉ tham khảo). Nghĩa là với TiDB server 4 vCPU hệ số tăng tốc sẽ ≈ 1 vì tầng SQL là nút thắt, không phải vì điểm nóng: đúng điều biên bản bàn giao đã chốt ("cách A": ở 2.3 dùng TiDB server cỡ đủ lớn, dùng chung cho cụm 1 và 3 TiKV, và ghi thành khác biệt). **Cần nâng `tidb_instance_type` (ví dụ c6i.4xlarge hoặc 8xlarge) trước khi đo hệ số tăng tốc chính thức**, và dùng cùng cỡ ở cả hai cụm.
-- **NOT TESTED:** hệ số tăng tốc và nhóm B ở cả hai cụm với TiDB server đủ lớn; E.a ở 64 client đủ 3 lần lặp; tác động của chuyển leader lên TPS (smoke 20 s chưa đủ).
+- **Cập nhật 2026-11-23:** hệ số tăng tốc và nhóm A–C đã đo 3 lần lặp ở cả hai cụm (1 và 3 TiKV), nhóm E.a ở cụm 3 TiKV, đều với TiDB server c6i.4xlarge (xem các mục kết quả bên dưới); nhóm R đã đo (mục "Nhóm R"). **Chưa kiểm:** tác động riêng của chuyển leader lên TPS.
 - Bài học hạ tầng: ở us-east-1c `m6i.large`, `m5.large` rồi cả `c6i.xlarge` đã hết capacity vào các thời điểm khác nhau (terraform thử lại tối đa 25 lần rồi báo lỗi; apply lại thì tạo nốt được; dry-run không phát hiện; xem lỗi bằng CloudTrail `RunInstances`); đĩa dữ liệu gắn trễ làm bootstrap PD lỗi sau 300 s (chạy lại `/var/lib/cloud/instance/scripts/part-001`); lỗi `env.sh` rỗng của `aws-tidb-up.sh` vẫn còn (viết tay).
-- **Chưa làm (Tầng 2/3):** E.b/E.c (async commit, 1PC, độ phân tán), E.d, nhóm R, tùy chọn độ trễ mạng, MongoDB chia shard, thêm TiKV khi đang chạy.
+- **Chưa làm (Tầng 2/3):** E.b/E.c (async commit, 1PC, độ phân tán), E.d, tùy chọn độ trễ mạng (nhóm R đã đo), MongoDB chia shard, thêm TiKV khi đang chạy.
 
 ## Kết quả đo chính thức: MySQL hai cỡ vCPU (AWS, 2026-11-22)
 

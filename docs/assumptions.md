@@ -87,3 +87,8 @@ Phần này ghi các lựa chọn khi chạy chuỗi đo MySQL (2.2 và 2.3) tr�
 | Yêu cầu gốc → vấn đề | Phương án | Ảnh hưởng tính so sánh |
 | --- | --- | --- |
 | MongoDB 2.2 trên AWS (2026-11-22): mongod chạy với `nofile` mềm 1.024 (khuyến nghị 64.000), nên ở 256 client mongod hết file descriptor (P3 lỗi khởi động, một lần mongod crash). | Thêm `ulimits.nofile = 64000` vào `infra/aws/compose/mongo.aws.yml`, tạo lại container; đo lại T1 ở 256 client (`mongo-t1-c256-postfix/`) và P2 ở 256 client của T3 (`mongo-t3-p2-postfix/`); số cũ giữ trong `mongo/`, `mongo-t3/` kèm ghi chú. MySQL và TiDB chưa kiểm giới hạn fd tương ứng (MySQL `max_connections=1000`, hệ chạy được 256 client không lỗi). | Số Mongo ở 256 client trước khi sửa thấp hơn 12–46%, không dùng để so sánh giữa các hệ; dùng số postfix. Các lượt Mongo ≤128 client chưa đo lại (log fd đã mất, không lượt nào lỗi). Nguyên nhân các lỗi ở điểm 10, 12, 14 chưa chứng minh được bằng log. |
+
+| Yêu cầu gốc → vấn đề | Phương án | Ảnh hưởng tính so sánh |
+| --- | --- | --- |
+| Đề 2.2 nhóm T3 (P2 so với P3, tải vòng mở) cho cả ba hệ → còn 5 ngày đến hạn nộp (28/11), nhận xét của cô yêu cầu thu hẹp phạm vi, và T3 trên MongoDB cho thấy P3 chỉ giảm p99 (không tăng TPS). | **Không đo T3 trên TiDB** (đã thống nhất khi duyệt kế hoạch phiên `tidb3` 2026-11-23); dùng phiên đó cho nhóm R, test tích hợp và fault injection trên TiDB. | T3 chỉ có ở MongoDB và MySQL; không rút kết luận P3 cho TiDB. Báo cáo ghi rõ là chưa đo. |
+| Nhóm R (rf=3) mặc định bị chặn bởi kiểm tra `max-replicas=1` trong `pd_status()` → cần cho phép tường minh. | Thêm `FLASHSALE_TIDB_REPLICAS` (mặc định 1); manifest luôn ghi `max_replicas` thật đọc từ PD, không suy từ biến môi trường. | Lượt chính vẫn bị chặn nếu PD khác 1; chỉ nhóm R đặt biến này. |

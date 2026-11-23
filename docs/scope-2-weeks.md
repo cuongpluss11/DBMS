@@ -90,11 +90,11 @@ Cập nhật bảng mỗi ngày: `Chưa làm / Đang làm / Đã đo / Cắt`, g
 | Mục | Hạng mục Tầng 1 | Phụ trách | Trạng thái | Ghi chú |
 | --- | --- | --- | --- | --- |
 | 2.1 | Nghiệm thu trên AWS (ba hệ) | Lực | Đã đo | `docs/acceptance-2.1.md`, `results/official/2.1-aws/` |
-| 2.2 | P0, P1 (đọc rồi ghi, cập nhật có điều kiện) cả ba hệ | Lực | Đang làm | Mã xong; smoke G1 chạy trên MySQL AWS và Docker dev (MySQL, MongoDB) ngày 2026-11-21; TiDB NOT TESTED; xem `docs/experiment-2.2.md` |
+| 2.2 | P0, P1 (đọc rồi ghi, cập nhật có điều kiện) cả ba hệ | Lực | Đang làm | Mã xong; smoke G1 chạy trên MySQL AWS và Docker dev (MySQL, MongoDB) ngày 2026-11-21; TiDB: test tích hợp 12 PASS trên AWS (2026-11-23); xem `docs/experiment-2.2.md` |
 | 2.2 | P2 (chia tồn kho N slot, cấp mã đơn theo lô) và validator cộng slot | Lực | Đang làm | Mã xong; smoke G1 trên MySQL AWS VALID (P2 N=9 + lô mã), chưa đo chính thức |
 | 2.2 | T1 (P0 và P1 theo θ × client) | Lực | Đã đo (TiDB, MySQL, MongoDB) | `results/official/2.2-aws/tidb3/`, `mysql/`, `mongo/`; script `scripts/run-matrix-2.2.sh` sẵn sàng; slot AWS `mysql`, `mongo`, `tidb3` |
 | 2.2 | T2 (P1 so với P2, N = 1, 3, 9, 27) | Lực | Đã đo (TiDB, MySQL, MongoDB) | `results/official/2.2-aws/mongo/` |
-| 2.2 | P3 (điều tiết thích ứng), tải vòng mở, T3 | Lực | Đã đo T3 trên MongoDB (`results/official/2.2-aws/mongo-t3/`); chưa đo T3 trên MySQL và TiDB | Cường nhận nếu tiến độ chậm tại G2 |
+| 2.2 | P3 (điều tiết thích ứng), tải vòng mở, T3 | Lực | Đã đo T3 trên MongoDB (`mongo-t3/`) và MySQL (`mysql-t3/`); T3 trên TiDB không đo (cắt theo `docs/assumptions.md`) | Cường nhận nếu tiến độ chậm tại G2 |
 | 2.2 | T4 (5 đòn bẩy) | Lực | Đã đo (TiDB, MySQL, MongoDB) | T4 đã đo trên cả ba hệ (`results/official/2.2-aws/tidb3/`, `mysql/`, `mongo/`). Mã xong 5/5 (khóa theo thứ tự, NOWAIT, TiDB lạc quan/bi quan, MongoDB (b), stored procedure; thử được trên Docker MySQL/MongoDB, TiDB NOT TESTED); chưa đo |
 | 2.3 | Script đặt Region/leader, đơn nhiều kho, `AUTO_RANDOM` | Lực | Đang làm | Mã và unit test xong (PD/TiDB giả lập); đơn nhiều kho thử trên MySQL Docker; smoke TiDB 1 TiKV thật (AWS, sơ bộ): placement, PD API, AUTO_RANDOM/AUTO_INCREMENT hoạt động; chuyển leader giữa 3 TiKV cũng hoạt động (tidb3, sơ bộ); cần TiDB server lớn hơn trước khi đo hệ số tăng tốc; xem `docs/experiment-2.3.md` |
 | 2.3 | Nhóm A, B, C, D, E.a (1 và 3 TiKV) | Lực | Đã đo (TiDB) | 1 TiKV (21 lượt) và 3 TiKV (48 lượt gồm E.a) đều VALID: `results/official/2.3-aws/tidb1/`, `tidb3/`, hệ số tăng tốc ở `SUMMARY-speedup.md`; mốc MySQL 24 và 20 vCPU đã đo (30 lượt VALID, `results/official/2.3-aws/mysql/`; hệ số 0,89–0,94, nguyên nhân chưa kiểm chứng) |
