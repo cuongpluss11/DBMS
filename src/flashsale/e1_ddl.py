@@ -51,6 +51,12 @@ E1_MONGO_SCENARIOS = (
     "create_index_long_txn",
 )
 
+E1_TIDB_SCENARIOS = (
+    "add_column_online",
+    "add_index_online",
+    "mdl_long_txn",
+)
+
 E1_INDEX_NAME = "idx_e1_ol_w_i"
 
 
@@ -82,13 +88,10 @@ def cleanup_e1_schema(db: Any) -> None:
     """Đưa lược đồ `order_line` về trạng thái gốc (không có cột/chỉ mục E1) để lặp độc lập."""
     if hasattr(db, "query"):
         cols = _sql_columns(db)
-        drop_parts = []
         if "ol_discount" in cols:
-            drop_parts.append("DROP COLUMN ol_discount")
+            db.query("ALTER TABLE order_line DROP COLUMN ol_discount")
         if "ol_mig_state" in cols:
-            drop_parts.append("DROP COLUMN ol_mig_state")
-        if drop_parts:
-            db.query("ALTER TABLE order_line " + ", ".join(drop_parts))
+            db.query("ALTER TABLE order_line DROP COLUMN ol_mig_state")
         if E1_INDEX_NAME in _sql_indexes(db):
             db.query(f"ALTER TABLE order_line DROP INDEX {E1_INDEX_NAME}")
         return
@@ -126,7 +129,7 @@ def run_long_read_txn(target: Endpoint, hold_seconds: float, start_delay: float,
     began = time.monotonic()
     try:
         conn = open_adapter(target, timeout=hold_seconds + 30.0)
-        if target.engine == "mysql":
+        if target.engine in {"mysql", "tidb"}:
             with conn.connection.cursor() as cur:
                 cur.execute("BEGIN")
                 cur.execute("SELECT ol_o_id FROM order_line LIMIT 1")
@@ -209,8 +212,25 @@ def execute_ddl_action(db: Any, engine: str, scenario: str,
                 errors.append(f"{type(exc).__name__}: {exc}")
         else:
             raise ValueError(f"Kịch bản MongoDB E1 không hợp lệ: {scenario}")
+    elif engine == "tidb":
+        if scenario in {"add_column_online", "mdl_long_txn"}:
+            sql = (
+                "ALTER TABLE order_line "
+                "ADD COLUMN ol_discount BIGINT NULL, "
+                "ADD COLUMN ol_mig_state VARCHAR(16) NOT NULL DEFAULT 'UNMIGRATED'"
+            )
+        elif scenario == "add_index_online":
+            sql = f"ALTER TABLE order_line ADD INDEX {E1_INDEX_NAME} (ol_w_id, ol_i_id)"
+        else:
+            raise ValueError(f"Kịch bản TiDB E1 không hợp lệ: {scenario}")
+        attempts = 1
+        try:
+            db.query(sql)
+            succeeded = True
+        except Exception as exc:
+            errors.append(f"{type(exc).__name__}: {exc}")
     else:
-        raise ValueError(f"E1 hiện hỗ trợ mysql và mongo, nhận: {engine}")
+        raise ValueError(f"E1 hiện hỗ trợ mysql, mongo và tidb, nhận: {engine}")
 
     return {
         "scenario": scenario,
@@ -232,7 +252,7 @@ def run_e1_once(target: Endpoint, cfg: Settings, scenario: str, repetition: int,
     directory = out_dir / run_id
     directory.mkdir(parents=True, exist_ok=True)
 
-    uses_long_txn = scenario in {"mdl_freeze", "mdl_timeout_retry", "create_index_long_txn"}
+    uses_long_txn = scenario in {"mdl_freeze", "mdl_timeout_retry", "create_index_long_txn", "mdl_long_txn"}
     hold_s = long_txn_seconds if uses_long_txn else 0.0
     lock_timeout = short_lock_timeout if scenario == "mdl_timeout_retry" else None
     meas_seconds = max(cfg.measurement_seconds, hold_s + ddl_delay_seconds + 15.0) if uses_long_txn else cfg.measurement_seconds
@@ -483,7 +503,7 @@ def summarize_e1(out_dir: Path) -> dict[str, Any]:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Chạy thí nghiệm E1 (mục 2.4): DDL gốc dưới tải + kẹt Metadata Lock.")
-    ap.add_argument("engine", choices=("mysql", "mongo"))
+    ap.add_argument("engine", choices=("mysql", "mongo", "tidb"))
     ap.add_argument("--config", type=Path, default=Path("configs/migration.toml"))
     ap.add_argument("--dataset", required=True)
     ap.add_argument("--scenarios", nargs="+", default=None)
@@ -497,7 +517,8 @@ def main() -> None:
 
     cfg = read_settings(args.config)
     target = make_endpoint(args.engine, args.dataset)
-    scenarios = args.scenarios or (list(E1_MYSQL_SCENARIOS) if args.engine == "mysql" else list(E1_MONGO_SCENARIOS))
+    default_map = {"mysql": E1_MYSQL_SCENARIOS, "mongo": E1_MONGO_SCENARIOS, "tidb": E1_TIDB_SCENARIOS}
+    scenarios = args.scenarios or list(default_map[args.engine])
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     results = []

@@ -111,6 +111,19 @@ def test_mongo_e1_create_index_and_cleanup() -> None:
     assert E1_INDEX_NAME not in db.db["order_line"].indexes
 
 
+def test_tidb_e1_online_ddl_and_cleanup() -> None:
+    db = FakeSQLAdapter()
+    r1 = execute_ddl_action(db, "tidb", "add_column_online")
+    assert r1["succeeded"] is True
+    assert {"ol_discount", "ol_mig_state"}.issubset(db.cols)
+    r2 = execute_ddl_action(db, "tidb", "add_index_online")
+    assert r2["succeeded"] is True
+    assert E1_INDEX_NAME in db.indexes
+    cleanup_e1_schema(db)
+    assert "ol_discount" not in db.cols and "ol_mig_state" not in db.cols
+    assert E1_INDEX_NAME not in db.indexes
+
+
 def test_summarize_e1_generates_csv_and_md(tmp_path: Path) -> None:
     run_dir = tmp_path / "abc123"
     run_dir.mkdir()
