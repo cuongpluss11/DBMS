@@ -7,10 +7,13 @@ Trung vị, min–max của TPS thành công và trung vị p99 trên các lần
 | mongo | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 2185.4 (2153.0–2277.5) | 140.7 |
 | mongo | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 1882.9 (1874.7–1906.9) | 152.5 |
 | mongo | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 3044.2 (2890.4–3107.6) | 101.0 |
+| mysql | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 1499.5 (1483.2–1543.5) | 457.5 |
+| mysql | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 1262.0 (1204.7–1270.8) | 501.5 |
+| mysql | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 2011.8 (1941.4–2024.4) | 386.1 |
 
 ## Kiểm tra warmup 30 giây
 
-9/9 lượt có chuỗi TPS theo giây; 9 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
+18/18 lượt có chuỗi TPS theo giây; 9 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
 
 | run_id | engine | profile | client | θ | drift % |
 | --- | --- | --- | --- | --- | --- |

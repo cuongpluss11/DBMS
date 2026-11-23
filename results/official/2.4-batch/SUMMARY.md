@@ -10,13 +10,17 @@ Trung vị, min–max của TPS thành công và trung vị p99 trên các lần
 | mongo | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 2829.7 (2810.4–2916.3) | 114.2 |
 | mysql | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 1255.2 (1254.7–1349.5) | 578.2 |
 | mysql | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 1104.8 (1094.2–1106.0) | 619.5 |
+| mysql | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 988.0 (979.5–1040.7) | 644.7 |
+| mysql | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 1553.4 (1538.8–1571.4) | 559.5 |
 
 ## Kiểm tra warmup 30 giây
 
-18/18 lượt có chuỗi TPS theo giây; 8 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
+24/24 lượt có chuỗi TPS theo giây; 11 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
 
 | run_id | engine | profile | client | θ | drift % |
 | --- | --- | --- | --- | --- | --- |
+| 00c4275cac7442788a3ab57eab8a525b | mysql | migration | 64 | 0.5 | -18.3 |
+| 1bbc40eaf013469dbdbd2788cafe64b1 | mysql | migration | 64 | 0.5 | -23.5 |
 | 2a4efc312cda47c69c9e3dc356fd1403 | mongo | migration | 64 | 0.5 | -70.2 |
 | 41700bdb50244ecb93eb76d070d27d22 | mongo | migration | 64 | 0.5 | -47.4 |
 | 4a0f0128fa2c4165b963ae3551105d14 | mysql | migration | 64 | 0.5 | -23.7 |
@@ -25,5 +29,6 @@ Trung vị, min–max của TPS thành công và trung vị p99 trên các lần
 | e0769c6950ac4e6c85f5a5b34b7afa8c | mysql | migration | 64 | 0.5 | -17.8 |
 | e371ee0a7bc14528bacce5238de9f12d | mysql | migration | 64 | 0.5 | -25.2 |
 | e87d477ee0fd45208fbab4b4d3f2f584 | mongo | migration | 64 | 0.5 | -20.0 |
+| ea30af7f4ab244c88f34ddcc20d1c614 | mysql | migration | 64 | 0.5 | -24.1 |
 
 Nếu có lượt lệch: kéo dài warmup cho MỌI hệ (đề, mục 2.1) rồi đo lại.
