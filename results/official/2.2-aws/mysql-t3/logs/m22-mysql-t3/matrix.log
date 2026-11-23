@@ -1,0 +1,27 @@
+02:18:47 Bắt đầu ma trận 2.2: engine=mysql tier=t3 dry=0 B=50 hot_items=100 log=/home/ubuntu/m22-mysql-t3
+02:21:56 Đã nạp dataset flashsale_45c4f50871734750a65d700446ca0097 từ configs/hotspot.toml
+02:21:56 Điểm 1: t3-p2-c128-r900 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 128 --arrival-rate 900 --queue-size 64)
+02:27:38 Điểm 2: t3-p3-c128-r900 (configs/hotspot.toml --variant p3 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 128 --arrival-rate 900 --queue-size 64)
+02:33:24 Điểm 3: t3-p2-c128-r1450 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 128 --arrival-rate 1450 --queue-size 64)
+02:39:18 Điểm 4: t3-p3-c128-r1450 (configs/hotspot.toml --variant p3 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 128 --arrival-rate 1450 --queue-size 64)
+02:45:15 Điểm 5: t3-p2-c128-r1800 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 128 --arrival-rate 1800 --queue-size 64)
+02:51:15 Điểm 6: t3-p3-c128-r1800 (configs/hotspot.toml --variant p3 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 128 --arrival-rate 1800 --queue-size 64)
+02:57:14 Điểm 7: t3-p2-c128-r2200 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 128 --arrival-rate 2200 --queue-size 64)
+03:03:18 Điểm 8: t3-p3-c128-r2200 (configs/hotspot.toml --variant p3 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 128 --arrival-rate 2200 --queue-size 64)
+03:09:15 Điểm 9: t3-p2-c256-r900 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 900 --queue-size 64)
+03:15:04 Điểm 10: t3-p3-c256-r900 (configs/hotspot.toml --variant p3 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 900 --queue-size 64)
+03:20:51 Điểm 11: t3-p2-c256-r1450 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 1450 --queue-size 64)
+03:26:46 Điểm 12: t3-p3-c256-r1450 (configs/hotspot.toml --variant p3 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 1450 --queue-size 64)
+03:32:43 Điểm 13: t3-p2-c256-r1800 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 1800 --queue-size 64)
+03:38:47 Điểm 14: t3-p3-c256-r1800 (configs/hotspot.toml --variant p3 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 1800 --queue-size 64)
+03:44:48 Điểm 15: t3-p2-c256-r2200 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 2200 --queue-size 64)
+03:50:55 Điểm 16: t3-p3-c256-r2200 (configs/hotspot.toml --variant p3 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 2200 --queue-size 64)
+03:56:57 Xong 16 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m22-mysql-t3/report
+{
+  "runs": 48,
+  "groups": 16,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 6,
+  "out_dir": "/home/ubuntu/m22-mysql-t3/report"
+}

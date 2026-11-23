@@ -138,3 +138,19 @@ Sinh từ các `result.json`/`INDEX.csv` đã commit, không đo thêm: `scripts
 - **Tách cấp mã theo lô khỏi chia slot (P2 N=9, 64 client, không lô → lô 50):** một món: MySQL 1.504 → 1.847, MongoDB 1.893 → 2.854, TiDB 958 → 1.286; θ=0,9: MySQL 1.423 → 1.786, MongoDB 1.874 → 3.060, TiDB 912 → 2.276 (TiDB gấp 2,5 lần: bộ đếm mã đơn là điểm nóng chính ở θ=0,9 trên TiDB). Lô mã là biến riêng, phải báo cáo riêng.
 - **Bảng 2×2 TiDB (θ=0,9, 64 client, lô 50):** P1 616 (1 TiKV) → 751 (3 TiKV) = 1,22×; P2 N=27 845 → 2.121 = 2,51× (min–max 1.545–2.188 ở 3 TiKV); chia slot một mình: 1,37× (1 TiKV) và 2,82× (3 TiKV); cả hai: 3,44×. **Chưa xác nhận bằng vị trí Region/leader theo TiKV** nên chưa kết luận cơ chế.
 - **T4 TiDB một món, 128 client:** bi quan 250 TPS so với lạc quan 22 (lạc quan sụp trên hot SKU vì xung đột commit).
+
+### T3 trên MySQL (tải vòng mở, θ = 0,9, P2 so với P3; AWS, 2026-11-23)
+
+`results/official/2.2-aws/mysql-t3/`: 48 lượt VALID (MySQL-chỉnh 8.4.8, 24 vCPU/60 GiB, buffer pool 3 GiB; tải đặt 900, 1.450, 1.800, 2.200 yêu cầu/giây ≈ 50/80/100/120% đỉnh P2 θ = 0,9 ở T2 là ~1.810; `T3_RATES="900 1450 1800 2200"`). Trung vị 3 lần lặp, TPS thực (p99 ms):
+
+| Tải đặt | 128 client P2 | 128 client P3 | 256 client P2 | 256 client P3 |
+| --- | --- | --- | --- | --- |
+| 900 | 900 (106) | 900 (56) | 900 (50) | 900 (48) |
+| 1.450 | 1.441 (441) | 1.438 (497) | 1.450 (93) | 1.450 (74) |
+| 1.800 | 1.778 (641) | 1.297 (2.076) | 1.798 (580) | 1.303 (4.796) |
+| 2.200 | 1.917 (695) | 1.144 (2.603) | 2.055 (1.750) | 1.100 (4.990) |
+
+- **Dưới ~80% năng lực (≤ 1.450), P2 và P3 như nhau. Từ 100% trở lên P3 KÉM hơn P2** trên MySQL: ở 1.800 TPS đạt 1.297 so với 1.778 (−27%) và p99 2.076 so với 641 ms; ở 2.200: 1.144 so với 1.917 (−40%).
+- **Nguyên nhân (đọc từ `throttle_result`):** bộ điều tiết P3 hạ giới hạn đồng thời xuống 2–3 (`min_limit`) vì p99 của giao dịch nóng vượt ngưỡng 500 ms của đặc tả (p99 của chính P2 ở tải này đã 580–700 ms), nên nó liên tục chia đôi L; 23–49% yêu cầu bị từ chối do hàng đợi đầy (`rejected_pct`), thời gian chờ chuyển từ DBMS sang tầng ứng dụng. Đây trả lời trực tiếp câu hỏi của đề: trên MySQL ở tải này P3 **chỉ chuyển thời gian chờ** chứ không giảm sụp hiệu năng, và còn làm giảm throughput.
+- **Giới hạn quan trọng:** chỉ thử một bộ ngưỡng (p99 500 ms, abort 10%, theo đặc tả); kết quả phụ thuộc ngưỡng, chưa thử ngưỡng khác (đặt cao hơn p99 bình thường của hệ có thể đổi kết luận). Trái lại trên MongoDB ngưỡng này không bị chạm (p99 thấp hơn) nên P3 không có hại, chỉ giảm p99 ở 256 client.
+- **Warmup:** `results/official/warmup-analysis-mysql-t3.md`: 10/48 lượt ngoài khoảng ramp 0,9–1,1 (9 lượt ramp > 1,1), không lượt nào TPS thấp; trung vị ramp 1,00.
