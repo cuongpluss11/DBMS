@@ -1,19 +1,26 @@
 {
   "engine": "mongo",
-  "run_id": "2c3e026ff27e4dedb3ac483eccd0df57",
-  "requests": 300,
-  "workers": 4,
-  "kills": 6,
-  "restarts": 6,
+  "run_id": "ebeeac9633d14ea5bc1ceff80ecaea36",
+  "mode": "normal",
+  "requests": 600,
+  "workers": 8,
+  "post_commit_delay_ms": 40.0,
+  "kills": 29,
+  "restarts": 28,
   "statuses": {
-    "success": 213,
-    "write_conflict": 77,
-    "out_of_stock": 10
+    "success": 391,
+    "out_of_stock": 194,
+    "write_conflict": 15
   },
-  "orders_committed_in_db": 63,
-  "orders_acked_success": 63,
-  "payments_in_db": 150,
-  "payments_acked_success": 150,
+  "requests_reattempted_after_kill": 19,
+  "rerun_found_committed": 14,
+  "rerun_not_committed": 7,
+  "orders_committed_in_db": 105,
+  "orders_acked_success": 105,
+  "payments_in_db": 286,
+  "payments_acked_success": 286,
+  "duplicate_orders": 0,
+  "duplicate_payments": 0,
   "validation": "VALID",
   "rules": {
     "nonnegative": true,
@@ -21,7 +28,6 @@
     "idempotency": true
   },
   "doc_check_violations": 0,
-  "label": "fault-injection-docker-preliminary",
-  "requests_reattempted_after_kill": 6,
-  "passed": true
+  "passed": true,
+  "rule_of_three_upper_bound_pct": 21.43
 }

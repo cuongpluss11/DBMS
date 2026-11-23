@@ -1,0 +1,13 @@
+05:50:45 Bắt đầu ma trận 2.3: engine=tidb tier=c dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-tidb-rf3c
+05:50:45 Điểm 1: c-slots-n3 (configs/scaling.toml --variant p2 --slots 3 --hot-items 100 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+05:59:13 Điểm 2: c-slots-n9 (configs/scaling.toml --variant p2 --slots 9 --hot-items 100 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+06:08:34 Điểm 3: c-slots-n27 (configs/scaling.toml --variant p2 --slots 27 --hot-items 100 --theta 0.9 --no-hot-item --warehouse-mode single-warehouse --order-id-batch 50)
+06:18:01 Xong 3 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-tidb-rf3c/report
+{
+  "runs": 32,
+  "groups": 12,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 1,
+  "out_dir": "/home/ubuntu/m23-tidb-rf3c/report"
+}

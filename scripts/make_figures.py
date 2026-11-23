@@ -209,7 +209,24 @@ def main() -> None:
     fig.savefig(out / "fig6_t4.png", dpi=160)
     plt.close(fig)
     write_csv(out / "fig6_t4.csv", ["cau_hinh", "tps_median", "tps_min", "tps_max", "n"], table)
-    print(f"Đã ghi 6 hình và CSV vào {out}")
+    # Hình 7: nhóm R, TPS với replication factor 1 so với 3 (TiDB 3 TiKV, θ=0,9 trừ A là tải đều)
+    rr = rows(R23 / "tidb3-R")
+    cfgs = [("A: P1 θ=0", dict(variant="p1", theta="0.0")), ("B: P1 θ=0,9", dict(variant="p1", theta="0.9")),
+            ("C: P2 N=3", dict(variant="p2", slots="3")), ("C: P2 N=9", dict(variant="p2", slots="9")),
+            ("C: P2 N=27", dict(variant="p2", slots="27"))]
+    series, table = {}, []
+    for note, label in (("tidb3-rf1", "rf=1"), ("tidb3-rf3", "rf=3")):
+        vals = [stat(pick(rr, run_note=note, **kw)) for _, kw in cfgs]
+        series[label] = vals
+        table += [[label, c[0], *v] for c, v in zip(cfgs, vals)]
+    fig, ax = plt.subplots(figsize=(8, 4))
+    bars(ax, [c[0] for c in cfgs], series, "TPS (trung vị)")
+    ax.set_title("Nhóm R: replication factor 1 so với 3 (TiDB 3 TiKV, 64 client)")
+    fig.tight_layout()
+    fig.savefig(out / "fig7_replication.png", dpi=160)
+    plt.close(fig)
+    write_csv(out / "fig7_replication.csv", ["rf", "cau_hinh", "tps_median", "tps_min", "tps_max", "n"], table)
+    print(f"Đã ghi 7 hình và CSV vào {out}")
 
 
 if __name__ == "__main__":

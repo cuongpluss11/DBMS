@@ -1,18 +1,25 @@
 {
   "engine": "mysql",
-  "run_id": "50f5151f14f44a89be1c5c7c6e429bd9",
-  "requests": 2000,
-  "workers": 4,
-  "kills": 7,
-  "restarts": 7,
+  "run_id": "8d965696cd934931bf19d04ec78834fb",
+  "mode": "normal",
+  "requests": 1500,
+  "workers": 8,
+  "post_commit_delay_ms": 40.0,
+  "kills": 28,
+  "restarts": 28,
   "statuses": {
-    "success": 1119,
-    "out_of_stock": 881
+    "success": 862,
+    "out_of_stock": 638
   },
-  "orders_committed_in_db": 119,
-  "orders_acked_success": 119,
-  "payments_in_db": 1000,
-  "payments_acked_success": 1000,
+  "requests_reattempted_after_kill": 28,
+  "rerun_found_committed": 20,
+  "rerun_not_committed": 8,
+  "orders_committed_in_db": 112,
+  "orders_acked_success": 112,
+  "payments_in_db": 750,
+  "payments_acked_success": 750,
+  "duplicate_orders": 0,
+  "duplicate_payments": 0,
   "validation": "VALID",
   "rules": {
     "nonnegative": true,
@@ -20,7 +27,6 @@
     "idempotency": true
   },
   "doc_check_violations": 0,
-  "label": "fault-injection-docker-preliminary",
-  "requests_reattempted_after_kill": 7,
-  "passed": true
+  "passed": true,
+  "rule_of_three_upper_bound_pct": 15.0
 }
