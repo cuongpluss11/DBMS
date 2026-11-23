@@ -1,0 +1,26 @@
+{
+  "engine": "mysql",
+  "run_id": "50f5151f14f44a89be1c5c7c6e429bd9",
+  "requests": 2000,
+  "workers": 4,
+  "kills": 7,
+  "restarts": 7,
+  "statuses": {
+    "success": 1119,
+    "out_of_stock": 881
+  },
+  "orders_committed_in_db": 119,
+  "orders_acked_success": 119,
+  "payments_in_db": 1000,
+  "payments_acked_success": 1000,
+  "validation": "VALID",
+  "rules": {
+    "nonnegative": true,
+    "reconciliation": true,
+    "idempotency": true
+  },
+  "doc_check_violations": 0,
+  "label": "fault-injection-docker-preliminary",
+  "requests_reattempted_after_kill": 7,
+  "passed": true
+}

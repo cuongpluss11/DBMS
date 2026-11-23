@@ -1,0 +1,27 @@
+{
+  "engine": "mongo",
+  "run_id": "2c3e026ff27e4dedb3ac483eccd0df57",
+  "requests": 300,
+  "workers": 4,
+  "kills": 6,
+  "restarts": 6,
+  "statuses": {
+    "success": 213,
+    "write_conflict": 77,
+    "out_of_stock": 10
+  },
+  "orders_committed_in_db": 63,
+  "orders_acked_success": 63,
+  "payments_in_db": 150,
+  "payments_acked_success": 150,
+  "validation": "VALID",
+  "rules": {
+    "nonnegative": true,
+    "reconciliation": true,
+    "idempotency": true
+  },
+  "doc_check_violations": 0,
+  "label": "fault-injection-docker-preliminary",
+  "requests_reattempted_after_kill": 6,
+  "passed": true
+}
