@@ -84,3 +84,23 @@ class FaultyAdapter:
         if self.crash_on_insert == table:
             self._crash(f"crash_on_insert:{table}")
         return self._inner.insert(table, row)
+
+
+class CommitWindowAdapter(FaultyAdapter):
+    """Kéo dài cửa sổ "đã commit, chưa trả phản hồi" bằng một độ trễ NHÂN TẠO ngay sau commit thành công, để việc giết
+    tiến trình ngẫu nhiên có xác suất cao rơi đúng vào cửa sổ đó (cửa sổ thật chỉ vài mili-giây). Không đổi ngữ nghĩa
+    giao dịch: commit đã xong trước khi chờ."""
+
+    def __init__(self, inner, post_commit_delay_ms: float):
+        super().__init__(inner)
+        self.post_commit_delay = post_commit_delay_ms / 1000
+
+    @contextmanager
+    def atomic(self) -> Iterator[None]:
+        import time
+
+        self._check_alive()
+        with self._inner.atomic():
+            yield
+        if self.post_commit_delay > 0:
+            time.sleep(self.post_commit_delay)
