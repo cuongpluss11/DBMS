@@ -135,7 +135,7 @@ bash scripts/run-2.4-tidb-compact.sh                                   # TiDB 8.
 python scripts/plot-2.4.py                                             # Xuất lại Biểu đồ 6 & 6b vào docs/figures/2.4/
 ```
 
-### Tổng quan kết quả thực nghiệm mục 2.4 (114/114 lượt VALID: 51 MySQL + 39 MongoDB + 24 TiDB; 1 VM Docker `c6i.4xlarge`, sơ bộ, bộ đệm 3 GiB & độ bền ngang nhau)
+### Tổng quan kết quả thực nghiệm mục 2.4 (159/159 lượt VALID: 66 MySQL + 54 MongoDB + 39 TiDB; 1 VM Docker `c6i.4xlarge`, sơ bộ, bộ đệm 3 GiB & độ bền ngang nhau)
 
 **1. So sánh 3 chiến lược chuyển dữ liệu ở cùng tải nền (`q = 25%`, thí nghiệm E2, so với đường nền chuẩn `none`):**
 
@@ -187,6 +187,7 @@ python scripts/plot-2.4.py                                             # Xuất 
 - **E1 – Kẹt Metadata Lock:** Trên **MySQL**, 1 giao dịch đọc `order_line` 60s làm `ALTER INSTANT` đóng băng cả bảng **57 giây** (`47–52` giao dịch `PENDING`, đỉnh p99 `58,1 s`, TPS `-66,5%`); đặt `lock_wait_timeout = 3` giảm đóng băng xuống **2 s** và giữ TPS gấp **2,54×**. Trên **MongoDB**, `createIndex` thường chỉ mất `8,8 s` (`0 s` đóng băng), nhưng gặp đọc 60s vẫn chờ `66,8 s` và tụt `-66,8%` TPS. **TiDB 8.5.7** là hệ duy nhất dù chờ giao dịch đọc `59,3 s` (đảm bảo 0 lỗi `schema changed`) nhưng **không chặn giao dịch mới** (`0 s` đóng băng, giữ `1.042,2 TPS`).
 - **E2 – Chuyển dữ liệu (`q=25%`):** **P2 Batch lô `1.000` thắng về TPS trên cả 3 hệ** (`-16,3%` MySQL; `-0,6%` MongoDB; `-8,7%` TiDB), còn **P1 Eager** xong nhanh nhất nhưng sụt mạnh nhất (`-53,0%` MySQL; `-42,0%` TiDB; `-6,1%` MongoDB). **P3 Lazy** giữ p99 sát nền nhất trên MongoDB (`1,02×`) và TiDB (`1,13×`).
 - **E3 (Biểu đồ 6b):** Trên **MySQL**, hai đường cắt nhau giữa `q = 5%` và `25%` (Lazy thắng ở `q = 5%`, Batch thắng ở `q = 25%–50%`); trên **MongoDB**, Batch thắng về TPS trên cả 3 mức (`+58,2%` ở `q=50%`).
-- *Phạm vi dừng ở mức demo theo góp ý giảng viên: `highload` (`θ=0,9, 128c`) và TiDB E3 (`q=5%, 50%`) ở trạng thái `NOT TESTED` (xem [docs/experiment-2.4.md](docs/experiment-2.4.md)).*
+- **E2 tải cao Flash-sale (`θ = 0,9`, `128 client`, `q = 25%`, [2.4-highload](results/official/2.4-highload/SUMMARY.md), 45/45 VALID):** **P2 Batch 1.000** tiếp tục dẫn đầu TPS trên cả 3 hệ (`1.587,8 TPS` `-16,0%` MySQL; `2.478,6 TPS` `-6,5%` MongoDB; `710,4 TPS` `-33,8%` TiDB), cắt **25,5×** đỉnh p99 1s của MySQL Eager (`22,2 s → 0,87 s`).
+- *Phạm vi `NOT TESTED`: TiDB E3 (`q=5%, 50%`) và hạ tầng đa VM AWS cho 2.4 (xem chi tiết + 4 biểu đồ PNG tại [docs/experiment-2.4.md](docs/experiment-2.4.md)).*
 
 [Câu lệnh SQL và MongoDB để trình bày](docs/cau-lenh-dbms-2.1.md) có ví dụ chép vào trình soạn truy vấn, gồm EXPLAIN, New-Order, Payment và rollback.
