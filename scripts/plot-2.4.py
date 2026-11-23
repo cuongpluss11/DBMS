@@ -262,11 +262,77 @@ def plot_fig6b_e3() -> None:
     plt.close(fig)
 
 
+def plot_fig6c_highload() -> None:
+    """Biểu đồ 6c (E2 tải cao): So sánh TPS và đỉnh p99 1s tại θ=0,9, 128 client trên 3 hệ."""
+    hl_runs = load_runs("2.4-highload")
+    if not hl_runs:
+        return
+
+    engines = [
+        ("mysql", "MySQL 8.4.8"),
+        ("mongo", "MongoDB 8.0.20"),
+        ("tidb", "TiDB 8.5.7"),
+    ]
+    strategies = [
+        ("none", None, "Nền (none)", "#7f7f7f"),
+        ("eager", None, "P1 – Eager", "#d62728"),
+        ("batch", 5000, "P2 – Batch 5.000", "#ff7f0e"),
+        ("batch", 1000, "P2 – Batch 1.000", "#1f77b4"),
+        ("lazy", 1000, "P3 – Lazy", "#2ca02c"),
+    ]
+
+    fig, axes = plt.subplots(1, 2, figsize=(14.5, 5.2))
+    fig.suptitle(
+        "Biểu đồ 6c (E2 Tải cao Flash-sale): So sánh TPS và độ trễ p99 tại θ = 0,9, 128 client, q = 25%\n"
+        "(W=10, 45/45 lượt VALID; giá trị trung vị của 3 lần chạy độc lập trên mỗi cấu hình)",
+        fontsize=12, fontweight="bold", y=1.02,
+    )
+
+    x_base = list(range(len(engines)))
+    width = 0.15
+    for idx, (strat, bs, label, color) in enumerate(strategies):
+        offsets = [x + (idx - 2) * width for x in x_base]
+        tps_vals, p99_vals = [], []
+        for eng, _ in engines:
+            matched = [
+                d for _, d in hl_runs
+                if d["engine"] == eng and d.get("migration_strategy") == strat
+                and (bs is None or d.get("migration_batch_size") == bs)
+            ]
+            tps_vals.append(statistics.median([d["measurement"]["tps"] for d in matched]) if matched else 0.0)
+            p99_vals.append(statistics.median([d["measurement"]["p99_ms"] for d in matched]) if matched else 0.0)
+
+        bars1 = axes[0].bar(offsets, tps_vals, width=width, label=label, color=color, alpha=0.92)
+        bars2 = axes[1].bar(offsets, p99_vals, width=width, label=label, color=color, alpha=0.92)
+        for bar, val in zip(bars1, tps_vals):
+            axes[0].text(bar.get_x() + bar.get_width() / 2, val + 35, f"{val:.0f}",
+                         ha="center", va="bottom", fontsize=7.5, rotation=90)
+        for bar, val in zip(bars2, p99_vals):
+            axes[1].text(bar.get_x() + bar.get_width() / 2, val + 20, f"{val:.0f}",
+                         ha="center", va="bottom", fontsize=7.5, rotation=90)
+
+    for ax, title, ylabel, ylim in [
+        (axes[0], "Thông lượng thành công (TPS — cao hơn là tốt hơn)", "TPS (giao dịch/giây)", 3150),
+        (axes[1], "Độ trễ đuôi p99 toàn pha (ms — thấp hơn là tốt hơn)", "Độ trễ p99 (ms)", 1550),
+    ]:
+        ax.set_title(title)
+        ax.set_ylabel(ylabel)
+        ax.set_xticks(x_base)
+        ax.set_xticklabels([e[1] for e in engines], fontweight="bold")
+        ax.set_ylim(0, ylim)
+        ax.legend(loc="upper right", fontsize=8.5)
+
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "fig6c_e2_highload.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     plot_fig6_e1()
     plot_fig6_e2()
     plot_fig6b_e3()
+    plot_fig6c_highload()
     for p in sorted(OUT_DIR.glob("*.png")):
         print(f"Đã tạo: {p.relative_to(ROOT)} ({p.stat().st_size // 1024} KB)")
 

@@ -1,0 +1,31 @@
+{
+  "engine": "tidb",
+  "run_id": "d334360fbdaf41e8b7befcc80d565432",
+  "mode": "idempotency_off_control",
+  "requests": 6000,
+  "workers": 16,
+  "post_commit_delay_ms": 40.0,
+  "kills": 129,
+  "restarts": 129,
+  "statuses": {
+    "success": 6000
+  },
+  "requests_reattempted_after_kill": 129,
+  "rerun_found_committed": 107,
+  "rerun_not_committed": 22,
+  "orders_committed_in_db": 3051,
+  "orders_acked_success": 3000,
+  "payments_in_db": 3056,
+  "payments_acked_success": 3000,
+  "duplicate_orders": 51,
+  "duplicate_payments": 56,
+  "validation": "INVALID",
+  "rules": {
+    "nonnegative": true,
+    "reconciliation": true,
+    "idempotency": false
+  },
+  "doc_check_violations": 0,
+  "passed": true,
+  "meaning": "control detected duplicates"
+}

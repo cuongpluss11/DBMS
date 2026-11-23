@@ -1,0 +1,768 @@
+{
+  "schema_version": 5,
+  "run_id": "d7f1de5a6a814ea6ba8a6164a88e0c46",
+  "engine": "tidb",
+  "database": "flashsale_2a8952765170428e9c48b7240054f18f",
+  "started_utc": "2026-11-23T08:47:12.442462+00:00",
+  "repetition": 3,
+  "config_path": "configs/scaling.toml",
+  "config": {
+    "label": "scaling",
+    "seed": 2026,
+    "workers_per_process": 8,
+    "concurrency": 64,
+    "warehouse_mode": "single-warehouse",
+    "theta": 0.9,
+    "hot_item": false,
+    "warmup_seconds": 30,
+    "measurement_seconds": 60,
+    "repetitions": 3,
+    "payment_ytd": false,
+    "jitter": false,
+    "dataset": {
+      "warehouses": 12,
+      "districts": 10,
+      "items": 100000,
+      "customers": 3000,
+      "initial_orders": 3000,
+      "inventory": 1000000000
+    },
+    "idempotency": true,
+    "client_timeout_seconds": 15.0,
+    "variant": "p1",
+    "slots": 1,
+    "hot_items": 100,
+    "order_id_batch": 50,
+    "arrival_rate": 0.0,
+    "queue_size": 64,
+    "p99_limit_ms": 500.0,
+    "abort_limit_pct": 10.0,
+    "limit_min": 1,
+    "lock_order": false,
+    "nowait": false,
+    "txn_mode": "default",
+    "mongo_design": "a",
+    "stored_procedure": false,
+    "order_warehouses_min": 1,
+    "order_warehouses_max": 1,
+    "warehouse_groups": 3,
+    "orders_key": "composite",
+    "placement": "spread",
+    "placement_scope": "stock",
+    "placement_slot_items": 5,
+    "migration_strategy": "none",
+    "old_order_read_pct": 0.0,
+    "migration_batch_size": 1000,
+    "migration_sleep_ms": 20.0,
+    "migration_delay_seconds": 2.0
+  },
+  "dataset_state": {
+    "engine": "tidb",
+    "database": "flashsale_2a8952765170428e9c48b7240054f18f",
+    "fingerprint": "7fcdd57a900987a5442ab009fe17ad503877e7f5ace8f009aecd9a68931b7a4d",
+    "status": "ready",
+    "counts": {
+      "warehouse": 12,
+      "item": 100000,
+      "district": 120,
+      "stock": 1200000,
+      "customer": 360000,
+      "history": 360000,
+      "orders": 360000,
+      "new_order": 108000,
+      "order_line": 3599687
+    }
+  },
+  "environment": {
+    "python": "3.12.3",
+    "host_os": "Linux-7.0.0-1018-aws-x86_64-with-glibc2.39",
+    "host_cpu_count": 16,
+    "host_memory_bytes": 33081974784,
+    "machine": "x86_64",
+    "workspace_disk_total_bytes": 30083776512,
+    "workspace_disk_free_bytes": 26135085056,
+    "docker_engine": null,
+    "docker_os": null,
+    "docker_cpu_count": null,
+    "docker_memory_bytes": null,
+    "docker_compose": null,
+    "git_commit": null,
+    "git_dirty": null,
+    "mode": "remote",
+    "db_host": "10.20.1.93",
+    "remote_nodes": {
+      "pd": {
+        "cpus": 2,
+        "host": "10.20.1.193",
+        "memory_bytes": 4294967296
+      },
+      "tidb": {
+        "cpus": 16,
+        "host": "10.20.1.93",
+        "memory_bytes": 34359738368
+      },
+      "tikv1": {
+        "cpus": 2,
+        "host": "10.20.1.136",
+        "memory_bytes": 8589934592
+      },
+      "tikv2": {
+        "cpus": 2,
+        "host": "10.20.1.108",
+        "memory_bytes": 8589934592
+      },
+      "tikv3": {
+        "cpus": 2,
+        "host": "10.20.1.20",
+        "memory_bytes": 8589934592
+      }
+    },
+    "source_sha256": {
+      "docker/compose.mongo.yml": "247c1b4b1741accd144be8dd4b4d97abba8b406128f80d41d7a616b063047fb0",
+      "docker/compose.mysql.yml": "88eb17901eeaffadc25c2e801f75a33a3b28728e4f3790ffa912dd2e169f2bf7",
+      "docker/compose.tidb.yml": "e773f8840d57f93a7dea8e7274c0bb37761e90b9c238ccf021e48e4197b73ade",
+      "docker/pd.toml": "c39b21ae1a5fdc33684264796b7d684868c70afbeab0e3e8ee3043f3341ea5d4",
+      "docker/tikv.toml": "8cadae33a1f514162986070676c97d80637bfb331166abb302549cab7f97c3d9",
+      "requirements.txt": "f1322a120ad0e1eb945880bce218e402016f135c38e4444a278872fe28eeaa79",
+      "src/flashsale/__init__.py": "125ed1866c774d783d62dbbb3b25a5fd4869158b4728dacbc8eaea4971b55af9",
+      "src/flashsale/__main__.py": "d220d88dd9a25cd0629c5176dd6532a2db1da40eb014a8e80796b0ddeb134918",
+      "src/flashsale/adapters/base.py": "29b2666145cca74789ad538bdc52d17e91d253a56c786d87e6c4da40d8447d86",
+      "src/flashsale/adapters/mongo.py": "51bcb0c74cf3a083571e77205825e75596ff510462f76646d11d03e601d45c11",
+      "src/flashsale/adapters/sql.py": "725791b6f3808bfbc985d14958f59ac98ecbf6674da6b21fc9fecb49321b8291",
+      "src/flashsale/benchmark/metrics.py": "efd98c8f46ac0f818e93dfb09b4e8367d62ce5210c06616693c0fc5a44f51c5c",
+      "src/flashsale/benchmark/report.py": "97d80fa4b36b57fd444418a09d9359121b885f9dc4e74109b0b34d5f5c3a28f3",
+      "src/flashsale/benchmark/runner.py": "6df269e9b269e78f00c0d2506e626739885a6b0acb30e9202f3cb7faccb3b4b6",
+      "src/flashsale/cli.py": "04d66482670a70360bd34a243f75ed6d7540b2aa91b10cf6406405ff7b4f50e8",
+      "src/flashsale/config.py": "d106be2a7891fdc1896229d93b7afcc093b80b3149fd657b5375fb5bb0601119",
+      "src/flashsale/data/loader.py": "aa6bcdf19290e34c7e4ea1249bba5d59cd33a3a072e60618b4e53d69862e51e7",
+      "src/flashsale/data/placement.py": "514cba8c8effc0f3c728f9269c5f03bccb42ca78303c2b44f407b1383ac61081",
+      "src/flashsale/data/schema.py": "d37719d3677169e4d4cc45842bf423a04ea025f957a90476caa2e3fa17741ced",
+      "src/flashsale/e1_ddl.py": "e385eb63d7ec82f4511ebb6b4d6384446008e44231f06c64d70d929318f8848b",
+      "src/flashsale/faults.py": "5655b29eee90f31b9b0aee39a3a3aa8cd5cd4a1590d3f40a1ad4a3327eba972a",
+      "src/flashsale/infra.py": "5e04bc24960c0612941027a3adc27f5dbd644567cc25626857437a6e79993dda",
+      "src/flashsale/migration.py": "1bf69363f0831de21e401007b5ef33a9dd8e68972d2c9ea4dc2a5b8510092dc1",
+      "src/flashsale/transactions/core.py": "f9c6a72c19fe1aeeec23e97f220226d8b9942bc46d7983308a6de8ed7b767737",
+      "src/flashsale/validation/checks.py": "2e4549b8bf0da47fd781d0809a98ae5d52599a59bbf3f2f83dcddfe5a89c8824",
+      "src/flashsale/workload/generator.py": "bb92b8ad7a691de2bf2dc6cde5e6616f8998c46e289c55b6d40918a1c459d73c",
+      "src/flashsale/workload/retry.py": "72d0218ad19f5a1fef511fc1cde53b4f7b39743e6997db3729da2953f9485518",
+      "src/flashsale/workload/throttle.py": "7dff907388752f769fcf3eb441bbdcebbf69b3fff968739989ea6cac4d510159"
+    },
+    "run_note": "tidb3-ph1-rf3",
+    "db_tcp_rtt_ms": {
+      "median": 0.1168994999716233,
+      "min": 0.10816099984367611,
+      "max": 1.070261999984723,
+      "samples": 10
+    },
+    "pd": {
+      "store_versions": {
+        "10.20.1.20:20160": "8.5.7",
+        "10.20.1.108:20160": "8.5.7",
+        "10.20.1.136:20160": "8.5.7"
+      },
+      "max_replicas": 3
+    }
+  },
+  "dbms": {
+    "version": "8.0.11-TiDB-v8.5.7",
+    "isolation": "REPEATABLE-READ",
+    "max_connections": 0,
+    "foreign_key_checks": 1,
+    "build": "Release Version: v8.5.7\nEdition: Community\nGit Commit Hash: 202b7f47286a1109b5c957401d34c9358d130ae0\nGit Branch: HEAD\nUTC Build Time: 2026-08-19 04:12:51\nGoVersion: go1.25.10\nRace Enabled: false\nCheck Table Before Drop: false\nStore: tikv",
+    "transaction_mode": "pessimistic",
+    "commit_options": {
+      "async_commit": 1,
+      "one_pc": 1
+    },
+    "tikv_durability_config": [
+      [
+        "10.20.1.108:20160",
+        "storage.block-cache.capacity",
+        "1GiB"
+      ],
+      [
+        "10.20.1.136:20160",
+        "storage.block-cache.capacity",
+        "1GiB"
+      ],
+      [
+        "10.20.1.20:20160",
+        "storage.block-cache.capacity",
+        "1GiB"
+      ]
+    ]
+  },
+  "containers": {
+    "pd": {
+      "id": null,
+      "image": null,
+      "image_id": null,
+      "repo_digests": null,
+      "remote": true,
+      "host": "10.20.1.193",
+      "cpus": 2.0,
+      "memory_bytes": 4294967296
+    },
+    "tidb": {
+      "id": null,
+      "image": null,
+      "image_id": null,
+      "repo_digests": null,
+      "remote": true,
+      "host": "10.20.1.93",
+      "cpus": 16.0,
+      "memory_bytes": 34359738368
+    },
+    "tikv1": {
+      "id": null,
+      "image": null,
+      "image_id": null,
+      "repo_digests": null,
+      "remote": true,
+      "host": "10.20.1.136",
+      "cpus": 2.0,
+      "memory_bytes": 8589934592
+    },
+    "tikv2": {
+      "id": null,
+      "image": null,
+      "image_id": null,
+      "repo_digests": null,
+      "remote": true,
+      "host": "10.20.1.108",
+      "cpus": 2.0,
+      "memory_bytes": 8589934592
+    },
+    "tikv3": {
+      "id": null,
+      "image": null,
+      "image_id": null,
+      "repo_digests": null,
+      "remote": true,
+      "host": "10.20.1.20",
+      "cpus": 2.0,
+      "memory_bytes": 8589934592
+    }
+  },
+  "access_paths": {
+    "indexed": true,
+    "plans": {
+      "district": [
+        {
+          "id": "Point_Get_1",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:district, clustered index:PRIMARY(d_w_id, d_id)",
+          "operator info": ""
+        }
+      ],
+      "stock": [
+        {
+          "id": "Point_Get_1",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:stock, clustered index:PRIMARY(s_w_id, s_i_id)",
+          "operator info": ""
+        }
+      ],
+      "customer": [
+        {
+          "id": "Point_Get_1",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:customer, clustered index:PRIMARY(c_w_id, c_d_id, c_id)",
+          "operator info": ""
+        }
+      ],
+      "stock_update": [
+        {
+          "id": "Update_4",
+          "estRows": "N/A",
+          "task": "root",
+          "access object": "",
+          "operator info": "N/A"
+        },
+        {
+          "id": "└─Selection_7",
+          "estRows": "1.01",
+          "task": "root",
+          "access object": "",
+          "operator info": "ge(flashsale_2a8952765170428e9c48b7240054f18f.stock.s_quantity, 1)"
+        },
+        {
+          "id": "  └─Point_Get_6",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:stock, clustered index:PRIMARY(s_w_id, s_i_id)",
+          "operator info": ""
+        }
+      ],
+      "orders": [
+        {
+          "id": "Point_Get_1",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:orders, index:uq_request_id(request_id)",
+          "operator info": ""
+        }
+      ],
+      "history": [
+        {
+          "id": "Point_Get_1",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:history, index:uq_request_id(request_id)",
+          "operator info": ""
+        }
+      ]
+    },
+    "regions": {
+      "stock": [
+        {
+          "REGION_ID": 922,
+          "START_KEY": "t_120_",
+          "END_KEY": "t_120_r_038000000000000002038000000000000000",
+          "LEADER_ID": 923,
+          "LEADER_STORE_ID": 1,
+          "PEERS": "923, 924, 925",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 39040995,
+          "READ_BYTES": 60527307,
+          "APPROXIMATE_SIZE(MB)": 168,
+          "APPROXIMATE_KEYS": 394810,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 926,
+          "START_KEY": "t_120_r_038000000000000002038000000000000000",
+          "END_KEY": "t_120_r_038000000000000003038000000000000000",
+          "LEADER_ID": 929,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "927, 928, 929",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 0,
+          "READ_BYTES": 90148769,
+          "APPROXIMATE_SIZE(MB)": 82,
+          "APPROXIMATE_KEYS": 211812,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 930,
+          "START_KEY": "t_120_r_038000000000000003038000000000000000",
+          "END_KEY": "t_120_r_038000000000000004038000000000000000",
+          "LEADER_ID": 932,
+          "LEADER_STORE_ID": 5,
+          "PEERS": "931, 932, 933",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 0,
+          "READ_BYTES": 55753721,
+          "APPROXIMATE_SIZE(MB)": 82,
+          "APPROXIMATE_KEYS": 372985,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 934,
+          "START_KEY": "t_120_r_038000000000000004038000000000000000",
+          "END_KEY": "t_120_r_038000000000000005038000000000000000",
+          "LEADER_ID": 935,
+          "LEADER_STORE_ID": 1,
+          "PEERS": "935, 936, 937",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 0,
+          "READ_BYTES": 96673381,
+          "APPROXIMATE_SIZE(MB)": 77,
+          "APPROXIMATE_KEYS": 173864,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 938,
+          "START_KEY": "t_120_r_038000000000000005038000000000000000",
+          "END_KEY": "t_120_r_038000000000000006038000000000000000",
+          "LEADER_ID": 941,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "939, 940, 941",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 0,
+          "READ_BYTES": 63175838,
+          "APPROXIMATE_SIZE(MB)": 75,
+          "APPROXIMATE_KEYS": 164856,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 942,
+          "START_KEY": "t_120_r_038000000000000006038000000000000000",
+          "END_KEY": "t_120_r_038000000000000007038000000000000000",
+          "LEADER_ID": 944,
+          "LEADER_STORE_ID": 5,
+          "PEERS": "943, 944, 945",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 0,
+          "READ_BYTES": 46327479,
+          "APPROXIMATE_SIZE(MB)": 68,
+          "APPROXIMATE_KEYS": 123705,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 389,
+          "START_KEY": "t_120_r_038000000000000007038000000000000000",
+          "END_KEY": "t_120_r_038000000000000007038000000000003d3f",
+          "LEADER_ID": 729,
+          "LEADER_STORE_ID": 1,
+          "PEERS": "729, 774, 836",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 0,
+          "READ_BYTES": 9975743,
+          "APPROXIMATE_SIZE(MB)": 10,
+          "APPROXIMATE_KEYS": 40960,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 946,
+          "START_KEY": "t_120_r_038000000000000007038000000000003d3f",
+          "END_KEY": "t_120_r_038000000000000008038000000000000000",
+          "LEADER_ID": 949,
+          "LEADER_STORE_ID": 1,
+          "PEERS": "947, 948, 949",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 0,
+          "READ_BYTES": 78567369,
+          "APPROXIMATE_SIZE(MB)": 63,
+          "APPROXIMATE_KEYS": 126334,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 950,
+          "START_KEY": "t_120_r_038000000000000008038000000000000000",
+          "END_KEY": "t_120_r_038000000000000009038000000000000000",
+          "LEADER_ID": 951,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "951, 952, 953",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 0,
+          "READ_BYTES": 46126129,
+          "APPROXIMATE_SIZE(MB)": 72,
+          "APPROXIMATE_KEYS": 177809,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 954,
+          "START_KEY": "t_120_r_038000000000000009038000000000000000",
+          "END_KEY": "t_120_r_03800000000000000a038000000000000000",
+          "LEADER_ID": 956,
+          "LEADER_STORE_ID": 5,
+          "PEERS": "955, 956, 957",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 90,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 89,
+          "APPROXIMATE_KEYS": 204800,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 958,
+          "START_KEY": "t_120_r_03800000000000000a038000000000000000",
+          "END_KEY": "t_120_r_03800000000000000b038000000000000000",
+          "LEADER_ID": 961,
+          "LEADER_STORE_ID": 1,
+          "PEERS": "959, 960, 961",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 0,
+          "READ_BYTES": 80988236,
+          "APPROXIMATE_SIZE(MB)": 75,
+          "APPROXIMATE_KEYS": 172405,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 962,
+          "START_KEY": "t_120_r_03800000000000000b038000000000000000",
+          "END_KEY": "t_120_r_03800000000000000c038000000000000000",
+          "LEADER_ID": 963,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "963, 964, 965",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 0,
+          "READ_BYTES": 46089346,
+          "APPROXIMATE_SIZE(MB)": 78,
+          "APPROXIMATE_KEYS": 164098,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 175,
+          "START_KEY": "t_120_r_03800000000000000c038000000000000000",
+          "END_KEY": "t_122_",
+          "LEADER_ID": 816,
+          "LEADER_STORE_ID": 5,
+          "PEERS": "728, 816, 885",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 90,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 79,
+          "APPROXIMATE_KEYS": 204800,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        }
+      ],
+      "history": [
+        {
+          "REGION_ID": 179,
+          "START_KEY": "t_124_i_1_",
+          "END_KEY": "t_124_r_576460752303423488",
+          "LEADER_ID": 596,
+          "LEADER_STORE_ID": 5,
+          "PEERS": "596, 752, 876",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 8583718,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 85,
+          "APPROXIMATE_KEYS": 864205,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 181,
+          "START_KEY": "t_124_r_576460752303423488",
+          "END_KEY": "t_124_r_1152921504606846976",
+          "LEADER_ID": 685,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "685, 860, 909",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 390764,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 31,
+          "APPROXIMATE_KEYS": 231896,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 183,
+          "START_KEY": "t_124_r_1152921504606846976",
+          "END_KEY": "t_124_r_1729382256910270464",
+          "LEADER_ID": 662,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "662, 783, 854",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 469496,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 1,
+          "APPROXIMATE_KEYS": 0,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 185,
+          "START_KEY": "t_124_r_1729382256910270464",
+          "END_KEY": "t_124_r_2305843009213693952",
+          "LEADER_ID": 905,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "694, 791, 905",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 542025,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 37324,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 187,
+          "START_KEY": "t_124_r_2305843009213693952",
+          "END_KEY": "t_124_r_2882303761517117440",
+          "LEADER_ID": 628,
+          "LEADER_STORE_ID": 1,
+          "PEERS": "628, 877, 910",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 295061,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 1,
+          "APPROXIMATE_KEYS": 19854,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 189,
+          "START_KEY": "t_124_r_2882303761517117440",
+          "END_KEY": "t_124_r_3458764513820540928",
+          "LEADER_ID": 669,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "669, 803, 902",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 467848,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 37492,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 191,
+          "START_KEY": "t_124_r_3458764513820540928",
+          "END_KEY": "t_124_r_4035225266123964416",
+          "LEADER_ID": 720,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "720, 761, 842",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 592739,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 1,
+          "APPROXIMATE_KEYS": 0,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 193,
+          "START_KEY": "t_124_r_4035225266123964416",
+          "END_KEY": "t_124_r_4611686018427387904",
+          "LEADER_ID": 658,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "658, 784, 855",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 451947,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 37470,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 195,
+          "START_KEY": "t_124_r_4611686018427387904",
+          "END_KEY": "t_124_r_5188146770730811392",
+          "LEADER_ID": 722,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "722, 895, 904",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 557946,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 37466,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 197,
+          "START_KEY": "t_124_r_5188146770730811392",
+          "END_KEY": "t_124_r_5764607523034234880",
+          "LEADER_ID": 785,
+          "LEADER_STORE_ID": 1,
+          "PEERS": "726, 785, 856",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 440903,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 3,
+          "APPROXIMATE_KEYS": 44501,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 199,
+          "START_KEY": "t_124_r_5764607523034234880",
+          "END_KEY": "t_124_r_6341068275337658368",
+          "LEADER_ID": 709,
+          "LEADER_STORE_ID": 1,
+          "PEERS": "709, 753, 906",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 419672,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 37479,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 201,
+          "START_KEY": "t_124_r_6341068275337658368",
+          "END_KEY": "t_124_r_6917529027641081856",
+          "LEADER_ID": 657,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "657, 879, 892",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 622961,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 1,
+          "APPROXIMATE_KEYS": 0,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 203,
+          "START_KEY": "t_124_r_6917529027641081856",
+          "END_KEY": "t_124_r_7493989779944505344",
+          "LEADER_ID": 696,
+          "LEADER_STORE_ID": 1,
+          "PEERS": "696, 880, 886",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 531500,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 1,
+          "APPROXIMATE_KEYS": 0,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 205,
+          "START_KEY": "t_124_r_7493989779944505344",
+          "END_KEY": "t_124_r_8070450532247928832",
+          "LEADER_ID": 897,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "405, 893, 897",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 564816,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 37985,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 207,
+          "START_KEY": "t_124_r_8070450532247928832",
+          "END_KEY": "t_124_r_8646911284551352320",
+          "LEADER_ID": 786,
+          "LEADER_STORE_ID": 1,
+          "PEERS": "665, 786, 799",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 450752,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 1,
+          "APPROXIMATE_KEYS": 0,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        },
+        {
+          "REGION_ID": 211,
+          "START_KEY": "t_124_r_8646911284551352320",
+          "END_KEY": "t_126_",
+          "LEADER_ID": 908,
+          "LEADER_STORE_ID": 4,
+          "PEERS": "643, 859, 908",
+          "SCATTERING": 0,
+          "WRITTEN_BYTES": 537154,
+          "READ_BYTES": 0,
+          "APPROXIMATE_SIZE(MB)": 4,
+          "APPROXIMATE_KEYS": 45417,
+          "SCHEDULING_CONSTRAINTS": "",
+          "SCHEDULING_STATE": ""
+        }
+      ]
+    },
+    "history_ddl": [
+      {
+        "Table": "history",
+        "Create Table": "CREATE TABLE `history` (\n  `h_c_w_id` int NOT NULL,\n  `h_c_d_id` int NOT NULL,\n  `h_c_id` int NOT NULL,\n  `h_w_id` int NOT NULL,\n  `h_d_id` int NOT NULL,\n  `h_date` datetime NOT NULL,\n  `h_amount` bigint NOT NULL,\n  `h_data` varchar(24) NOT NULL,\n  `request_id` varchar(64) DEFAULT NULL,\n  UNIQUE KEY `uq_request_id` (`request_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin /*T! SHARD_ROW_ID_BITS=4 PRE_SPLIT_REGIONS=4 */"
+      }
+    ]
+  },
+  "hot_item_id": 48748
+}

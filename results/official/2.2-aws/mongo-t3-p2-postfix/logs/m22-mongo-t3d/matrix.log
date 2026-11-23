@@ -1,0 +1,108 @@
+19:37:09 Bắt đầu ma trận 2.2: engine=mongo tier=t3 dry=0 B=50 hot_items=100 log=/home/ubuntu/m22-mongo-t3d
+19:39:34 Đã nạp dataset flashsale_edbcc18a9287476c86d77add059e3351 từ configs/hotspot.toml
+19:39:34 Bỏ qua điểm 1 (t3-p2-c128-r1500): MATRIX_START_POINT
+19:39:34 Bỏ qua điểm 2 (t3-p3-c128-r1500): MATRIX_START_POINT
+19:39:34 Bỏ qua điểm 3 (t3-p2-c128-r2500): MATRIX_START_POINT
+19:39:34 Bỏ qua điểm 4 (t3-p3-c128-r2500): MATRIX_START_POINT
+19:39:34 Bỏ qua điểm 5 (t3-p2-c128-r3100): MATRIX_START_POINT
+19:39:34 Bỏ qua điểm 6 (t3-p3-c128-r3100): MATRIX_START_POINT
+19:39:34 Bỏ qua điểm 7 (t3-p2-c128-r3700): MATRIX_START_POINT
+19:39:34 Bỏ qua điểm 8 (t3-p3-c128-r3700): MATRIX_START_POINT
+19:39:34 Điểm 9: t3-p2-c256-r1500 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 1500 --queue-size 64)
+19:45:40 Bỏ qua điểm 10 (t3-p3-c256-r1500): MATRIX_END_POINT
+19:45:40 Bỏ qua điểm 11 (t3-p2-c256-r2500): MATRIX_END_POINT
+19:45:40 Bỏ qua điểm 12 (t3-p3-c256-r2500): MATRIX_END_POINT
+19:45:40 Bỏ qua điểm 13 (t3-p2-c256-r3100): MATRIX_END_POINT
+19:45:40 Bỏ qua điểm 14 (t3-p3-c256-r3100): MATRIX_END_POINT
+19:45:40 Bỏ qua điểm 15 (t3-p2-c256-r3700): MATRIX_END_POINT
+19:45:40 Bỏ qua điểm 16 (t3-p3-c256-r3700): MATRIX_END_POINT
+19:45:40 Xong 16 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m22-mongo-t3d/report
+{
+  "runs": 191,
+  "groups": 62,
+  "invalid": 5,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 0,
+  "out_dir": "/home/ubuntu/m22-mongo-t3d/report"
+}
+19:45:40 Bắt đầu ma trận 2.2: engine=mongo tier=t3 dry=0 B=50 hot_items=100 log=/home/ubuntu/m22-mongo-t3d
+19:48:01 Đã nạp dataset flashsale_8d2aaa224f5c4b83b8615eaedb70e654 từ configs/hotspot.toml
+19:48:01 Bỏ qua điểm 1 (t3-p2-c128-r1500): MATRIX_START_POINT
+19:48:01 Bỏ qua điểm 2 (t3-p3-c128-r1500): MATRIX_START_POINT
+19:48:01 Bỏ qua điểm 3 (t3-p2-c128-r2500): MATRIX_START_POINT
+19:48:01 Bỏ qua điểm 4 (t3-p3-c128-r2500): MATRIX_START_POINT
+19:48:01 Bỏ qua điểm 5 (t3-p2-c128-r3100): MATRIX_START_POINT
+19:48:01 Bỏ qua điểm 6 (t3-p3-c128-r3100): MATRIX_START_POINT
+19:48:01 Bỏ qua điểm 7 (t3-p2-c128-r3700): MATRIX_START_POINT
+19:48:01 Bỏ qua điểm 8 (t3-p3-c128-r3700): MATRIX_START_POINT
+19:48:01 Bỏ qua điểm 9 (t3-p2-c256-r1500): MATRIX_START_POINT
+19:48:01 Bỏ qua điểm 10 (t3-p3-c256-r1500): MATRIX_START_POINT
+19:48:01 Điểm 11: t3-p2-c256-r2500 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 2500 --queue-size 64)
+19:54:23 Bỏ qua điểm 12 (t3-p3-c256-r2500): MATRIX_END_POINT
+19:54:23 Bỏ qua điểm 13 (t3-p2-c256-r3100): MATRIX_END_POINT
+19:54:23 Bỏ qua điểm 14 (t3-p3-c256-r3100): MATRIX_END_POINT
+19:54:23 Bỏ qua điểm 15 (t3-p2-c256-r3700): MATRIX_END_POINT
+19:54:23 Bỏ qua điểm 16 (t3-p3-c256-r3700): MATRIX_END_POINT
+19:54:23 Xong 16 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m22-mongo-t3d/report
+{
+  "runs": 194,
+  "groups": 63,
+  "invalid": 5,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 0,
+  "out_dir": "/home/ubuntu/m22-mongo-t3d/report"
+}
+19:54:23 Bắt đầu ma trận 2.2: engine=mongo tier=t3 dry=0 B=50 hot_items=100 log=/home/ubuntu/m22-mongo-t3d
+19:56:49 Đã nạp dataset flashsale_9fb7ad1e71f945fe8afe5c1209ee0fce từ configs/hotspot.toml
+19:56:49 Bỏ qua điểm 1 (t3-p2-c128-r1500): MATRIX_START_POINT
+19:56:49 Bỏ qua điểm 2 (t3-p3-c128-r1500): MATRIX_START_POINT
+19:56:49 Bỏ qua điểm 3 (t3-p2-c128-r2500): MATRIX_START_POINT
+19:56:49 Bỏ qua điểm 4 (t3-p3-c128-r2500): MATRIX_START_POINT
+19:56:49 Bỏ qua điểm 5 (t3-p2-c128-r3100): MATRIX_START_POINT
+19:56:49 Bỏ qua điểm 6 (t3-p3-c128-r3100): MATRIX_START_POINT
+19:56:49 Bỏ qua điểm 7 (t3-p2-c128-r3700): MATRIX_START_POINT
+19:56:49 Bỏ qua điểm 8 (t3-p3-c128-r3700): MATRIX_START_POINT
+19:56:49 Bỏ qua điểm 9 (t3-p2-c256-r1500): MATRIX_START_POINT
+19:56:49 Bỏ qua điểm 10 (t3-p3-c256-r1500): MATRIX_START_POINT
+19:56:49 Bỏ qua điểm 11 (t3-p2-c256-r2500): MATRIX_START_POINT
+19:56:49 Bỏ qua điểm 12 (t3-p3-c256-r2500): MATRIX_START_POINT
+19:56:49 Điểm 13: t3-p2-c256-r3100 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 3100 --queue-size 64)
+20:03:18 Bỏ qua điểm 14 (t3-p3-c256-r3100): MATRIX_END_POINT
+20:03:18 Bỏ qua điểm 15 (t3-p2-c256-r3700): MATRIX_END_POINT
+20:03:18 Bỏ qua điểm 16 (t3-p3-c256-r3700): MATRIX_END_POINT
+20:03:18 Xong 16 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m22-mongo-t3d/report
+{
+  "runs": 197,
+  "groups": 64,
+  "invalid": 5,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 0,
+  "out_dir": "/home/ubuntu/m22-mongo-t3d/report"
+}
+20:03:18 Bắt đầu ma trận 2.2: engine=mongo tier=t3 dry=0 B=50 hot_items=100 log=/home/ubuntu/m22-mongo-t3d
+20:05:41 Đã nạp dataset flashsale_61f0370818c74a5cbc6911723f20846d từ configs/hotspot.toml
+20:05:41 Bỏ qua điểm 1 (t3-p2-c128-r1500): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 2 (t3-p3-c128-r1500): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 3 (t3-p2-c128-r2500): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 4 (t3-p3-c128-r2500): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 5 (t3-p2-c128-r3100): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 6 (t3-p3-c128-r3100): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 7 (t3-p2-c128-r3700): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 8 (t3-p3-c128-r3700): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 9 (t3-p2-c256-r1500): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 10 (t3-p3-c256-r1500): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 11 (t3-p2-c256-r2500): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 12 (t3-p3-c256-r2500): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 13 (t3-p2-c256-r3100): MATRIX_START_POINT
+20:05:41 Bỏ qua điểm 14 (t3-p3-c256-r3100): MATRIX_START_POINT
+20:05:41 Điểm 15: t3-p2-c256-r3700 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 256 --arrival-rate 3700 --queue-size 64)
+20:12:21 Bỏ qua điểm 16 (t3-p3-c256-r3700): MATRIX_END_POINT
+20:12:21 Xong 16 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m22-mongo-t3d/report
+{
+  "runs": 200,
+  "groups": 65,
+  "invalid": 5,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 0,
+  "out_dir": "/home/ubuntu/m22-mongo-t3d/report"
+}

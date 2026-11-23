@@ -91,3 +91,7 @@ Khác với Docker cục bộ: `start`/`stop` bị chặn (dùng Terraform/TiUP/
 
 ## Chi phí và dọn dẹp
 Ước tính 0,7–0,9 USD mỗi giờ khi chạy một stack (giá on-demand, chưa tra giá hiện tại). Luôn `terraform destroy` khi không đo (xóa cả EBS, nên snapshot trước nếu cần giữ dữ liệu). Đã có AWS Budgets 150 USD. Không bao giờ commit `terraform.tfvars`, `*.tfstate` hay khóa SSH riêng.
+
+## Lưu ý đã gặp khi dựng TiDB (2026-11-23)
+- **TiUP báo `invalid signature for file root.json` / `no trusted root in the local manifests`** (cả khi cài sạch): `scripts/aws-tidb-up.sh` dừng ở bước deploy mà không in lỗi (xem `tiup-deploy.out` trên máy tải). Cách xử lý đã dùng: `rm -rf ~/.tiup`, cài lại, rồi `curl -o /tmp/9.root.json https://tiup-mirrors.pingcap.com/9.root.json` và `tiup mirror set https://tiup-mirrors.pingcap.com -r /tmp/9.root.json`; sau đó chạy lại `check --apply`, `deploy`, `start` như trong script (xong khoảng 10 phút). Root manifest lấy từ chính mirror chính thức; không đổi mirror.
+- **Nhóm R (rf=3):** nâng bằng PD API (`POST /pd/api/v1/config/replicate {"max-replicas":3}`), chờ `regions/check/miss-peer` và `pending-peer` về 0 (khoảng 2 phút với dataset W=10), rồi đặt `FLASHSALE_TIDB_REPLICAS=3` trước khi chạy script đo (mặc định chốt `max-replicas=1`). Mã nguồn trên máy tải là `git archive HEAD` lúc dựng: sửa mã sau đó phải chép lại (`scp`) sang `~/DBMS`.
