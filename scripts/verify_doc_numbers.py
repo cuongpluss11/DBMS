@@ -137,6 +137,17 @@ for row in section_table(DOC23, "## Nhóm R: chi phí replication", 0):
     check(f"R {row[0]} p99 rf=1", p1, med(rr, "p99_ms", run_note="tidb3-rf1", **CFG[key]))
     check(f"R {row[0]} p99 rf=3", p3, med(rr, "p99_ms", run_note="tidb3-rf3", **CFG[key]))
 
+# Nhóm R2 (ba pha)
+r2 = rows(R23 / "tidb3-R2")
+for row in section_table(DOC23, "## Nhóm R2: kiểm soát thứ tự", 0):
+    key = "A" if row[0].startswith("A:") else "B" if row[0].startswith("B:") else next((k for k in CFG if k in row[0]), None)
+    if key is None:
+        continue
+    for col, note in ((1, "tidb3-ph1-rf3"), (2, "tidb3-ph2-rf1"), (3, "tidb3-ph3-rf3")):
+        tps, p99 = cell(row[col])
+        check(f"R2 {row[0]} {note} TPS", tps, med(r2, run_note=note, **CFG[key]))
+        check(f"R2 {row[0]} {note} p99", p99, med(r2, "p99_ms", run_note=note, **CFG[key]))
+
 # Fault injection: bảng so với JSON
 files = {("TiDB", "thường, tồn 30"): "tidb-kill-stockout", ("TiDB", "thường, tồn 2.000"): "tidb-kill-orders",
          ("TiDB", "đối chứng âm"): "tidb-kill-idempotency-off", ("MySQL", "thường"): "mysql-kill",

@@ -226,7 +226,21 @@ def main() -> None:
     fig.savefig(out / "fig7_replication.png", dpi=160)
     plt.close(fig)
     write_csv(out / "fig7_replication.csv", ["rf", "cau_hinh", "tps_median", "tps_min", "tps_max", "n"], table)
-    print(f"Đã ghi 7 hình và CSV vào {out}")
+    # Hình 8: nhóm R2, kiểm soát thứ tự rf=3 -> rf=1 -> rf=3 trong một phiên
+    r2 = rows(R23 / "tidb3-R2")
+    series, table = {}, []
+    for note, label in (("tidb3-ph1-rf3", "pha 1 rf=3"), ("tidb3-ph2-rf1", "pha 2 rf=1"), ("tidb3-ph3-rf3", "pha 3 rf=3")):
+        vals = [stat(pick(r2, run_note=note, **kw)) for _, kw in cfgs]
+        series[label] = vals
+        table += [[label, c[0], *v] for c, v in zip(cfgs, vals)]
+    fig, ax = plt.subplots(figsize=(9, 4))
+    bars(ax, [c[0] for c in cfgs], series, "TPS (trung vị)")
+    ax.set_title("Nhóm R2: đảo thứ tự rf=3 → rf=1 → rf=3 (cùng phiên, TiDB 3 TiKV)")
+    fig.tight_layout()
+    fig.savefig(out / "fig8_replication_order.png", dpi=160)
+    plt.close(fig)
+    write_csv(out / "fig8_replication_order.csv", ["pha", "cau_hinh", "tps_median", "tps_min", "tps_max", "n"], table)
+    print(f"Đã ghi 8 hình và CSV vào {out}")
 
 
 if __name__ == "__main__":
