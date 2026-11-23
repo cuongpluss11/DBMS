@@ -2,7 +2,7 @@
 
 Tài liệu này tổng hợp thiết kế, kết quả thực đo và quy trình khuyến nghị của **mục 2.4** (*Đổi lược đồ khi đang bán hàng: so sánh chiến lược chuyển dữ liệu*) trên cả ba hệ quản trị cơ sở dữ liệu **MySQL 8.4.8**, **MongoDB 8.0.20** và **TiDB 8.5.7**.
 
-> **Phạm vi & nhãn kết quả:** Theo góp ý của giảng viên hướng dẫn (dừng mục 2.4 ở mức demo có thực chứng định lượng), toàn bộ **114/114 lượt chạy** đều đạt **`VALID`** (100% giữ đủ 3 luật tồn kho + đối soát chuyển đổi `ol_discount`) trên cùng một máy ảo AWS `c6i.4xlarge` (16 vCPU, 32 GiB RAM, EBS gp3 100 GiB 3000 IOPS / 125 MB/s) chạy Docker Compose giới hạn **`8 CPU / 16 GiB RAM`**, bộ nhớ đệm ngang nhau (**3 GiB**: InnoDB buffer pool 3 GiB, WiredTiger cache 3 GiB, 3 TiKV × 1 GiB block cache) và độ bền giao dịch ngang nhau (`innodb_flush_log_at_trx_commit=1, sync_binlog=1` vs `{w:"majority", j:true}` vs Raft sync mặc định). Kết quả gắn nhãn **sơ bộ (1 VM Docker)** theo quy ước mục 2.1.
+> **Phạm vi & nhãn kết quả:** Toàn bộ **159/159 lượt chạy** đều đạt **`VALID`** (100% giữ đủ 3 luật tồn kho + đối soát chuyển đổi `ol_discount`: 66 MySQL + 54 MongoDB + 39 TiDB) trên cùng một máy ảo AWS `c6i.4xlarge` (16 vCPU, 32 GiB RAM, EBS gp3 100 GiB 3000 IOPS / 125 MB/s) chạy Docker Compose giới hạn **`8 CPU / 16 GiB RAM`**, bộ nhớ đệm ngang nhau (**3 GiB**: InnoDB buffer pool 3 GiB, WiredTiger cache 3 GiB, 3 TiKV × 1 GiB block cache) và độ bền giao dịch ngang nhau (`innodb_flush_log_at_trx_commit=1, sync_binlog=1` vs `{w:"majority", j:true}` vs Raft sync mặc định). Kết quả gắn nhãn **sơ bộ (1 VM Docker)** theo quy ước mục 2.1.
 
 ---
 
@@ -13,8 +13,7 @@ Tài liệu này tổng hợp thiết kế, kết quả thực đo và quy trìn
   - `ol_discount` (số nguyên, đơn vị cent)
   - `ol_mig_state` (`'UNMIGRATED'` hoặc `'MIGRATED'`; document MongoDB cũ thiếu trường được coi là `UNMIGRATED`).
 - **Phép biến đổi xác định, idempotent:**
-  $$\text{ol\_discount} = \left\lfloor \frac{\text{ol\_quantity} \times \text{i\_price} \times r}{100} \right\rfloor$$
-  với $r = 10$ nếu $\text{i\_price} \ge 5000$, $r = 5$ nếu $2500 \le \text{i\_price} < 5000$, ngược lại $r = 0$.
+  `ol_discount = ⌊ol_quantity × i_price × r / 100⌋` (đơn vị cent), với `r = 10` nếu `i_price ≥ 5000`, `r = 5` nếu `2500 ≤ i_price < 5000`, ngược lại `r = 0`.
 - **Tải nền:** `New-Order : Payment = 1 : 1` kết hợp giao dịch đọc **`"Xem đơn cũ"`** chiếm tỉ lệ `q` (`q = 25%` ở E1/E2; quét `q ∈ {5%, 25%, 50%}` ở E3), `64 client`, `θ = 0,5`, chọn kho `uniform`, mỗi điểm đo chạy **3 lần độc lập** (30s warmup + 60s đo; E1 có giao dịch dài đo 80s).
 - **Kiểm tra đúng đắn sau mọi lượt chạy:**
   1. Đủ 3 luật tồn kho mục 2.1 (không âm, không bán vượt, không đơn trùng).
@@ -79,6 +78,34 @@ Mọi mức giảm TPS (`%`) và mức tăng p99 (`× nền`) được tính so 
 - **H1 đúng trên cả 3 hệ:** P1 (Eager) luôn hoàn tất nhanh nhất (`71,3 s` MySQL; `81,3 s` TiDB; `126,8 s` MongoDB) nhưng gây tác động hiệu năng mạnh nhất (`-53,0%` TPS / `1,96×` p99 trên MySQL; `-42,0%` / `2,13×` trên TiDB; `-6,1%` / `1,43×` trên MongoDB).
 - **H2 đúng trên cả 3 hệ:** **P2 Batch lô `1.000` dòng là chiến lược đạt TPS cao nhất trên CẢ 3 HỆ** (`-16,3%` MySQL; `-0,6%` MongoDB; `-8,7%` TiDB) và tốt hơn rõ rệt so với lô `5.000` dòng.
 
+### 3.2. Kết quả E2 tải cao Flash-sale (`θ = 0,9`, `128 client`, `q = 25%`, `results/official/2.4-highload/`, 45/45 VALID)
+
+| Hệ DBMS | Chiến lược | TPS trung vị *(min–max)* | Giảm TPS *(vs nền)* | p99 toàn pha *(ms)* | Tăng p99 *(× nền)* | Đỉnh 1s p99 *(ms)* | `read_clean` / `read_migrated` p99 *(ms)* | Hoàn tất *(s)* |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- | ---: |
+| **MySQL 8.4.8** | Nền (`none`) | **1.890,3** *(1.871,6–2.164,8)* | 0,0% | 728,2 | 1,00× | — | 12,5 / — | — |
+| **MySQL 8.4.8** | **P1 – Eager** | **702,6** *(656,4–831,9)* | **-62,8%** | 999,1 | **1,37×** | **22.201,0** *(22,2 s!)* | 11,6 / — | **128,8 s** |
+| **MySQL 8.4.8** | **P2 – Batch 5.000** | **1.472,4** *(1.472,0–1.474,4)* | -22,1% | 817,8 | 1,12× | 1.038,0 | 13,6 / — | 163,3 s |
+| **MySQL 8.4.8** | **P2 – Batch 1.000** | **1.587,8** *(1.559,6–1.614,0)* | **-16,0%** | 789,6 | 1,08× | **868,7** | 13,1 / — | 170,0 s |
+| **MySQL 8.4.8** | **P3 – Lazy** | **1.288,0** *(1.284,5–1.288,2)* | -31,9% | **779,8** | **1,07×** | 873,9 | **14,6 / 739,5** | 166,9 s |
+| **MongoDB 8.0.20** | Nền (`none`) | **2.652,3** *(2.589,8–2.703,7)* | 0,0% | 298,9 | 1,00× | — | 86,8 / — | — |
+| **MongoDB 8.0.20** | **P1 – Eager** | **2.425,6** *(2.424,5–2.562,3)* | -8,5% | 309,2 | 1,03× | 487,9 | 111,6 / — | **138,3 s** |
+| **MongoDB 8.0.20** | **P2 – Batch 5.000** | **2.446,3** *(2.136,0–2.490,7)* | -7,8% | 306,4 | 1,02× | 457,1 | 89,9 / — | 205,3 s |
+| **MongoDB 8.0.20** | **P2 – Batch 1.000** | **2.478,6** *(2.411,5–2.547,0)* | **-6,5%** | **304,2** | **1,02×** | **448,8** | 113,8 / — | 211,5 s |
+| **MongoDB 8.0.20** | **P3 – Lazy** | **1.979,6** *(1.950,6–1.994,1)* | -25,4% | 322,4 | 1,08× | 502,4 | **128,1 / 136,1** | 203,1 s |
+| **TiDB 8.5.7** | Nền (`none`) | **1.073,5** *(1.028,9–1.086,1)* | 0,0% | 667,2 | 1,00× | — | 45,4 / — | — |
+| **TiDB 8.5.7** | **P1 – Eager** | **708,6** *(668,1–723,4)* | -34,0% | 1.087,0 | 1,63× | 2.027,3 | 66,5 / — | **85,3 s** |
+| **TiDB 8.5.7** | **P2 – Batch 5.000** | **568,2** *(551,7–615,4)* | -47,1% | 1.308,5 | 1,96× | 2.108,5 | 72,7 / — | 127,1 s |
+| **TiDB 8.5.7** | **P2 – Batch 1.000** | **710,4** *(638,1–792,9)* | **-33,8%** | **999,5** | **1,50×** | **1.434,3** | 71,6 / — | 131,6 s |
+| **TiDB 8.5.7** | **P3 – Lazy** | **567,8** *(524,6–610,6)* | -47,1% | 1.100,0 | 1,65× | 1.491,7 | **71,7 / 373,6** | 145,7 s |
+
+![Biểu đồ 6c phần E2 tải cao — So sánh 3 hệ tại θ=0,9, 128 client](figures/2.4/fig6c_e2_highload.png)
+
+**Nhận xét ở tải cao Flash-sale (`θ = 0,9`, `128 client`):**
+- **P2 Batch lô `1.000` giữ ngôi đầu TPS trên CẢ 3 HỆ** kể cả dưới tải Flash-sale dồn (`-16,0%` MySQL; `-6,5%` MongoDB; `-33,8%` TiDB) và cắt **25,5 lần** gai p99 1s của MySQL Eager (`22.201 ms → 869 ms`)!
+- Trên **MySQL**, Eager chịu tác động nặng nhất khi tăng tải: giảm TPS từ `-53,0%` xuống **`-62,8%`**, đỉnh p99 1s vọt từ `8,2 s` lên **`22,2 s`**, thời gian hoàn tất tăng gần gấp đôi (`71,3 s → 128,8 s`).
+- Trên **MongoDB**, tỉ lệ retry của giao dịch nền tăng lên `~15,7%` (do tranh chấp món nóng `θ = 0,9`), nhưng nhờ khóa mức tài liệu WiredTiger nên cả Batch 1.000 (`-6,5%`) lẫn Eager (`-8,5%`) đều giữ p99 sát nền (`1,02×–1,03×`).
+- Trên **TiDB**, ở tải cao `128 client`, **Batch 1.000 thắng toàn diện cả TPS lẫn p99** (`710,4 TPS`, `999,5 ms`), trong khi Batch 5.000 và Lazy tụt sâu (`-47,1%`) do chi phí 2PC/Raft phân tán cộng hưởng với lô ghi lớn hoặc ghi on-demand.
+
 ---
 
 ## 4. Kết quả E3 – Ảnh hưởng tỉ lệ truy cập dữ liệu cũ `q` (Biểu đồ 6b)
@@ -116,8 +143,7 @@ Từ bằng chứng E1–E3 trên ba hệ, quy trình vận hành an toàn khi �
 
 ---
 
-## 6. Phần `NOT TESTED` / Phạm vi cắt (theo góp ý giảng viên)
+## 6. Phần `NOT TESTED` / Phạm vi cắt
 
-- **E2 tải cao (`θ = 0,9`, `128 client`, `q = 25%`):** `NOT TESTED` trên cả 3 hệ (đã có script sẵn trong `scripts/run-2.4-missing.sh`).
-- **E3 quét `q = 5%` và `50%` trên TiDB:** `NOT TESTED` (TiDB đã đo đủ mốc trung tâm `q = 25%` ở E1, E2 và đường nền `none`).
-- **Hạ tầng đa VM AWS cho 2.4:** `NOT TESTED` (toàn bộ 114 lượt đo thực hiện trên 1 VM Docker `c6i.4xlarge`, ghi nhãn sơ bộ).
+- **E3 quét `q = 5%` và `50%` trên TiDB:** `NOT TESTED` (TiDB đã đo đủ mốc trung tâm `q = 25%` ở cả tải thường `64c, θ=0,5` lẫn tải cao `128c, θ=0,9` và đầy đủ E1 Online DDL).
+- **Hạ tầng đa VM AWS cho 2.4:** `NOT TESTED` (toàn bộ **159 lượt đo VALID** thực hiện trên 1 VM Docker `c6i.4xlarge`, ghi nhãn sơ bộ).
