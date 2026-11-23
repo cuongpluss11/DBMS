@@ -1,0 +1,156 @@
+{
+  "schema_version": 5,
+  "experiment": "2.4-E1",
+  "scenario": "mdl_long_txn",
+  "run_id": "f3f9ee65f7ce42d88157d745108f1a44",
+  "repetition": 2,
+  "started_at": "2026-11-23T06:42:23.760322+00:00",
+  "engine": "tidb",
+  "database": "flashsale_a1b2c5f3a1ba4fd0a44cef9755f2ec8c",
+  "server": {
+    "store_versions": {
+      "tikv3:20160": "8.5.7",
+      "tikv2:20160": "8.5.7",
+      "tikv1:20160": "8.5.7"
+    },
+    "max_replicas": 1,
+    "version": "8.0.11-TiDB-v8.5.7",
+    "isolation": "REPEATABLE-READ",
+    "max_connections": 0,
+    "foreign_key_checks": 1,
+    "build": "Release Version: v8.5.7\nEdition: Community\nGit Commit Hash: 202b7f47286a1109b5c957401d34c9358d130ae0\nGit Branch: HEAD\nUTC Build Time: 2026-08-19 04:12:51\nGoVersion: go1.25.10\nRace Enabled: false\nCheck Table Before Drop: false\nStore: tikv",
+    "transaction_mode": "pessimistic",
+    "commit_options": {
+      "async_commit": 1,
+      "one_pc": 1
+    },
+    "tikv_durability_config": []
+  },
+  "host": {
+    "python": "3.12.3",
+    "host_os": "Linux-7.0.0-1018-aws-x86_64-with-glibc2.39",
+    "host_cpu_count": 16,
+    "host_memory_bytes": 33081982976,
+    "machine": "x86_64",
+    "workspace_disk_total_bytes": 102888095744,
+    "workspace_disk_free_bytes": 42048831488,
+    "docker_engine": "29.10.0",
+    "docker_os": "Ubuntu 24.04.5 LTS",
+    "docker_cpu_count": 16,
+    "docker_memory_bytes": 33081982976,
+    "docker_compose": "5.8.0",
+    "git_commit": "8e77f1f119838b0bb08c46967f1ed0bfc1d4a1ca",
+    "git_dirty": true,
+    "mode": "docker",
+    "db_host": "127.0.0.1",
+    "remote_nodes": null
+  },
+  "resource_limits": {
+    "tidb": {
+      "id": "33309b5adf2b8f8872cd05c28b23abaf631ec05460e93231976426ed3468d8bd",
+      "image": "pingcap/tidb:v8.5.7@sha256:eda497853e94c77c6849fb582e26181bd298d3fc7f32589997bd6359d3aa8bdf",
+      "image_id": "sha256:eda497853e94c77c6849fb582e26181bd298d3fc7f32589997bd6359d3aa8bdf",
+      "repo_digests": [
+        "pingcap/tidb@sha256:eda497853e94c77c6849fb582e26181bd298d3fc7f32589997bd6359d3aa8bdf"
+      ],
+      "cpus": 3.0,
+      "memory_bytes": 3221225472
+    },
+    "tikv1": {
+      "id": "828eac114d5d13de8dbd7a6f50b41197e78dc2ae1b4267da50439286880e480d",
+      "image": "pingcap/tikv:v8.5.7@sha256:59e3938480776caf2aa86010b4bf4bcb88ccd401707f2f3b25f99997578190b9",
+      "image_id": "sha256:59e3938480776caf2aa86010b4bf4bcb88ccd401707f2f3b25f99997578190b9",
+      "repo_digests": [
+        "pingcap/tikv@sha256:59e3938480776caf2aa86010b4bf4bcb88ccd401707f2f3b25f99997578190b9"
+      ],
+      "cpus": 1.5,
+      "memory_bytes": 4294967296
+    },
+    "tikv2": {
+      "id": "3cb07898631101f4de6e13a6536462c502ee7c5e0c70de2d6a496a00f3090168",
+      "image": "pingcap/tikv:v8.5.7@sha256:59e3938480776caf2aa86010b4bf4bcb88ccd401707f2f3b25f99997578190b9",
+      "image_id": "sha256:59e3938480776caf2aa86010b4bf4bcb88ccd401707f2f3b25f99997578190b9",
+      "repo_digests": [
+        "pingcap/tikv@sha256:59e3938480776caf2aa86010b4bf4bcb88ccd401707f2f3b25f99997578190b9"
+      ],
+      "cpus": 1.5,
+      "memory_bytes": 4294967296
+    },
+    "tikv3": {
+      "id": "fea198f7b4d52e7e4599297b0d16fa93ca5f602e096b4638441d233b4a8c447f",
+      "image": "pingcap/tikv:v8.5.7@sha256:59e3938480776caf2aa86010b4bf4bcb88ccd401707f2f3b25f99997578190b9",
+      "image_id": "sha256:59e3938480776caf2aa86010b4bf4bcb88ccd401707f2f3b25f99997578190b9",
+      "repo_digests": [
+        "pingcap/tikv@sha256:59e3938480776caf2aa86010b4bf4bcb88ccd401707f2f3b25f99997578190b9"
+      ],
+      "cpus": 1.5,
+      "memory_bytes": 4294967296
+    },
+    "pd": {
+      "id": "f31de19f062ebe290b3f51d73de97115df51f8edc510cdbbd4e3767c19114cbd",
+      "image": "pingcap/pd:v8.5.7@sha256:d6f15a94617dbb9778b4a5e81d5a4ec1e795bf1818cf8821dca21960a2d61986",
+      "image_id": "sha256:d6f15a94617dbb9778b4a5e81d5a4ec1e795bf1818cf8821dca21960a2d61986",
+      "repo_digests": [
+        "pingcap/pd@sha256:d6f15a94617dbb9778b4a5e81d5a4ec1e795bf1818cf8821dca21960a2d61986"
+      ],
+      "cpus": 0.5,
+      "memory_bytes": 1073741824
+    }
+  },
+  "config": {
+    "label": "migration",
+    "seed": 2026,
+    "workers_per_process": 8,
+    "concurrency": 64,
+    "warehouse_mode": "uniform",
+    "theta": 0.5,
+    "hot_item": false,
+    "warmup_seconds": 30,
+    "measurement_seconds": 80.0,
+    "repetitions": 3,
+    "payment_ytd": false,
+    "jitter": false,
+    "dataset": {
+      "warehouses": 10,
+      "districts": 10,
+      "items": 100000,
+      "customers": 3000,
+      "initial_orders": 3000,
+      "inventory": 1000000000
+    },
+    "idempotency": true,
+    "client_timeout_seconds": 15.0,
+    "variant": "p1",
+    "slots": 1,
+    "hot_items": 100,
+    "order_id_batch": 0,
+    "arrival_rate": 0.0,
+    "queue_size": 64,
+    "p99_limit_ms": 500.0,
+    "abort_limit_pct": 10.0,
+    "limit_min": 1,
+    "lock_order": false,
+    "nowait": false,
+    "txn_mode": "default",
+    "mongo_design": "a",
+    "stored_procedure": false,
+    "order_warehouses_min": 1,
+    "order_warehouses_max": 1,
+    "warehouse_groups": 0,
+    "orders_key": "composite",
+    "placement": "none",
+    "placement_scope": "stock",
+    "placement_slot_items": 5,
+    "migration_strategy": "none",
+    "old_order_read_pct": 25.0,
+    "migration_batch_size": 1000,
+    "migration_sleep_ms": 20.0,
+    "migration_delay_seconds": 2.0
+  },
+  "e1_params": {
+    "scenario": "mdl_long_txn",
+    "long_txn_seconds": 60.0,
+    "ddl_delay_seconds": 5.0,
+    "lock_wait_timeout": null
+  }
+}

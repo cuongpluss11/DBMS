@@ -10,10 +10,11 @@ Trung vị, min–max của TPS thành công và trung vị p99 trên các lần
 | mysql | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 1499.5 (1483.2–1543.5) | 457.5 |
 | mysql | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 1262.0 (1204.7–1270.8) | 501.5 |
 | mysql | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 2011.8 (1941.4–2024.4) | 386.1 |
+| tidb | migration | 64 | uniform | 0.5 | False | p1 |  | 0 | kín | False | False | default | a | False | False | True |  | 3 | 3/3 | 980.1 (909.7–1005.2) | 276.6 |
 
 ## Kiểm tra warmup 30 giây
 
-18/18 lượt có chuỗi TPS theo giây; 9 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
+21/21 lượt có chuỗi TPS theo giây; 10 lượt lệch quá 10% giữa 10 giây cuối warmup và 10 giây đầu đo.
 
 | run_id | engine | profile | client | θ | drift % |
 | --- | --- | --- | --- | --- | --- |
@@ -21,6 +22,7 @@ Trung vị, min–max của TPS thành công và trung vị p99 trên các lần
 | 36b52ec6f28a4609a25de37fa598a2a2 | mongo | migration | 64 | 0.5 | 22.3 |
 | 52c07e7c848244b4826b5a321018f05e | mongo | migration | 64 | 0.5 | 19.1 |
 | 6804465ea66a4f8396468d4ff619e9d8 | mongo | migration | 64 | 0.5 | -20.3 |
+| 6d184ab3bf634ceb8e48fa0ca79bb885 | tidb | migration | 64 | 0.5 | -17.7 |
 | a303bebcfc4d42128146eee7c395a52e | mongo | migration | 64 | 0.5 | 21.3 |
 | a3ac8ddd102a435c8b7df0a655a2b922 | mongo | migration | 64 | 0.5 | 23.9 |
 | c457e9051f2949a88d93087b17eed409 | mongo | migration | 64 | 0.5 | 111.1 |
