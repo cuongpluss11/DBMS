@@ -121,18 +121,21 @@ Các điểm đo phụ theo đề dùng cùng cách chạy, chỉ đổi `--conf
 
 **[Nghiệm thu mục 2.1](docs/acceptance-2.1.md)** có kết quả đo thật, khác biệt so với đề và danh sách NOT TESTED; dữ liệu chính thức ở [results/official/2.1/](results/official/2.1/INDEX.csv). [Hướng dẫn cho nhóm](docs/trien-khai-2.1.md) có lệnh baseline một kho, lượt kiểm luật, lượt so sánh ba hệ và cách bàn giao kết quả. Xem thêm [ánh xạ yêu cầu](docs/requirements-2.1.md), [các quyết định thực nghiệm](docs/assumptions.md) và [định nghĩa trường kết quả](docs/experiment-2.1.md). Mục 2.2 đang làm: biến thể trừ kho P0/P1/P2 và lệnh chạy ở [docs/experiment-2.2.md](docs/experiment-2.2.md) (mã và test đơn vị, chưa có số đo). Mục 2.3 (TiDB): nhóm A–E.a, đặt Region/leader, hệ số tăng tốc ở [docs/experiment-2.3.md](docs/experiment-2.3.md) (mã và test đơn vị, chưa có số đo).
 
-## Mục 2.4 – Online Schema Evolution trên MySQL và MongoDB (E1, E2, E3)
+## Mục 2.4 – Online Schema Evolution trên MySQL, MongoDB và TiDB (E1, E2, E3)
 
-Thực nghiệm đổi lược đồ khi đang bán hàng (thêm `ol_discount` và `ol_mig_state` vào ~3 triệu dòng/tài liệu `order_line` ở `W=10`, tải nền Flash-sale `64 client`, `θ=0,5` kèm giao dịch đọc `"Xem đơn cũ"` chiếm tỉ lệ `q`). Cách chạy (thay `mysql` bằng `mongo` để chạy MongoDB):
+Thực nghiệm đổi lược đồ khi đang bán hàng (thêm `ol_discount` và `ol_mig_state` vào ~3 triệu dòng/tài liệu `order_line` ở `W=10`, tải nền Flash-sale `64 client`, `θ=0,5` kèm giao dịch đọc `"Xem đơn cũ"` chiếm tỉ lệ `q`). Xem báo cáo đầy đủ kèm **Biểu đồ 6, 6b**, bằng chứng `metadata_locks` và quy trình khuyến nghị 6 bước tại **[docs/experiment-2.4.md](docs/experiment-2.4.md)**.
 
+Cách chạy:
 ```bash
 bash scripts/run-2.4-eager.sh mysql                                    # P1 – Eager (q=25%)
 bash scripts/run-2.4-batch.sh mysql                                    # P2 – Batch nền (lô 1.000 và 5.000 dòng, q=25%)
 Q_LIST="5 25 50" bash scripts/run-2.4-lazy.sh mysql                    # P3 – Lazy (quét q = 5%, 25%, 50%)
 PARTS="baseline e3_batch e1" bash scripts/run-2.4-missing.sh mongo     # Đường nền none, E3 Batch q=5/50%, và E1 DDL/MDL
+bash scripts/run-2.4-tidb-compact.sh                                   # TiDB 8.5.7 bản gọn (baseline, E2, E1)
+python scripts/plot-2.4.py                                             # Xuất lại Biểu đồ 6 & 6b vào docs/figures/2.4/
 ```
 
-### Tổng quan kết quả thực nghiệm mục 2.4 (90/90 lượt VALID: 51 MySQL + 39 MongoDB; 1 VM Docker `c6i.4xlarge`, sơ bộ, bộ đệm 3 GiB & độ bền ngang nhau)
+### Tổng quan kết quả thực nghiệm mục 2.4 (114/114 lượt VALID: 51 MySQL + 39 MongoDB + 24 TiDB; 1 VM Docker `c6i.4xlarge`, sơ bộ, bộ đệm 3 GiB & độ bền ngang nhau)
 
 **1. So sánh 3 chiến lược chuyển dữ liệu ở cùng tải nền (`q = 25%`, thí nghiệm E2, so với đường nền chuẩn `none`):**
 
@@ -148,6 +151,11 @@ PARTS="baseline e3_batch e1" bash scripts/run-2.4-missing.sh mongo     # Đườ
 | **MongoDB 8.0.20** | **P2 – Batch 5.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **2.088,7** *(2.062,0–2.133,8)* | **-4,4%** | **161,1** | **1,15×** | **393,5** | 99,2 / — | **197,3 s** |
 | **MongoDB 8.0.20** | **P2 – Batch 1.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **2.172,4** *(2.080,2–2.186,8)* | **-0,6%** | **162,3** | **1,15×** | **477,7** | 107,7 / — | **207,8 s** |
 | **MongoDB 8.0.20** | **P3 – Lazy (`q=25%`)** ([2.4-lazy](results/official/2.4-lazy/SUMMARY.md)) | **1.755,2** *(1.720,6–1.777,2)* | **-19,7%** | **143,6** | **1,02×** | **234,0** | **99,2 / 102,6** | **202,0 s** |
+| **TiDB 8.5.7** | **Nền (`none`, `q=25%`)** ([2.4-baseline](results/official/2.4-baseline/SUMMARY.md)) | **980,1** *(909,7–1.005,2)* | **0,0%** | **276,6** | **1,00×** | — | 35,5 / — | — |
+| **TiDB 8.5.7** | **P1 – Eager** ([2.4-eager](results/official/2.4-eager/SUMMARY.md)) | **568,5** *(532,8–619,7)* | **-42,0%** | **588,5** | **2,13×** | **1.668,5** | 60,0 / — | **81,3 s** |
+| **TiDB 8.5.7** | **P2 – Batch 5.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **702,1** *(523,4–748,0)* | **-28,4%** | **506,4** | **1,83×** | **934,1** | 55,1 / — | **117,4 s** |
+| **TiDB 8.5.7** | **P2 – Batch 1.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **895,0** *(753,7–918,5)* | **-8,7%** | **340,4** | **1,23×** | **599,9** | 39,9 / — | **133,8 s** |
+| **TiDB 8.5.7** | **P3 – Lazy (`q=25%`)** ([2.4-lazy](results/official/2.4-lazy/SUMMARY.md)) | **655,0** *(628,2–660,4)* | **-33,2%** | **311,8** | **1,13×** | **707,6** | **39,0 / 226,9** | **131,9 s** |
 
 **2. Ảnh hưởng của tỉ lệ truy cập dữ liệu cũ `q` — Biểu đồ 6b hoàn chỉnh trên cả hai hệ (thí nghiệm E3: P2 Batch 1.000 so với P3 Lazy):**
 
@@ -171,11 +179,14 @@ PARTS="baseline e3_batch e1" bash scripts/run-2.4-missing.sh mongo     # Đườ
 | **MySQL 8.4.8** | **`mdl_timeout_retry`** *(`lock_wait_timeout=3` + retry)* | 3/3 | **1.276,8** *(2,54×)* | 473,7 | **3.208,6** | 29,5 s *(timeout)* | **2 s** |
 | **MongoDB 8.0.20** | `create_index` *(không giao dịch dài)* | 3/3 | **2.125,5** | 171,8 | 422,9 | **8,8 s** | **0 s** |
 | **MongoDB 8.0.20** | `create_index_long_txn` *(đọc `order_line` giữ 60s)* | 3/3 | **706,1** *(-66,8%)* | 140,7 | 359,0 | **66,8 s** | **0 s** |
+| **TiDB 8.5.7** | `add_column_online` | 3/3 | **920,1** | 284,8 | 380,3 | **1,2 s** | **0 s** |
+| **TiDB 8.5.7** | `add_index_online` | 3/3 | **848,1** | 339,5 | 732,6 | **41,9 s** | **0 s** |
+| **TiDB 8.5.7** | **`mdl_long_txn`** *(đọc `order_line` giữ 60s)* | 3/3 | **1.042,2** | **250,9** | **422,7** | **59,3 s** | **0 s** |
 
-**Góc nhìn tổng quan & so sánh MySQL vs MongoDB (mục 2.4):**
-- **E1 – Kẹt Metadata Lock & cách phòng tránh:** Trên **MySQL**, dù `ALGORITHM=INSTANT` chỉ tốn `0,28 s` (`0 s` đóng băng), chỉ cần **1 giao dịch đọc `order_line` giữ mở 60s** là toàn bộ bảng bị đóng băng liên tiếp **57 giây** (`47–52` giao dịch Flash-sale bị chặn `PENDING` trong `performance_schema.metadata_locks`, đỉnh p99 `58,1 s`, TPS sụp `-66,5%`). Đặt **`lock_wait_timeout = 3` kèm retry** giúp DDL tự rút an toàn sau 3s, giảm thời gian đóng băng từ **57 s → 2 s**, giảm đỉnh p99 **18 lần** và giữ TPS tăng gấp **2,54×**. Trên **MongoDB**, không tốn DDL thêm cột và `createIndex` thường chỉ mất `8,8 s` (`0 s` đóng băng), nhưng khi có giao dịch đọc 60s thì pha commit index vẫn phải chờ hết 60s (`66,8 s`) làm TPS tụt `-66,8%` (dù không treo cứng `0 TPS`).
-- **E2 – Tác động khóa ở Eager (P1) khác biệt rõ rệt giữa hai kiến trúc:** Trên **MySQL InnoDB**, Eager giữ khóa trên cả kho (`lock_wait_ms = 2.129 s`), làm sụt **-53,0% TPS** (`1,96×` p99, đỉnh `8,2 s`, xong nhanh nhất `71,3 s`). Ngược lại, **MongoDB** dùng khóa mức tài liệu (WiredTiger MVCC) nên Eager chỉ giảm **-6,1% TPS** (`1,43×` p99), nhưng hoàn tất chậm gần gấp đôi (`126,8 s`) do cập nhật từng tài liệu với `{w:"majority", j:true}`.
-- **E3 (Biểu đồ 6b) – Điểm đảo chiều P3 Lazy ↔ P2 Batch 1.000:** Trên **MySQL**, hai đường **cắt nhau rõ rệt giữa `q = 5%` và `q = 25%`**: ở `q = 5%`, **Lazy thắng Batch 1.000** ở cả TPS (`1.027,1` vs `988,0`, `-18,6%` vs `-21,7%`) lẫn p99 (`1,20×` vs `1,29×`); nhưng từ `q = 25% → 50%`, **Batch 1.000 vượt hẳn lên** (`1.553,4` vs `1.165,4 TPS` ở `q=50%`, hơn `+33,3%`). Trên **MongoDB**, Batch 1.000 giữ TPS gần như nguyên vẹn (`-0,6%` đến `-7,0%`, hơn Lazy `+58,2%` ở `q=50%`), còn Lazy giữ p99 sát nền nhất (`1,02×–1,06×`).
-- *Còn lại `NOT TESTED`: E2 tải cao (`θ=0,9, 128 client`) cho MySQL/MongoDB và TiDB 8.5.x cho mục 2.4.*
+**Góc nhìn tổng quan & so sánh 3 hệ MySQL – MongoDB – TiDB (mục 2.4):**
+- **E1 – Kẹt Metadata Lock:** Trên **MySQL**, 1 giao dịch đọc `order_line` 60s làm `ALTER INSTANT` đóng băng cả bảng **57 giây** (`47–52` giao dịch `PENDING`, đỉnh p99 `58,1 s`, TPS `-66,5%`); đặt `lock_wait_timeout = 3` giảm đóng băng xuống **2 s** và giữ TPS gấp **2,54×**. Trên **MongoDB**, `createIndex` thường chỉ mất `8,8 s` (`0 s` đóng băng), nhưng gặp đọc 60s vẫn chờ `66,8 s` và tụt `-66,8%` TPS. **TiDB 8.5.7** là hệ duy nhất dù chờ giao dịch đọc `59,3 s` (đảm bảo 0 lỗi `schema changed`) nhưng **không chặn giao dịch mới** (`0 s` đóng băng, giữ `1.042,2 TPS`).
+- **E2 – Chuyển dữ liệu (`q=25%`):** **P2 Batch lô `1.000` thắng về TPS trên cả 3 hệ** (`-16,3%` MySQL; `-0,6%` MongoDB; `-8,7%` TiDB), còn **P1 Eager** xong nhanh nhất nhưng sụt mạnh nhất (`-53,0%` MySQL; `-42,0%` TiDB; `-6,1%` MongoDB). **P3 Lazy** giữ p99 sát nền nhất trên MongoDB (`1,02×`) và TiDB (`1,13×`).
+- **E3 (Biểu đồ 6b):** Trên **MySQL**, hai đường cắt nhau giữa `q = 5%` và `25%` (Lazy thắng ở `q = 5%`, Batch thắng ở `q = 25%–50%`); trên **MongoDB**, Batch thắng về TPS trên cả 3 mức (`+58,2%` ở `q=50%`).
+- *Phạm vi dừng ở mức demo theo góp ý giảng viên: `highload` (`θ=0,9, 128c`) và TiDB E3 (`q=5%, 50%`) ở trạng thái `NOT TESTED` (xem [docs/experiment-2.4.md](docs/experiment-2.4.md)).*
 
 [Câu lệnh SQL và MongoDB để trình bày](docs/cau-lenh-dbms-2.1.md) có ví dụ chép vào trình soạn truy vấn, gồm EXPLAIN, New-Order, Payment và rollback.
