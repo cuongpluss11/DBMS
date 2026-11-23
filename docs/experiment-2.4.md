@@ -13,8 +13,7 @@ Tài liệu này tổng hợp thiết kế, kết quả thực đo và quy trìn
   - `ol_discount` (số nguyên, đơn vị cent)
   - `ol_mig_state` (`'UNMIGRATED'` hoặc `'MIGRATED'`; document MongoDB cũ thiếu trường được coi là `UNMIGRATED`).
 - **Phép biến đổi xác định, idempotent:**
-  $$\text{ol\_discount} = \left\lfloor \frac{\text{ol\_quantity} \times \text{i\_price} \times r}{100} \right\rfloor$$
-  với $r = 10$ nếu $\text{i\_price} \ge 5000$, $r = 5$ nếu $2500 \le \text{i\_price} < 5000$, ngược lại $r = 0$.
+  `ol_discount = ⌊ol_quantity × i_price × r / 100⌋` (đơn vị cent), với `r = 10` nếu `i_price ≥ 5000`, `r = 5` nếu `2500 ≤ i_price < 5000`, ngược lại `r = 0`.
 - **Tải nền:** `New-Order : Payment = 1 : 1` kết hợp giao dịch đọc **`"Xem đơn cũ"`** chiếm tỉ lệ `q` (`q = 25%` ở E1/E2; quét `q ∈ {5%, 25%, 50%}` ở E3), `64 client`, `θ = 0,5`, chọn kho `uniform`, mỗi điểm đo chạy **3 lần độc lập** (30s warmup + 60s đo; E1 có giao dịch dài đo 80s).
 - **Kiểm tra đúng đắn sau mọi lượt chạy:**
   1. Đủ 3 luật tồn kho mục 2.1 (không âm, không bán vượt, không đơn trùng).
