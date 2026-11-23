@@ -1,0 +1,58 @@
+11:37:14 Bắt đầu ma trận 2.2: engine=mongo tier=all dry=0 B=50 hot_items=100 log=/home/ubuntu/m22-mongo
+11:39:36 Đã nạp dataset flashsale_da80463fbb2e40baa2459857d729f938 từ configs/hotspot.toml
+11:39:36 Điểm 1: t1-p1-0-c8 (configs/hotspot.toml --variant p1 --theta 0 --no-hot-item --concurrency 8)
+11:45:20 Điểm 2: t1-p1-0.5-c8 (configs/hotspot.toml --variant p1 --theta 0.5 --no-hot-item --concurrency 8)
+11:51:02 Điểm 3: t1-p1-0.7-c8 (configs/hotspot.toml --variant p1 --theta 0.7 --no-hot-item --concurrency 8)
+11:56:41 Điểm 4: t1-p1-0.9-c8 (configs/hotspot.toml --variant p1 --theta 0.9 --no-hot-item --concurrency 8)
+12:02:18 Điểm 5: t1-p1-hot-c8 (configs/hotspot.toml --variant p1 --theta 0 --hot-item --concurrency 8)
+12:07:44 Điểm 6: t1-p1-0-c64 (configs/hotspot.toml --variant p1 --theta 0 --no-hot-item --concurrency 64)
+12:13:48 Điểm 7: t1-p1-0.5-c64 (configs/hotspot.toml --variant p1 --theta 0.5 --no-hot-item --concurrency 64)
+12:19:54 Điểm 8: t1-p1-0.7-c64 (configs/hotspot.toml --variant p1 --theta 0.7 --no-hot-item --concurrency 64)
+12:25:58 Điểm 9: t1-p1-0.9-c64 (configs/hotspot.toml --variant p1 --theta 0.9 --no-hot-item --concurrency 64)
+12:31:56 Điểm 10: t1-p1-hot-c64 (configs/hotspot.toml --variant p1 --theta 0 --hot-item --concurrency 64)
+12:37:28 Điểm 11: t1-p1-0-c256 (configs/hotspot.toml --variant p1 --theta 0 --no-hot-item --concurrency 256)
+12:46:51 Điểm 12: t1-p1-0.5-c256 (configs/hotspot.toml --variant p1 --theta 0.5 --no-hot-item --concurrency 256)
+12:56:17 Điểm 13: t1-p1-0.7-c256 (configs/hotspot.toml --variant p1 --theta 0.7 --no-hot-item --concurrency 256)
+13:05:40 Điểm 14: t1-p1-0.9-c256 (configs/hotspot.toml --variant p1 --theta 0.9 --no-hot-item --concurrency 256)
+13:14:58 Điểm 15: t1-p1-hot-c256 (configs/hotspot.toml --variant p1 --theta 0 --hot-item --concurrency 256)
+13:23:44 Điểm 16: t1-p0-0-c8 (configs/hotspot.toml --variant p0 --theta 0 --no-hot-item --concurrency 8)
+13:29:22 Điểm 17: t1-p0-0.9-c8 (configs/hotspot.toml --variant p0 --theta 0.9 --no-hot-item --concurrency 8)
+13:34:54 Điểm 18: t1-p0-hot-c8 (configs/hotspot.toml --variant p0 --theta 0 --hot-item --concurrency 8)
+13:40:19 Điểm 19: t1-p0-0-c64 (configs/hotspot.toml --variant p0 --theta 0 --no-hot-item --concurrency 64)
+13:46:16 Điểm 20: t1-p0-0.9-c64 (configs/hotspot.toml --variant p0 --theta 0.9 --no-hot-item --concurrency 64)
+13:52:08 Điểm 21: t1-p0-hot-c64 (configs/hotspot.toml --variant p0 --theta 0 --hot-item --concurrency 64)
+13:57:39 Điểm 22: t2-p2-n1-batch-0.9 (configs/hotspot.toml --variant p2 --slots 1 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 64)
+14:03:55 Điểm 23: t2-p2-n3-batch-0.9 (configs/hotspot.toml --variant p2 --slots 3 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 64)
+14:10:23 Điểm 24: t2-p2-n9-batch-0.9 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 64)
+14:16:55 Điểm 25: t2-p2-n27-batch-0.9 (configs/hotspot.toml --variant p2 --slots 27 --hot-items 100 --order-id-batch 50 --theta 0.9 --no-hot-item --concurrency 64)
+14:23:27 Điểm 26: t2-p2-n1-nobatch-0.9 (configs/hotspot.toml --variant p2 --slots 1 --hot-items 100 --order-id-batch 0 --theta 0.9 --no-hot-item --concurrency 64)
+14:29:40 Điểm 27: t2-p2-n9-nobatch-0.9 (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 0 --theta 0.9 --no-hot-item --concurrency 64)
+14:35:52 Điểm 28: t2-p2-n1-batch-hot (configs/hotspot.toml --variant p2 --slots 1 --hot-items 100 --order-id-batch 50 --theta 0 --hot-item --concurrency 64)
+14:41:36 Điểm 29: t2-p2-n3-batch-hot (configs/hotspot.toml --variant p2 --slots 3 --hot-items 100 --order-id-batch 50 --theta 0 --hot-item --concurrency 64)
+14:47:20 Điểm 30: t2-p2-n9-batch-hot (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50 --theta 0 --hot-item --concurrency 64)
+14:53:12 Điểm 31: t2-p2-n27-batch-hot (configs/hotspot.toml --variant p2 --slots 27 --hot-items 100 --order-id-batch 50 --theta 0 --hot-item --concurrency 64)
+14:59:15 Điểm 32: t2-p2-n1-nobatch-hot (configs/hotspot.toml --variant p2 --slots 1 --hot-items 100 --order-id-batch 0 --theta 0 --hot-item --concurrency 64)
+15:05:01 Điểm 33: t2-p2-n9-nobatch-hot (configs/hotspot.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 0 --theta 0 --hot-item --concurrency 64)
+15:10:45 Bỏ qua t3: chưa đặt T3_RATES (đề: chỉ chạy T3 khi T1/T2 cho thấy hiệu năng sụp ở tải cao; xem t1/t2 rồi đặt)
+15:10:45 Điểm 34: t4-design-a-p1-0.9-c32 (configs/hotspot.toml --variant p1 --theta 0.9 --no-hot-item --concurrency 32)
+15:16:32 Điểm 35: t4-design-b-p1-0.9-c32 (configs/hotspot.toml --variant p1 --mongo-design b --theta 0.9 --no-hot-item --concurrency 32)
+15:22:21 Điểm 36: t4-design-a-p1-hot-c32 (configs/hotspot.toml --variant p1 --theta 0 --hot-item --concurrency 32)
+15:27:50 Điểm 37: t4-design-b-p1-hot-c32 (configs/hotspot.toml --variant p1 --mongo-design b --theta 0 --hot-item --concurrency 32)
+15:33:21 Điểm 38: t4-design-a-p1-0.9-c128 (configs/hotspot.toml --variant p1 --theta 0.9 --no-hot-item --concurrency 128)
+15:39:20 Điểm 39: t4-design-b-p1-0.9-c128 (configs/hotspot.toml --variant p1 --mongo-design b --theta 0.9 --no-hot-item --concurrency 128)
+15:45:47 Điểm 40: t4-design-a-p1-hot-c128 (configs/hotspot.toml --variant p1 --theta 0 --hot-item --concurrency 128)
+15:51:24 Điểm 41: t4-design-b-p1-hot-c128 (configs/hotspot.toml --variant p1 --mongo-design b --theta 0 --hot-item --concurrency 128)
+15:59:48 Đã nạp dataset flashsale_3f1871f7c40b4c7abe2e4e7a11fd1531 từ configs/correctness.toml
+15:59:48 Điểm 42: c-p0 (configs/correctness.toml --variant p0)
+16:05:15 Điểm 43: c-p1 (configs/correctness.toml --variant p1)
+16:10:40 Điểm 44: c-p2-n9 (configs/correctness.toml --variant p2 --slots 9 --hot-items 100 --order-id-batch 50)
+16:16:16 Điểm 45: c-p3-n9 (configs/correctness.toml --variant p3 --slots 9 --hot-items 100 --order-id-batch 50)
+16:21:50 Xong 45 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m22-mongo/report
+{
+  "runs": 135,
+  "groups": 45,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 0,
+  "out_dir": "/home/ubuntu/m22-mongo/report"
+}

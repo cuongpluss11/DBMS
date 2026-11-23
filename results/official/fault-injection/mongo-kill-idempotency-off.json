@@ -1,0 +1,32 @@
+{
+  "engine": "mongo",
+  "run_id": "fab4d368baec47419ea00a6b852c387d",
+  "mode": "idempotency_off_control",
+  "requests": 600,
+  "workers": 8,
+  "post_commit_delay_ms": 40.0,
+  "kills": 92,
+  "restarts": 92,
+  "statuses": {
+    "success": 509,
+    "write_conflict": 91
+  },
+  "requests_reattempted_after_kill": 56,
+  "rerun_found_committed": 6,
+  "rerun_not_committed": 76,
+  "orders_committed_in_db": 211,
+  "orders_acked_success": 209,
+  "payments_in_db": 304,
+  "payments_acked_success": 300,
+  "duplicate_orders": 2,
+  "duplicate_payments": 4,
+  "validation": "INVALID",
+  "rules": {
+    "nonnegative": true,
+    "reconciliation": true,
+    "idempotency": false
+  },
+  "doc_check_violations": 0,
+  "passed": true,
+  "meaning": "control detected duplicates"
+}

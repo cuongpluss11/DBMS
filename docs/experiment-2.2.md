@@ -49,7 +49,7 @@ Smoke nhỏ (cần DBMS đang chạy): `flashsale smoke mysql --start --variant 
 
 - Đã chạy: unit test (`tests/test_hotspot.py`, `tests/test_throttle.py`) PASS; `pytest -m integration` trên **MySQL 8.4.8 thật (Docker máy dev, nhãn sơ bộ)**: 4 test PASS gồm `test_hotspot_variants_p1_p2_contract`; smoke ngoài chương trình (ngân sách RAM Docker bị bỏ qua cho smoke) trên MySQL: legacy, P1 + lô mã, P2 N=1 và N=3 VALID, P0 INVALID đúng như dự kiến (mất cập nhật, đối soát của đề báo 1 dòng lệch), P3 và tải vòng mở VALID với giới hạn L giảm 8→1 khi đặt ngưỡng p99 = 1 ms.
 - Đã chạy thêm trên **MongoDB 8.0.20 thật (Docker máy dev, sơ bộ)**: 4 test integration PASS (gồm `test_hotspot_variants_p1_p2_contract`, tức aggregation đối soát có slot hoạt động); smoke legacy, P0, P1 + lô mã, P2 N=1 và N=3, P3, tải vòng mở đều VALID. **P0 trên MongoDB VALID, không bán vượt**: giao dịch snapshot hủy khi xung đột ghi nên không mất cập nhật (đề dự đoán trước điều này: "nếu ra vậy thì đó là kết quả"); smoke nhỏ chưa đủ để kết luận ở tải cao.
-- **NOT TESTED:** TiDB thật (DDL `stock_slot` với `CLUSTERED`, `EXPLAIN UPDATE`, đối soát có slot, chế độ lạc quan/bi quan) vì Docker máy dev chỉ có 3,9 GiB RAM; `test_smoke_exports` vẫn cần Docker đủ 8 CPU/16 GiB; truy vấn `stock_slot` chưa có EXPLAIN; ngưỡng P3 mặc định (500 ms, 10%) chưa được chỉnh bằng số đo.
+- **TiDB:** trên Docker máy dev không chạy được (3,9 GiB RAM); đã thử trên AWS (v8.5.7, 3 TiKV) ngày 2026-11-23: `pytest -m integration` 12 PASS (gồm `test_hotspot_variants_p1_p2_contract`, `test_smoke_exports`; log `results/official/fault-injection/tidb-integration-pytest.txt`) và T1, T2, T4 (bi quan/lạc quan) đã đo ở `results/official/2.2-aws/tidb3/`. **Vẫn NOT TESTED:** `EXPLAIN UPDATE` và `EXPLAIN` truy vấn `stock_slot` trên TiDB; truy vấn `stock_slot` chưa có EXPLAIN; ngưỡng P3 mặc định (500 ms, 10%) chưa được chỉnh bằng số đo.
 
 ## Smoke G1 trên AWS (2026-11-21, sơ bộ, không phải số đo chính thức)
 
@@ -89,4 +89,68 @@ TPS trung vị của ba lần lặp (p99 trung vị, ms trong ngoặc), một kh
 - **T4 (một món, 128 client, so với `legacy` 375):** stored procedure 633 (+69%), `NOWAIT` 644 (+72%), khóa theo thứ tự 379 (không khác `legacy`, vì đơn một món không có thứ tự khóa để sắp xếp). Ở θ = 0,9: `legacy` 1.202, stored procedure 1.550 (+29%), `NOWAIT` 1.235, khóa theo thứ tự 1.184. Mọi lượt T4 VALID.
 - **Lượt kiểm luật:** P1, P2, P3 đều VALID (3/3); P0 INVALID (0/1).
 - **Warmup:** `results/official/warmup-analysis-mysql.md`: 10/187 lượt ngoài khoảng ramp 0,9–1,1, không có lượt TPS thấp; trung vị ramp 0,99–1,03 nên giữ warmup 30 giây.
-- **Giới hạn:** T3 chưa đo; MongoDB chưa đo; số tuyệt đối không so với 2.1 (cùng W = 10 nhưng khác lượt chạy và cỡ máy).
+- **Giới hạn:** T3 ở mục riêng bên dưới (MySQL) và ở mục MongoDB; T3 trên TiDB chưa đo; số tuyệt đối không so với 2.1 (cùng W = 10 nhưng khác lượt chạy và cỡ máy).
+
+## Kết quả đo chính thức trên MongoDB (AWS, 2026-11-22)
+
+`results/official/2.2-aws/mongo/`: 135 lượt trên MongoDB 8.0.20, thiết kế (a) (giao dịch nhiều tài liệu, replica set một nút, `{w: majority, j: true}`), WiredTiger cache 3 GiB, m6i.8xlarge giới hạn 24 vCPU/60 GiB, W = 10, `configs/hotspot.toml`, warmup 30 s + đo 60 s, 3 lần lặp (chạy 11:37–16:25 giờ máy tải). **135/135 lượt VALID, kể cả P0** (khác MySQL, nơi 7 lượt P0 INVALID). Chưa có T3.
+
+TPS trung vị ba lần lặp (p99 trung vị, ms), một kho, P1 thiết kế (a). **Cột 256 client là số đo lại sau khi nâng `nofile` của mongod** (mục T3 bên dưới), ở `mongo-t1-c256-postfix/`; số đo trước đó ở `mongo/` (θ = 0: 2.421; 0,5: 2.398; 0,7: 2.373; 0,9: 2.168; một món: 790) thấp hơn 12–46% do giới hạn fd:
+
+| Cấu hình | 8 client | 64 client | 256 client |
+| --- | --- | --- | --- |
+| θ = 0 | 538,5 (104) | 1.883,7 (346) | 2.700 (353) |
+| θ = 0,5 | 538,8 (103) | 1.879,8 (346) | 2.682 (354) |
+| θ = 0,7 | 538,0 (104) | 1.867,0 (346) | 2.679 (354) |
+| θ = 0,9 | 526,4 (109) | 1.698,1 (346) | 2.564 (353) |
+| một món | 402,9 (180) | 672,7 (338) | 1.153 (346) |
+
+- **Không có điểm gãy rõ trong θ ∈ [0, 0,7]**; θ = 0,9 thấp hơn ~10% ở 64 client; "một món" thấp hơn θ = 0 khoảng 2,8 lần ở 64 client (673 so với 1.884).
+- **T2 (một món, 64 client, lô mã 50):** P2 N=27 đạt 3.955 TPS (5,9 lần P1 = 672,7), N=9 đạt 2.854, N=3 đạt 1.603, N=1 đạt 807,5 (N=1 có lô mã hơn P1 một ít). Không lô mã ở N=9: 1.893, thấp hơn có lô (2.854): cấp mã đơn cũng là điểm nóng. Ở θ = 0,9: N=1 có lô 2.638 (+55% so với P1 1.698), N=3 2.997, N=9 3.060, N=27 3.169.
+- **T4, MongoDB thiết kế (b) (không giao dịch nhiều tài liệu), P1:** một món 128 client 8.354 TPS (p99 30 ms) so với (a) 845 (p99 341 ms), gấp ~9,9 lần; 32 client 2.797 so với 560. θ = 0,9, 128 client: (b) 5.839 so với (a) 2.157 (2,7 lần); 32 client 1.977 so với 1.268. Mọi lượt (b) VALID. Giới hạn (b) đã nêu ở trên: chưa thử giết tiến trình giữa trừ kho và ghi đơn. **Lưu ý máy tải:** ở các lượt (b) 128 client CPU máy tải đạt 1.178–1.246% trên 1.600% (74–78%, sát ngưỡng 80% của AGENTS.md; `results/official/VERIFY.md`), nên 8.354 TPS có thể bị chặn một phần bởi load generator Python và là cận dưới của năng lực thật của (b); tỉ lệ 9,9× so với (a) vì vậy cũng là cận dưới.
+- **P0 trên MongoDB:** cả 6 điểm P0 (θ = 0 và 0,9, 8 và 64 client; một món 8/64 client) VALID, lượt kiểm luật P0 cũng VALID. Giải thích có thể là giao dịch nhiều tài liệu của MongoDB phát hiện xung đột ghi (WriteConflict) khi hai giao dịch cùng sửa một dòng tồn kho, nên "đọc rồi ghi" không mất cập nhật; chưa kiểm chứng riêng (chưa đọc bộ đếm lỗi `write_conflict` theo lượt cho kết luận này).
+- **Hằng số p99 ~340–350 ms** ở nhiều cấu hình (a) khác nhau (cả khi θ = 0): chưa rõ nguồn (có thể là chờ/backoff của giao dịch bị xung đột hoặc hàng đợi phía MongoDB); chưa điều tra, không suy diễn.
+- **Warmup:** `results/official/warmup-analysis-mongo.md`: 0/135 lượt ngoài khoảng ramp 0,9–1,1, trung vị ramp 1,00, CV trung vị 0,03; giữ warmup 30 giây.
+- **Giới hạn:** số tuyệt đối không so với 2.1; so sánh giữa hệ dùng cỡ máy đã ghi ở `docs/assumptions.md`.
+
+### T3 trên MongoDB (tải vòng mở, θ = 0,9, P2 so với P3)
+
+`results/official/2.2-aws/mongo-t3/` (48 lượt VALID; P2 ở 256 client trong thư mục này đo trước khi sửa `nofile` nên bỏ qua) và `mongo-t3-p2-postfix/` (12 lượt, P2 ở 256 client đo lại sau khi sửa). Tải đặt 1.500, 2.500, 3.100, 3.700 yêu cầu/giây (xấp xỉ 50, 80, 100, 120% đỉnh P2 θ = 0,9 ở T2, ~3.100; `T3_RATES="1500 2500 3100 3700"`). Trung vị 3 lần lặp, TPS thực (p99 ms):
+
+| Tải đặt | 128 client P2 | 128 client P3 | 256 client P2 (sau sửa) | 256 client P3 |
+| --- | --- | --- | --- | --- |
+| 1.500 | 1.500 (28) | 1.500 (60) | 1.500 (28) | 1.500 (28) |
+| 2.500 | 2.500 (251) | 2.500 (240) | 2.500 (77) | 2.500 (61) |
+| 3.100 | 3.097 (235) | 3.100 (49) | 3.099 (315) | 3.100 (96) |
+| 3.700 | 3.673 (380) | 3.686 (320) | 3.699 (327) | 3.700 (67) |
+
+- Mọi điểm: P2 và P3 đều theo kịp tải đặt (TPS ≈ tải), tỉ lệ hủy ≤ 0,03%. P3 **không tăng TPS**; lợi ích đo được chỉ là p99 thấp hơn ở 256 client khi tải cao (96 so với 315 ms ở 3.100; 67 so với 327 ms ở 3.700). Ở 128 client không có khác biệt rõ (p99 dao động giữa các lần lặp, ví dụ P3 3.100 có p99 26, 49, 232 ms).
+- Tải đặt thấp hơn hoặc xấp xỉ năng lực của MongoDB nên chưa có điểm bão hòa; muốn thấy P3 giữ TPS khi quá tải cần tải trên ~4.000 (chưa đo).
+- **Sự cố nofile.** mongod chạy với `nofile` mềm 1.024 (cảnh báo trong log khởi động; khuyến nghị 64.000). Ở P3 + 256 client, 4 điểm (10, 12, 14, 16) lỗi `BrokenBarrierError` (client không kịp khởi động trong 120 s; 5 lượt không có số đo, log ở `mongo-t3/logs/m22-mongo-t3/failed-*`); lúc điểm 16 log mongod ghi "Too many open files" rồi mongod crash (exit 139). Sau khi thêm `ulimits.nofile = 64000` vào `infra/aws/compose/mongo.aws.yml` và tạo lại container, cả 4 điểm chạy được. Chắc chắn: crash và lỗi ở điểm 16 do hết fd. Chưa chắc: với điểm 10, 12, 14 log mongod không ghi lỗi tương ứng (khả dĩ fd tích dần sau nhiều giờ chạy); chỉ biết sửa xong thì hết lỗi. Hệ quả: các lượt Mongo ở 256 client trước khi sửa bị hạ TPS (P2 mở vòng thiếu tải, 1.308/1.500); đã đo lại T1 ở 256 client và P2 ở T3. **Chưa đo lại:** các lượt ≤128 client (T1 8/64, T2 64, T4 32/128, lượt kiểm luật); log mongod trước khi tạo lại container đã mất nên không biết chúng có chạm giới hạn hay không, nhưng không lượt nào lỗi.
+
+## Số liệu tranh chấp, kiểm chứng P0 và hình báo cáo (offline, 2026-11-23)
+
+Sinh từ các `result.json`/`INDEX.csv` đã commit, không đo thêm: `scripts/contention_summary.py` → `results/official/2.2-aws/CONTENTION.md`; `scripts/make_figures.py` → `results/official/figures/` (6 hình PNG và CSV nguồn để đối chiếu số).
+
+- **Mongo P0 VALID đã có bằng chứng ủng hộ:** mỗi lượt P0 ở 64 client ghi 74.000–79.000 lỗi `write_conflict` (khoảng 34% yêu cầu phải thử lại), 8 client 6.000–10.700 và không lượt nào mất cập nhật (0 INVALID, 21 lượt). MySQL và TiDB không có lỗi xung đột tương ứng ở P0 (đọc không khóa) và cả 7 + 7 lượt đều INVALID (INV2: tổng 1.335 và 1.038 dòng lệch). Lưu ý: đây là bằng chứng gián tiếp (đếm lỗi), chưa phải thí nghiệm riêng tắt phát hiện xung đột.
+- **INV1 vẫn đúng ở mọi lượt P0** vì tồn đầu 10^9 và ứng dụng kiểm tra ở bước đọc; lỗi của P0 là mất cập nhật (INV2), không phải tồn âm.
+- **MySQL nghẽn khóa ngay cả khi θ=0 (một kho):** tổng thời gian chờ khóa dòng chiếm khoảng 73% thời gian client (64 client × 60 s) ở θ=0 và 97% ở "một món". Vì vậy không có điểm gãy ở θ ≤ 0,7: một kho đã nghẽn ở các hàng dùng chung (nhiều khả năng bộ đếm `d_next_o_id`/hàng kho; **chưa xác nhận** bằng `data_locks`). Mongo (a) cho thấy tranh chấp qua `write_conflict` (retry 28–40%) thay vì chờ khóa.
+- **Tách cấp mã theo lô khỏi chia slot (P2 N=9, 64 client, không lô → lô 50):** một món: MySQL 1.504 → 1.847, MongoDB 1.893 → 2.854, TiDB 958 → 1.286; θ=0,9: MySQL 1.423 → 1.786, MongoDB 1.874 → 3.060, TiDB 912 → 2.276 (TiDB gấp 2,5 lần: bộ đếm mã đơn là điểm nóng chính ở θ=0,9 trên TiDB). Lô mã là biến riêng, phải báo cáo riêng.
+- **Bảng 2×2 TiDB (θ=0,9, 64 client, lô 50):** P1 616 (1 TiKV) → 751 (3 TiKV) = 1,22×; P2 N=27 845 → 2.121 = 2,51× (min–max 1.545–2.188 ở 3 TiKV); chia slot một mình: 1,37× (1 TiKV) và 2,82× (3 TiKV); cả hai: 3,44×. **Chưa xác nhận bằng vị trí Region/leader theo TiKV** nên chưa kết luận cơ chế.
+- **T4 TiDB một món, 128 client:** bi quan 250 TPS so với lạc quan 22 (lạc quan sụp trên hot SKU vì xung đột commit).
+
+### T3 trên MySQL (tải vòng mở, θ = 0,9, P2 so với P3; AWS, 2026-11-23)
+
+`results/official/2.2-aws/mysql-t3/`: 48 lượt VALID (MySQL-chỉnh 8.4.8, 24 vCPU/60 GiB, buffer pool 3 GiB; tải đặt 900, 1.450, 1.800, 2.200 yêu cầu/giây ≈ 50/80/100/120% đỉnh P2 θ = 0,9 ở T2 là ~1.810; `T3_RATES="900 1450 1800 2200"`). Trung vị 3 lần lặp, TPS thực (p99 ms):
+
+| Tải đặt | 128 client P2 | 128 client P3 | 256 client P2 | 256 client P3 |
+| --- | --- | --- | --- | --- |
+| 900 | 900 (106) | 900 (56) | 900 (50) | 900 (48) |
+| 1.450 | 1.441 (441) | 1.438 (497) | 1.450 (93) | 1.450 (74) |
+| 1.800 | 1.778 (641) | 1.297 (2.076) | 1.798 (580) | 1.303 (4.796) |
+| 2.200 | 1.917 (695) | 1.144 (2.603) | 2.055 (1.750) | 1.100 (4.990) |
+
+- **Dưới ~80% năng lực (≤ 1.450), P2 và P3 như nhau. Từ 100% trở lên P3 KÉM hơn P2** trên MySQL: ở 1.800 TPS đạt 1.297 so với 1.778 (−27%) và p99 2.076 so với 641 ms; ở 2.200: 1.144 so với 1.917 (−40%).
+- **Nguyên nhân (đọc từ `throttle_result`):** bộ điều tiết P3 hạ giới hạn đồng thời xuống 2–3 (`min_limit`) vì p99 của giao dịch nóng vượt ngưỡng 500 ms của đặc tả (p99 của chính P2 ở tải này đã 580–700 ms), nên nó liên tục chia đôi L; 23–49% yêu cầu bị từ chối do hàng đợi đầy (`rejected_pct`), thời gian chờ chuyển từ DBMS sang tầng ứng dụng. Đây trả lời trực tiếp câu hỏi của đề: trên MySQL ở tải này P3 **chỉ chuyển thời gian chờ** chứ không giảm sụp hiệu năng, và còn làm giảm throughput.
+- **Giới hạn quan trọng:** chỉ thử một bộ ngưỡng (p99 500 ms, abort 10%, theo đặc tả); kết quả phụ thuộc ngưỡng, chưa thử ngưỡng khác (đặt cao hơn p99 bình thường của hệ có thể đổi kết luận). Trái lại trên MongoDB ngưỡng này không bị chạm (p99 thấp hơn) nên P3 không có hại, chỉ giảm p99 ở 256 client.
+- **Warmup:** `results/official/warmup-analysis-mysql-t3.md`: 10/48 lượt ngoài khoảng ramp 0,9–1,1 (9 lượt ramp > 1,1), không lượt nào TPS thấp; trung vị ramp 1,00.

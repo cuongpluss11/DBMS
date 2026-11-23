@@ -1,0 +1,31 @@
+{
+  "engine": "mysql",
+  "run_id": "feb34583fc934b2081d92282b36ef4e1",
+  "mode": "idempotency_off_control",
+  "requests": 1500,
+  "workers": 8,
+  "post_commit_delay_ms": 40.0,
+  "kills": 32,
+  "restarts": 32,
+  "statuses": {
+    "success": 1500
+  },
+  "requests_reattempted_after_kill": 31,
+  "rerun_found_committed": 27,
+  "rerun_not_committed": 4,
+  "orders_committed_in_db": 762,
+  "orders_acked_success": 750,
+  "payments_in_db": 765,
+  "payments_acked_success": 750,
+  "duplicate_orders": 12,
+  "duplicate_payments": 15,
+  "validation": "INVALID",
+  "rules": {
+    "nonnegative": true,
+    "reconciliation": true,
+    "idempotency": false
+  },
+  "doc_check_violations": 0,
+  "passed": true,
+  "meaning": "control detected duplicates"
+}

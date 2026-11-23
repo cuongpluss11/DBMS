@@ -1,0 +1,32 @@
+{
+  "engine": "tidb",
+  "run_id": "97decf9e724748819fcb2dfd93b6568a",
+  "mode": "normal",
+  "requests": 6000,
+  "workers": 16,
+  "post_commit_delay_ms": 40.0,
+  "kills": 92,
+  "restarts": 92,
+  "statuses": {
+    "success": 3119,
+    "out_of_stock": 2881
+  },
+  "requests_reattempted_after_kill": 92,
+  "rerun_found_committed": 76,
+  "rerun_not_committed": 16,
+  "orders_committed_in_db": 119,
+  "orders_acked_success": 119,
+  "payments_in_db": 3000,
+  "payments_acked_success": 3000,
+  "duplicate_orders": 0,
+  "duplicate_payments": 0,
+  "validation": "VALID",
+  "rules": {
+    "nonnegative": true,
+    "reconciliation": true,
+    "idempotency": true
+  },
+  "doc_check_violations": 0,
+  "passed": true,
+  "rule_of_three_upper_bound_pct": 3.95
+}

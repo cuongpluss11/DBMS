@@ -201,8 +201,11 @@ def pd_status() -> dict:
         replica = json.load(response)
     live = [entry["store"] for entry in stores if entry["store"]["state_name"] == "Up"]
     expected = int(setting("FLASHSALE_TIKV_COUNT", "3"))
-    if len(live) != expected or replica.get("max-replicas") != 1:
-        raise RuntimeError(f"TiDB cần {expected} TiKV Up và max-replicas=1. Hiện có {len(live)} store, {replica}")
+    # Lượt chính: đúng 1 bản sao. Nhóm R (docs/experiment-2.3.md) đặt FLASHSALE_TIDB_REPLICAS=3 một cách tường minh;
+    # giá trị thật của PD luôn được ghi vào manifest (`max_replicas`), không suy từ biến môi trường.
+    allowed = int(setting("FLASHSALE_TIDB_REPLICAS", "1"))
+    if len(live) != expected or replica.get("max-replicas") != allowed:
+        raise RuntimeError(f"TiDB cần {expected} TiKV Up và max-replicas={allowed}. Hiện có {len(live)} store, {replica}")
     return {"store_versions": {store["address"]: store["version"] for store in live},
             "max_replicas": replica["max-replicas"]}
 
