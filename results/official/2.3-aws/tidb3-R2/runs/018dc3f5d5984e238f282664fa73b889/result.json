@@ -1,0 +1,739 @@
+{
+  "schema_version": 5,
+  "run_id": "018dc3f5d5984e238f282664fa73b889",
+  "engine": "tidb",
+  "version": "8.0.11-TiDB-v8.5.7",
+  "label": "scaling",
+  "repetition": 1,
+  "seed": 2026,
+  "idempotency": true,
+  "variant": "p1",
+  "slots": null,
+  "hot_items": null,
+  "order_id_batch": 50,
+  "arrival_rate": 0.0,
+  "lock_order": false,
+  "nowait": false,
+  "txn_mode": "default",
+  "mongo_design": "a",
+  "stored_procedure": false,
+  "placement": "spread",
+  "placement_scope": "stock",
+  "orders_key": "composite",
+  "order_warehouses": [
+    1,
+    1
+  ],
+  "warehouse_groups": 3,
+  "placement_result": {
+    "layout": "spread",
+    "scope": "stock",
+    "stores": [
+      1,
+      4,
+      5
+    ],
+    "replicas": 3,
+    "previous_schedule": {
+      "leader-schedule-limit": 4,
+      "region-schedule-limit": 2048,
+      "merge-schedule-limit": 8,
+      "hot-region-schedule-limit": 4
+    },
+    "tables": {
+      "stock": {
+        "1": 6,
+        "4": 4,
+        "5": 4
+      }
+    },
+    "load_base_split": [
+      [
+        "10.20.1.20:20160",
+        "split.byte-threshold",
+        "31457280"
+      ],
+      [
+        "10.20.1.20:20160",
+        "split.detect-times",
+        "10"
+      ],
+      [
+        "10.20.1.20:20160",
+        "split.grpc-thread-cpu-overload-threshold-ratio",
+        "0.5"
+      ],
+      [
+        "10.20.1.20:20160",
+        "split.qps-threshold",
+        "3000"
+      ],
+      [
+        "10.20.1.20:20160",
+        "split.region-cpu-overload-threshold-ratio",
+        "0.25"
+      ],
+      [
+        "10.20.1.20:20160",
+        "split.sample-num",
+        "20"
+      ],
+      [
+        "10.20.1.20:20160",
+        "split.sample-threshold",
+        "100"
+      ],
+      [
+        "10.20.1.20:20160",
+        "split.split-balance-score",
+        "0.8"
+      ],
+      [
+        "10.20.1.20:20160",
+        "split.split-contained-score",
+        "0.5"
+      ],
+      [
+        "10.20.1.20:20160",
+        "split.unified-read-pool-thread-cpu-overload-threshold-ratio",
+        "0.4"
+      ],
+      [
+        "10.20.1.108:20160",
+        "split.byte-threshold",
+        "31457280"
+      ],
+      [
+        "10.20.1.108:20160",
+        "split.detect-times",
+        "10"
+      ],
+      [
+        "10.20.1.108:20160",
+        "split.grpc-thread-cpu-overload-threshold-ratio",
+        "0.5"
+      ],
+      [
+        "10.20.1.108:20160",
+        "split.qps-threshold",
+        "3000"
+      ],
+      [
+        "10.20.1.108:20160",
+        "split.region-cpu-overload-threshold-ratio",
+        "0.25"
+      ],
+      [
+        "10.20.1.108:20160",
+        "split.sample-num",
+        "20"
+      ],
+      [
+        "10.20.1.108:20160",
+        "split.sample-threshold",
+        "100"
+      ],
+      [
+        "10.20.1.108:20160",
+        "split.split-balance-score",
+        "0.8"
+      ],
+      [
+        "10.20.1.108:20160",
+        "split.split-contained-score",
+        "0.5"
+      ],
+      [
+        "10.20.1.108:20160",
+        "split.unified-read-pool-thread-cpu-overload-threshold-ratio",
+        "0.4"
+      ],
+      [
+        "10.20.1.136:20160",
+        "split.byte-threshold",
+        "31457280"
+      ],
+      [
+        "10.20.1.136:20160",
+        "split.detect-times",
+        "10"
+      ],
+      [
+        "10.20.1.136:20160",
+        "split.grpc-thread-cpu-overload-threshold-ratio",
+        "0.5"
+      ],
+      [
+        "10.20.1.136:20160",
+        "split.qps-threshold",
+        "3000"
+      ],
+      [
+        "10.20.1.136:20160",
+        "split.region-cpu-overload-threshold-ratio",
+        "0.25"
+      ],
+      [
+        "10.20.1.136:20160",
+        "split.sample-num",
+        "20"
+      ],
+      [
+        "10.20.1.136:20160",
+        "split.sample-threshold",
+        "100"
+      ],
+      [
+        "10.20.1.136:20160",
+        "split.split-balance-score",
+        "0.8"
+      ],
+      [
+        "10.20.1.136:20160",
+        "split.split-contained-score",
+        "0.5"
+      ],
+      [
+        "10.20.1.136:20160",
+        "split.unified-read-pool-thread-cpu-overload-threshold-ratio",
+        "0.4"
+      ]
+    ],
+    "hot_regions_after": [
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "read",
+        "MAX_HOT_DEGREE": 18,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 0
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 85,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 9060
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 9,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 18750
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 50,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 9925
+      },
+      {
+        "TABLE_NAME": "stock",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 4,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 67505
+      },
+      {
+        "TABLE_NAME": "orders",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 48,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 528231
+      },
+      {
+        "TABLE_NAME": "order_line",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 20,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 40218
+      },
+      {
+        "TABLE_NAME": "stock",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 4,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 73452
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 9,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 9332
+      },
+      {
+        "TABLE_NAME": "new_order",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 97,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 313472
+      },
+      {
+        "TABLE_NAME": "stock",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 6,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 76953
+      },
+      {
+        "TABLE_NAME": "stock",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 4,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 79409
+      },
+      {
+        "TABLE_NAME": "customer",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 6,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 134501
+      },
+      {
+        "TABLE_NAME": "district",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 6,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 240024
+      },
+      {
+        "TABLE_NAME": "customer",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 48,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 134015
+      },
+      {
+        "TABLE_NAME": "stock",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 7,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 78813
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 51,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 9109
+      },
+      {
+        "TABLE_NAME": "order_line",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 5,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 550426
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 9,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 9611
+      },
+      {
+        "TABLE_NAME": "stock",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 4,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 79550
+      }
+    ]
+  },
+  "tikv_count": 3,
+  "migration_strategy": "none",
+  "old_order_read_pct": 0.0,
+  "migration_batch_size": null,
+  "migration": null,
+  "throttle_result": null,
+  "variant_setup": {
+    "variant": "p1",
+    "slots": null,
+    "hot_items": null,
+    "order_id_batch": 50,
+    "arrival_rate": 0.0,
+    "queue_size": null,
+    "throttle": null,
+    "prepare_seconds": null
+  },
+  "client_timeout_seconds": 15.0,
+  "concurrency": 64,
+  "warehouse_mode": "single-warehouse",
+  "theta": 0.9,
+  "hot_item": false,
+  "inventory_mode": "performance",
+  "resource_limits": {
+    "cpus": 24.0,
+    "memory_bytes": 64424509440
+  },
+  "theoretical_selection": {
+    "rank1_pct": 4.505990589609496,
+    "top100_pct": 28.958787085480257
+  },
+  "warmup": {
+    "seconds": 30,
+    "tps": 510.3,
+    "success": 15309,
+    "failed": 2,
+    "drained_requests": 64,
+    "new_order_success": 7639,
+    "payment_success": 7670,
+    "old_order_success": 0,
+    "p50_ms": 16.671428000336164,
+    "p95_ms": 767.5759240000843,
+    "p99_ms": 1077.5880909995976,
+    "abort_pct": 0.013062504082032526,
+    "rejected": 0,
+    "rejected_pct": 0.0,
+    "unserved_at_deadline": 0,
+    "queue_wait_mean_ms": null,
+    "queue_wait_p99_ms": null,
+    "out_of_stock_pct": 0.0,
+    "retry_pct": 0.7510939847168703,
+    "retry_attempts": 189,
+    "error_counts": {
+      "timeout": 0,
+      "deadlock": 191,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0,
+      "busy": 0,
+      "lock_nowait": 0
+    },
+    "failure_counts": {
+      "timeout": 0,
+      "deadlock": 2,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0,
+      "busy": 0,
+      "lock_nowait": 0
+    },
+    "request_error_pct": {
+      "timeout": 0.0,
+      "deadlock": 0.7510939847168703,
+      "write_conflict": 0.0
+    },
+    "rank_draws": 22781,
+    "observed_rank1_pct": 4.415960668978535,
+    "observed_top100_pct": 28.923225494929987,
+    "out_of_stock_all": 0,
+    "unknown_commits_all": 0,
+    "slot_attempts": null,
+    "slot_attempts_per_item": null,
+    "read_migrated_p99_ms": null,
+    "read_clean_p99_ms": null,
+    "migrated_on_demand": null,
+    "migration_conflicts": null
+  },
+  "measurement": {
+    "seconds": 60,
+    "tps": 518.8166666666667,
+    "success": 31129,
+    "failed": 8,
+    "drained_requests": 64,
+    "new_order_success": 15545,
+    "payment_success": 15584,
+    "old_order_success": 0,
+    "p50_ms": 15.943127999889839,
+    "p95_ms": 746.9691330006754,
+    "p99_ms": 1072.5953430001027,
+    "abort_pct": 0.025692905546455983,
+    "rejected": 0,
+    "rejected_pct": 0.0,
+    "unserved_at_deadline": 0,
+    "queue_wait_mean_ms": null,
+    "queue_wait_p99_ms": null,
+    "out_of_stock_pct": 0.0,
+    "retry_pct": 0.8221729774865915,
+    "retry_attempts": 426,
+    "error_counts": {
+      "timeout": 0,
+      "deadlock": 434,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0,
+      "busy": 0,
+      "lock_nowait": 0
+    },
+    "failure_counts": {
+      "timeout": 0,
+      "deadlock": 8,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0,
+      "busy": 0,
+      "lock_nowait": 0
+    },
+    "request_error_pct": {
+      "timeout": 0.0,
+      "deadlock": 0.8221729774865915,
+      "write_conflict": 0.0
+    },
+    "rank_draws": 46555,
+    "observed_rank1_pct": 4.427021802169477,
+    "observed_top100_pct": 29.425410804424875,
+    "out_of_stock_all": 0,
+    "unknown_commits_all": 0,
+    "slot_attempts": null,
+    "slot_attempts_per_item": null,
+    "read_migrated_p99_ms": null,
+    "read_clean_p99_ms": null,
+    "migrated_on_demand": null,
+    "migration_conflicts": null
+  },
+  "lock_wait_ms": null,
+  "server_deadlocks": null,
+  "container_cpu_pct": {
+    "pd": 16.07485987440072,
+    "tidb": 202.49706190640546,
+    "tikv1": 85.45448169981975,
+    "tikv2": 175.66737803864748,
+    "tikv3": 187.19248077629186
+  },
+  "loadgen_cpu_pct": 32.7849992237939,
+  "resource_warnings": [],
+  "validation": {
+    "status": "VALID",
+    "rules": {
+      "nonnegative": true,
+      "reconciliation": true,
+      "idempotency": true
+    },
+    "errors": {
+      "nonnegative": [],
+      "reconciliation": [],
+      "idempotency": []
+    },
+    "committed_orders": 23307,
+    "tagged_rows": {
+      "orders": 23307,
+      "order_line": 69430
+    },
+    "doc_check": {
+      "violations": 0,
+      "sample": []
+    },
+    "protocol_errors": []
+  },
+  "tps_series": {
+    "warmup": [
+      737,
+      601,
+      541,
+      497,
+      554,
+      431,
+      548,
+      458,
+      571,
+      431,
+      587,
+      519,
+      526,
+      490,
+      416,
+      520,
+      592,
+      419,
+      455,
+      474,
+      500,
+      557,
+      383,
+      597,
+      541,
+      527,
+      540,
+      442,
+      421,
+      434
+    ],
+    "measurement": [
+      844,
+      366,
+      621,
+      484,
+      490,
+      345,
+      573,
+      548,
+      522,
+      559,
+      477,
+      596,
+      499,
+      580,
+      512,
+      514,
+      508,
+      446,
+      528,
+      450,
+      578,
+      438,
+      374,
+      392,
+      471,
+      471,
+      459,
+      531,
+      488,
+      460,
+      456,
+      442,
+      564,
+      468,
+      503,
+      468,
+      543,
+      589,
+      494,
+      435,
+      417,
+      408,
+      443,
+      415,
+      499,
+      626,
+      657,
+      693,
+      646,
+      580,
+      490,
+      551,
+      648,
+      640,
+      567,
+      530,
+      607,
+      486,
+      515,
+      625
+    ]
+  },
+  "p99_series": {
+    "warmup": [
+      560.4512660002001,
+      660.4571069992744,
+      926.1327019994496,
+      1013.0758269997386,
+      1087.5437289996626,
+      1179.1446489996815,
+      1314.270333999957,
+      775.9140469997874,
+      1562.3710489999212,
+      1153.2520439996006,
+      1255.9862620000786,
+      892.8533969992714,
+      1034.0734640003575,
+      1031.0701940006766,
+      928.4432290005498,
+      970.2883950003525,
+      792.9533209999136,
+      929.694152000593,
+      1449.5616320000408,
+      1118.731010999909,
+      972.1185329999571,
+      780.3270800004611,
+      1337.046652999561,
+      1419.824781999523,
+      921.932239999478,
+      913.6598660006712,
+      1011.0323479993895,
+      1620.542798000315,
+      827.9166629999963,
+      1454.4832270003099
+    ],
+    "measurement": [
+      631.6595870002857,
+      1039.956376000191,
+      1110.4763659996024,
+      976.2036399997669,
+      977.2881939998115,
+      1404.1922000005798,
+      1503.7531850002779,
+      1010.8216120006546,
+      839.9025819999224,
+      1360.480841000026,
+      1024.275593999846,
+      821.3100599996324,
+      796.8987260001086,
+      872.623344999738,
+      907.2890000006737,
+      912.4233859993183,
+      1788.5416110002552,
+      1121.4961929999845,
+      1666.979122000157,
+      1105.3725450001366,
+      951.5427360001922,
+      869.5479590005561,
+      1025.7071639998685,
+      1482.8526339997552,
+      2743.9539430006334,
+      1459.7013109996624,
+      944.598828999915,
+      946.3296940002692,
+      1471.5968360005718,
+      1254.1014710004674,
+      1149.8653199996625,
+      1064.682458999414,
+      1501.6949700002442,
+      997.3513510003613,
+      950.6212430005689,
+      1072.5953430001027,
+      950.1880269999674,
+      804.4859999999971,
+      1078.9970750001885,
+      1077.6142919994527,
+      1834.694044000571,
+      1875.1326569999947,
+      1186.311122999541,
+      926.1619589997281,
+      1179.942110000411,
+      1345.5029639999339,
+      728.8269529999525,
+      632.1335499997076,
+      752.4112109995258,
+      786.3604599997416,
+      970.2924180000991,
+      1557.0034279999163,
+      674.9448439995831,
+      1009.0976009996666,
+      1091.8939840003077,
+      1091.565604000607,
+      691.1031950003235,
+      1459.3736760007232,
+      1428.103595999346,
+      716.5060800007268
+    ]
+  },
+  "warmup_stability": {
+    "window_seconds": 10,
+    "warmup_tail_tps": 513.5,
+    "measurement_head_tps": 535.0,
+    "drift_pct": 4.186952288218111
+  }
+}

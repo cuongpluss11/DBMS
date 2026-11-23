@@ -128,8 +128,31 @@ Chỉ TiDB. Trước warmup của mỗi lượt (ngoài thời gian đo): chia `
 | C: P2 N=9, θ=0,9 | 2.270 | 1.348 | −41% | 118 → 159 |
 | C: P2 N=27, θ=0,9 | 2.247 | 1.319 | −41% | 76 → 116 |
 
+> **Cập nhật cùng ngày (R2, mục bên dưới):** khi đảo thứ tự đo, mức giảm ở A và P2 (−25% đến −47%) lặp lại, nhưng mức "−33%" ở B (P1 hot SKU) **không** lặp lại và không được trích; hai pha rf=3 cùng cấu hình lệch nhau tới 29%. Câu "chưa đo lại rf=1 sau rf=3" ở phần Giới hạn đã được R2 xử lý.
+
 (TPS trung vị của 3 lần lặp; khoảng min–max trong `INDEX.csv`; hệ số dao động ở N=27 rf=3 là 1.279–1.707.)
 
 - **Kết quả:** rf=3 giảm TPS 33–41% ở mọi cấu hình và tăng p99 đồng thời. Mức giảm **không nhỏ ở hot SKU** như H-R1 dự đoán (B: −33%, không phải "ít"); H-R2 đúng về chiều (−41% ở N=27) và H-R3 **sai** (tải đều A giảm −37%, gần như bằng các ô khác).
 - **Bằng chứng về nguyên nhân (CPU từng TiKV, % của một vCPU; TiKV m6i.large chỉ có 2 vCPU nên trần 200%):** ở rf=3 cả ba TiKV gần trần ở mọi cấu hình (A: 198/198/199; N=27: 195/189/200). Ở rf=1, cấu hình B có TiKV còn dư CPU (126/61/107) nhưng rf=3 đẩy lên 173/143/190 trong khi TPS giảm: mỗi ghi phải nhân ba (log Raft và apply), nên TiKV trở thành nút cổ chai ở mọi ô; thêm vòng quorum Raft làm p99 tăng. Đây là bằng chứng nhất quán với cơ chế, chưa phải chứng minh: không đo metric Raft (commit/apply latency) và không tách riêng I/O.
 - **Giới hạn:** rf=1 đo trước rf=3 trong cùng phiên nên thứ tự có thể lẫn với trôi hệ thống (chưa đo lại rf=1 sau rf=3). Đối chiếu gián tiếp: rf=1 của phiên này khớp phiên 22/11 (B 789 so với 751; N=27 2.247 so với 2.121), nên rf=1 không trôi giữa hai phiên, nhưng không chứng minh rf=3 không bị ảnh hưởng thứ tự. Chỉ 3 lần lặp mỗi ô, TiKV chỉ 2 vCPU (kết luận về mức giảm chỉ đúng cho cỡ máy này). rf=1 không đại diện độ bền production (mục "Nguyên tắc kiểm soát biến"). Warmup: `results/official/warmup-analysis-tidb3-R.md`: 4/30 lượt ngoài khoảng ramp 0,9–1,1, trung vị ramp 1,02.
+
+
+## Nhóm R2: kiểm soát thứ tự rf=3 → rf=1 → rf=3 (AWS, 2026-11-23)
+
+`results/official/2.3-aws/tidb3-R2/`: 45 lượt VALID trong **một phiên, một cụm, một dataset** (TiDB c6i.4xlarge, PD c6i.large, 3 TiKV m6i.large, `configs/scaling.toml`, một kho, 64 client, lô mã 50, 3 lần lặp mỗi ô, 30 s warmup + 60 s đo). Chạy đảo thứ tự để tách tác động của replication khỏi thứ tự đo: pha 1 rf=3 (`tidb3-ph1-rf3`), đổi `max-replicas` xuống 1 và chờ PD hội tụ (không còn extra-peer), pha 2 rf=1 (`tidb3-ph2-rf1`), nâng lại 3, pha 3 rf=3 (`tidb3-ph3-rf3`). Mục đích: R (mục trên) đo rf=1 trước rf=3 nên thứ tự có thể lẫn với trôi hệ thống.
+
+TPS trung vị của 3 lần lặp (p99 trung vị ms trong ngoặc):
+
+| Cấu hình | Pha 1 rf=3 | Pha 2 rf=1 | Pha 3 rf=3 | rf=3 so với rf=1 (pha 1 / pha 3) | Trôi giữa hai pha rf=3 (pha 3 so với pha 1) |
+| --- | --- | --- | --- | --- | --- |
+| A: P1 θ=0 | 1.597 (134) | 2.147 (102) | 1.128 (224) | −26% / −47% | −29% |
+| B: P1 θ=0,9 | 667 (896) | 535 (1.066) | 519 (1.056) | +25% / −3% | −22% |
+| C: P2 N=3 | 1.030 (638) | 1.370 (469) | 984 (672) | −25% / −28% | −4% |
+| C: P2 N=9 | 1.280 (180) | 2.391 (92) | 1.365 (173) | −46% / −43% | +7% |
+| C: P2 N=27 | 1.272 (128) | 1.915 (79) | 1.403 (117) | −34% / −27% | +10% |
+
+- **Điều R2 xác nhận:** ở A, N=3, N=9, N=27, rf=3 thấp hơn rf=1 trong **cả hai** pha rf=3 (8/8 so sánh, giảm 25–47%). Chiều và độ lớn nhất quán với phiên trước (R: −33% đến −41%), nên nhận định "replication làm giảm TPS ở tải ghi lan rộng" đã được kiểm soát thứ tự.
+- **Điều R2 bác bỏ:** ở **B (P1 hot SKU)** rf=3 không thấp hơn rf=1 một cách ổn định (+25% ở pha 1, −3% ở pha 3); mức "−33%" của R ở B **không còn được ủng hộ** và không được trích. TPS của B dao động mạnh giữa các phiên/pha (rf=1: 789 ở R, 751 ngày 22/11, 535 ở R2). Nguyên nhân khả dĩ (chưa xác minh): vị trí Region nóng sau mỗi lần đổi replica khác nhau (CPU tikv2 ở B là 85%, 23%, 176% qua ba pha: Region nóng nằm ở store khác nhau). H-R1 (hot SKU giảm ít) không bị R2 bác bỏ, nhưng phần "p99 tăng" cũng không thấy ổn định ở B (p99 896 / 1.066 / 1.056 ms).
+- **Trôi hệ thống:** giữa hai pha rf=3 cùng cấu hình, TPS lệch từ −29% (A) đến +10% (N=27). Ngưỡng phân biệt hiệu ứng vì thế khoảng ±30%: các chênh lệch 25–30% (A pha 1, N=3, N=27 pha 3) sát nhiễu, còn N=9 (−43% đến −46%) và A pha 3 (−47%) rõ hơn.
+- **Bằng chứng cơ chế (Prometheus của cụm, trung bình trên cả pha, gồm cả lúc reset nên chỉ so tương đối):** thời gian `commit_log` của Raft 4,87 ms (pha 1, rf=3) / 3,50 ms (pha 2, rf=1) / 5,62 ms (pha 3, rf=3), tức +39% và +61% khi rf=3; `apply_log` 0,45 / 0,36 / 0,65 ms; `append_log` 2,01 / 1,65 / 2,16 ms. Đĩa dữ liệu của TiKV không bão hòa: `%util` trung bình 34–38% ở rf=1 và 39–48% ở rf=3, `w_await` 1,1–1,5 ms (`iostat` trên cả ba TiKV, `results/official/2.3-aws/tidb3-R2/extra/`, file `.gz`). CPU TiKV ở rf=3 pha 3 chạm trần ở cả ba TiKV (197/200/199% ở A), còn ở rf=1 kém đồng đều hơn (A: 199/163/162%). Nhất quán với: mỗi ghi thêm bản sao tăng việc Raft (commit/apply) và CPU TiKV (2 vCPU) là giới hạn, không phải đĩa. Vẫn là bằng chứng nhất quán, không phải chứng minh (không tách riêng từng bước Raft theo từng lượt).
+- **Giới hạn:** 3 lần lặp mỗi ô; hai pha rf=3 lệch nhau tới 29% nên không nên trích một con số duy nhất cho mức giảm, mà trích khoảng 25–47% kèm thứ tự đo; TiKV chỉ 2 vCPU (kết luận về mức giảm chỉ đúng cho cỡ máy này); metric Raft là trung bình cả pha chứ không theo từng điểm đo; vị trí Region nóng ở B chưa được kiểm soát. Warmup: `results/official/warmup-analysis-tidb3-R2.md`: 3/45 lượt ngoài khoảng ramp 0,9–1,1, trung vị ramp 1,01.

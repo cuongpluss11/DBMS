@@ -13,3 +13,4 @@
 | 2.3-aws\tidb1 | 21 | 21 | 0 | 0 | tidb 8.0.11-TiDB-v8.5.7 | remote | m23-tidb1 | 113 | không |
 | 2.3-aws\tidb3 | 48 | 48 | 0 | 0 | tidb 8.0.11-TiDB-v8.5.7 | remote | m23-tidb3 | 257 | không |
 | 2.3-aws\tidb3-R | 30 | 30 | 0 | 0 | tidb 8.0.11-TiDB-v8.5.7 | remote | tidb3-rf1, tidb3-rf3 | 247 | không |
+| 2.3-aws\tidb3-R2 | 45 | 45 | 0 | 0 | tidb 8.0.11-TiDB-v8.5.7 | remote | tidb3-ph1-rf3, tidb3-ph2-rf1, tidb3-ph3-rf3 | 233 | không |
