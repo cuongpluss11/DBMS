@@ -1,0 +1,19 @@
+{
+  "store_versions": {
+    "tikv3:20160": "8.5.7",
+    "tikv2:20160": "8.5.7",
+    "tikv1:20160": "8.5.7"
+  },
+  "max_replicas": 1,
+  "version": "8.0.11-TiDB-v8.5.7",
+  "isolation": "REPEATABLE-READ",
+  "max_connections": 0,
+  "foreign_key_checks": 1,
+  "build": "Release Version: v8.5.7\nEdition: Community\nGit Commit Hash: 202b7f47286a1109b5c957401d34c9358d130ae0\nGit Branch: HEAD\nUTC Build Time: 2026-08-19 04:12:51\nGoVersion: go1.25.10\nRace Enabled: false\nCheck Table Before Drop: false\nStore: tikv",
+  "transaction_mode": "pessimistic",
+  "commit_options": {
+    "async_commit": 1,
+    "one_pc": 1
+  },
+  "tikv_durability_config": []
+}

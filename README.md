@@ -121,46 +121,72 @@ Các điểm đo phụ theo đề dùng cùng cách chạy, chỉ đổi `--conf
 
 **[Nghiệm thu mục 2.1](docs/acceptance-2.1.md)** có kết quả đo thật, khác biệt so với đề và danh sách NOT TESTED; dữ liệu chính thức ở [results/official/2.1/](results/official/2.1/INDEX.csv). [Hướng dẫn cho nhóm](docs/trien-khai-2.1.md) có lệnh baseline một kho, lượt kiểm luật, lượt so sánh ba hệ và cách bàn giao kết quả. Xem thêm [ánh xạ yêu cầu](docs/requirements-2.1.md), [các quyết định thực nghiệm](docs/assumptions.md) và [định nghĩa trường kết quả](docs/experiment-2.1.md). Mục 2.2 đang làm: biến thể trừ kho P0/P1/P2 và lệnh chạy ở [docs/experiment-2.2.md](docs/experiment-2.2.md) (mã và test đơn vị, chưa có số đo). Mục 2.3 (TiDB): nhóm A–E.a, đặt Region/leader, hệ số tăng tốc ở [docs/experiment-2.3.md](docs/experiment-2.3.md) (mã và test đơn vị, chưa có số đo).
 
-## Mục 2.4 – Online Schema Evolution trên MySQL và MongoDB (Eager P1, Batch P2, Lazy P3)
+## Mục 2.4 – Online Schema Evolution trên MySQL, MongoDB và TiDB (E1, E2, E3)
 
-Thực nghiệm đổi lược đồ khi đang bán hàng (thêm `ol_discount` và `ol_mig_state` vào ~3 triệu dòng/tài liệu `order_line` ở `W=10`, tải nền Flash-sale `64 client`, `θ=0,5` kèm giao dịch đọc `"Xem đơn cũ"` chiếm tỉ lệ `q`). Cách chạy (thay `mysql` bằng `mongo` để chạy MongoDB):
+Thực nghiệm đổi lược đồ khi đang bán hàng (thêm `ol_discount` và `ol_mig_state` vào ~3 triệu dòng/tài liệu `order_line` ở `W=10`, tải nền Flash-sale `64 client`, `θ=0,5` kèm giao dịch đọc `"Xem đơn cũ"` chiếm tỉ lệ `q`). Xem báo cáo đầy đủ kèm **Biểu đồ 6, 6b**, bằng chứng `metadata_locks` và quy trình khuyến nghị 6 bước tại **[docs/experiment-2.4.md](docs/experiment-2.4.md)**.
 
+Cách chạy:
 ```bash
-bash scripts/run-2.4-eager.sh mysql                          # P1 – Eager (q=25%)
-bash scripts/run-2.4-batch.sh mysql                          # P2 – Batch nền (lô 1.000 và 5.000 dòng, q=25%)
-Q_LIST="5 25 50" bash scripts/run-2.4-lazy.sh mysql          # P3 – Lazy (quét q = 5%, 25%, 50%)
+bash scripts/run-2.4-eager.sh mysql                                    # P1 – Eager (q=25%)
+bash scripts/run-2.4-batch.sh mysql                                    # P2 – Batch nền (lô 1.000 và 5.000 dòng, q=25%)
+Q_LIST="5 25 50" bash scripts/run-2.4-lazy.sh mysql                    # P3 – Lazy (quét q = 5%, 25%, 50%)
+PARTS="baseline e3_batch e1" bash scripts/run-2.4-missing.sh mongo     # Đường nền none, E3 Batch q=5/50%, và E1 DDL/MDL
+bash scripts/run-2.4-tidb-compact.sh                                   # TiDB 8.5.7 bản gọn (baseline, E2, E1)
+python scripts/plot-2.4.py                                             # Xuất lại Biểu đồ 6 & 6b vào docs/figures/2.4/
 ```
 
-### Tổng quan kết quả thực nghiệm mục 2.4 (36/36 lượt VALID: 18 MySQL + 18 MongoDB; 1 VM Docker `c6i.4xlarge`, sơ bộ, bộ đệm 3 GiB & độ bền ngang nhau)
+### Tổng quan kết quả thực nghiệm mục 2.4 (114/114 lượt VALID: 51 MySQL + 39 MongoDB + 24 TiDB; 1 VM Docker `c6i.4xlarge`, sơ bộ, bộ đệm 3 GiB & độ bền ngang nhau)
 
-**1. So sánh 3 chiến lược chuyển dữ liệu ở cùng tải nền (`q = 25%`, thí nghiệm E2):**
+**1. So sánh 3 chiến lược chuyển dữ liệu ở cùng tải nền (`q = 25%`, thí nghiệm E2, so với đường nền chuẩn `none`):**
 
-| Hệ DBMS | Chiến lược | TPS trung vị *(min–max)* | Giảm TPS so với nền | p99 toàn pha *(ms)* | Đỉnh p99 theo giây *(ms)* | Chờ khóa `lock_wait_ms` | `read_clean` / `read_migrated` p99 *(ms)* | Hoàn tất migration *(s)* |
+| Hệ DBMS | Chiến lược | TPS trung vị *(min–max)* | Giảm TPS so với nền | p99 toàn pha *(ms)* | Tăng p99 so với nền | Đỉnh p99 theo giây *(ms)* | `read_clean` / `read_migrated` p99 *(ms)* | Hoàn tất migration *(s)* |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **MySQL 8.4.8** | **P1 – Eager** ([2.4-eager](results/official/2.4-eager/SUMMARY.md)) | **704,9** *(684,2–773,2)* | **-56,7%** | **896,6** | **8.202,9** | **2.047.178** *(~2.047 s)* | 13,8 / — | **71,3 s** |
-| **MySQL 8.4.8** | **P2 – Batch 5.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **1.104,8** *(1.094,2–1.106,0)* | **-32,5%** | **619,5** | **846,0** | **370.797** *(~371 s)* | 15,3 / — | **89,7 s** |
-| **MySQL 8.4.8** | **P2 – Batch 1.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **1.255,2** *(1.254,7–1.349,5)* | **-24,2%** | **578,2** | **730,2** | **377.872** *(~378 s)* | 15,4 / — | **106,5 s** |
-| **MySQL 8.4.8** | **P3 – Lazy (`q=25%`)** ([2.4-lazy](results/official/2.4-lazy/SUMMARY.md)) | **1.069,8** *(1.066,6–1.072,6)* | **-34,6%** | **588,5** | **684,2** | **220.298** *(~220 s)* | **16,5 / 575,0** | **97,6 s** |
-| **MongoDB 8.0.20** | **P1 – Eager** ([2.4-eager](results/official/2.4-eager/SUMMARY.md)) | **2.053,0** *(2.036,8–2.062,0)* | **-2,8%** | **201,5** | **479,8** | `null` *(khóa tài liệu)* | 158,4 / — | **126,8 s** |
-| **MongoDB 8.0.20** | **P2 – Batch 5.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **2.088,7** *(2.062,0–2.133,8)* | **-5,1%** | **161,1** | **393,5** | `null` | 99,2 / — | **197,3 s** |
-| **MongoDB 8.0.20** | **P2 – Batch 1.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **2.172,4** *(2.080,2–2.186,8)* | **-4,2%** | **162,3** | **477,7** | `null` | 107,7 / — | **207,8 s** |
-| **MongoDB 8.0.20** | **P3 – Lazy (`q=25%`)** ([2.4-lazy](results/official/2.4-lazy/SUMMARY.md)) | **1.755,2** *(1.720,6–1.777,2)* | **-20,5%** | **143,6** | **234,0** | `null` | **99,2 / 102,6** | **202,0 s** |
+| **MySQL 8.4.8** | **Nền (`none`, `q=25%`)** ([2.4-baseline](results/official/2.4-baseline/SUMMARY.md)) | **1.499,6** *(1.483,2–1.543,5)* | **0,0%** | **457,6** | **1,00×** | — | — | — |
+| **MySQL 8.4.8** | **P1 – Eager** ([2.4-eager](results/official/2.4-eager/SUMMARY.md)) | **704,9** *(684,2–773,2)* | **-53,0%** | **896,6** | **1,96×** | **8.202,9** | 13,8 / — | **71,3 s** |
+| **MySQL 8.4.8** | **P2 – Batch 5.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **1.104,8** *(1.094,2–1.106,0)* | **-26,3%** | **619,5** | **1,35×** | **846,0** | 15,3 / — | **89,7 s** |
+| **MySQL 8.4.8** | **P2 – Batch 1.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **1.255,2** *(1.254,7–1.349,5)* | **-16,3%** | **578,2** | **1,26×** | **730,2** | 15,4 / — | **106,5 s** |
+| **MySQL 8.4.8** | **P3 – Lazy (`q=25%`)** ([2.4-lazy](results/official/2.4-lazy/SUMMARY.md)) | **1.069,8** *(1.066,6–1.072,6)* | **-28,7%** | **588,5** | **1,29×** | **684,2** | **16,5 / 575,0** | **97,6 s** |
+| **MongoDB 8.0.20** | **Nền (`none`, `q=25%`)** ([2.4-baseline](results/official/2.4-baseline/SUMMARY.md)) | **2.185,4** *(2.153,0–2.277,5)* | **0,0%** | **140,7** | **1,00×** | — | 94,8 / — | — |
+| **MongoDB 8.0.20** | **P1 – Eager** ([2.4-eager](results/official/2.4-eager/SUMMARY.md)) | **2.053,0** *(2.036,8–2.062,0)* | **-6,1%** | **201,5** | **1,43×** | **479,8** | 158,4 / — | **126,8 s** |
+| **MongoDB 8.0.20** | **P2 – Batch 5.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **2.088,7** *(2.062,0–2.133,8)* | **-4,4%** | **161,1** | **1,15×** | **393,5** | 99,2 / — | **197,3 s** |
+| **MongoDB 8.0.20** | **P2 – Batch 1.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **2.172,4** *(2.080,2–2.186,8)* | **-0,6%** | **162,3** | **1,15×** | **477,7** | 107,7 / — | **207,8 s** |
+| **MongoDB 8.0.20** | **P3 – Lazy (`q=25%`)** ([2.4-lazy](results/official/2.4-lazy/SUMMARY.md)) | **1.755,2** *(1.720,6–1.777,2)* | **-19,7%** | **143,6** | **1,02×** | **234,0** | **99,2 / 102,6** | **202,0 s** |
+| **TiDB 8.5.7** | **Nền (`none`, `q=25%`)** ([2.4-baseline](results/official/2.4-baseline/SUMMARY.md)) | **980,1** *(909,7–1.005,2)* | **0,0%** | **276,6** | **1,00×** | — | 35,5 / — | — |
+| **TiDB 8.5.7** | **P1 – Eager** ([2.4-eager](results/official/2.4-eager/SUMMARY.md)) | **568,5** *(532,8–619,7)* | **-42,0%** | **588,5** | **2,13×** | **1.668,5** | 60,0 / — | **81,3 s** |
+| **TiDB 8.5.7** | **P2 – Batch 5.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **702,1** *(523,4–748,0)* | **-28,4%** | **506,4** | **1,83×** | **934,1** | 55,1 / — | **117,4 s** |
+| **TiDB 8.5.7** | **P2 – Batch 1.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **895,0** *(753,7–918,5)* | **-8,7%** | **340,4** | **1,23×** | **599,9** | 39,9 / — | **133,8 s** |
+| **TiDB 8.5.7** | **P3 – Lazy (`q=25%`)** ([2.4-lazy](results/official/2.4-lazy/SUMMARY.md)) | **655,0** *(628,2–660,4)* | **-33,2%** | **311,8** | **1,13×** | **707,6** | **39,0 / 226,9** | **131,9 s** |
 
-**2. Ảnh hưởng của tỉ lệ truy cập dữ liệu cũ `q` trên Lazy P3 (thí nghiệm E3, [2.4-lazy](results/official/2.4-lazy/SUMMARY.md)):**
+**2. Ảnh hưởng của tỉ lệ truy cập dữ liệu cũ `q` — Biểu đồ 6b hoàn chỉnh trên cả hai hệ (thí nghiệm E3: P2 Batch 1.000 so với P3 Lazy):**
 
-| Hệ DBMS | Tỉ lệ `q` | TPS warmup *(nền)* | TPS đo *(Lazy P3)* | Mức giảm so với nền | p50 / p99 toàn pha *(ms)* | `read_clean` / `read_migrated` p99 *(ms)* | Dòng chuyển theo yêu cầu (`migrated_on_demand`) | Xung đột migration | Hoàn tất *(s)* |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **MySQL 8.4.8** | **`q = 5%`** | 1.363,9 | **1.027,1** *(1.022,1–1.106,2)* | **-24,7%** | 20,2 / **603,8** | **15,1 / 608,7** | **27.515** *(0,92%)* | 0 | **99,3 s** |
-| **MySQL 8.4.8** | **`q = 25%`** | 1.636,3 | **1.069,8** *(1.066,6–1.072,6)* | **-34,6%** | 22,1 / **588,5** | **16,5 / 575,0** | **141.056** *(4,70%)* | 19 | **97,6 s** |
-| **MySQL 8.4.8** | **`q = 50%`** | 2.223,7 | **1.165,4** *(1.152,3–1.187,3)* | **-47,6%** | 24,0 / **553,3** | **17,2 / 535,1** | **294.463** *(9,82%)* | 82 | **95,6 s** |
-| **MongoDB 8.0.20** | **`q = 5%`** | 1.874,1 | **1.754,7** *(1.739,7–1.784,0)* | **-6,4%** | 26,6 / **157,6** | **102,6 / 95,0** | **47.846** *(1,60%)* | 0 | **209,0 s** |
-| **MongoDB 8.0.20** | **`q = 25%`** | 2.208,3 | **1.755,2** *(1.720,6–1.777,2)* | **-20,5%** | 31,1 / **143,6** | **99,2 / 102,6** | **228.944** *(7,63%)* | 55 | **202,0 s** |
-| **MongoDB 8.0.20** | **`q = 50%`** | 2.916,7 | **1.788,9** *(1.752,9–1.829,5)* | **-38,7%** | 33,7 / **107,3** | **72,5 / 88,9** | **446.218** *(14,88%)* | 51 | **192,5 s** |
+| Hệ DBMS | Tỉ lệ `q` | Nền chuẩn (`none`) TPS / p99 | **P2 – Batch 1.000** TPS *(giảm)* / p99 *(× nền)* | **P3 – Lazy** TPS *(giảm)* / p99 *(× nền)* | Dòng on-demand (Lazy) | Hoàn tất P2 / P3 *(s)* |
+| --- | --- | --- | --- | --- | --- | --- |
+| **MySQL 8.4.8** | **`q = 5%`** | **1.262,0** *(501,5 ms)* | 988,0 *(-21,7%)* / 644,7 ms *(1,29×)* | **1.027,1** *(-18,6%)* / **603,8 ms** *(1,20×)* | **27.515** *(0,92%)* | **99,7 s** / **99,3 s** |
+| **MySQL 8.4.8** | **`q = 25%`** | **1.499,6** *(457,6 ms)* | **1.255,2** *(-16,3%)* / **578,2 ms** *(1,26×)* | 1.069,8 *(-28,7%)* / 588,5 ms *(1,29×)* | **141.056** *(4,70%)* | **106,5 s** / **97,6 s** |
+| **MySQL 8.4.8** | **`q = 50%`** | **2.011,8** *(386,1 ms)* | **1.553,4** *(-22,8%)* / 559,5 ms *(1,45×)* | 1.165,4 *(-42,1%)* / **553,3 ms** *(1,43×)* | **294.463** *(9,82%)* | **98,5 s** / **95,6 s** |
+| **MongoDB 8.0.20** | **`q = 5%`** | **1.882,9** *(152,5 ms)* | **1.835,5** *(-2,5%)* / 162,6 ms *(1,07×)* | **1.754,7** *(-6,8%)* / **157,6 ms** *(1,03×)* | **47.846** *(1,60%)* | **204,4 s** / **209,0 s** |
+| **MongoDB 8.0.20** | **`q = 25%`** | **2.185,4** *(140,7 ms)* | **2.172,4** *(-0,6%)* / 162,3 ms *(1,15×)* | **1.755,2** *(-19,7%)* / **143,6 ms** *(1,02×)* | **228.944** *(7,63%)* | **207,8 s** / **202,0 s** |
+| **MongoDB 8.0.20** | **`q = 50%`** | **3.044,2** *(101,0 ms)* | **2.829,7** *(-7,0%)* / 114,2 ms *(1,13×)* | **1.788,9** *(-41,2%)* / **107,3 ms** *(1,06×)* | **446.218** *(14,88%)* | **201,9 s** / **192,5 s** |
 
-**Góc nhìn tổng quan & so sánh MySQL vs MongoDB (mục 2.4):**
-- **Tác động khóa ở Eager (P1) khác biệt rõ rệt giữa hai kiến trúc:** Trên **MySQL InnoDB**, Eager giữ khóa trên cả kho (`lock_wait_ms = 2.047 s`), làm sụt **-56,7% TPS** và gây các đợt đóng băng độ trễ đuôi lên tới **8,2 giây** (đổi lại xong nhanh nhất `71,3 s`). Ngược lại, **MongoDB** không cần `ALTER TABLE` và dùng khóa mức tài liệu (WiredTiger MVCC), nên Eager chỉ giảm **-2,8% TPS** (`2.053,0 TPS`, đỉnh p99 `479,8 ms`), nhưng thời gian hoàn tất kéo dài gần gấp đôi (`126,8 s`) do phải cập nhật từng tài liệu BSON với độ bền `{w:"majority", j:true}`.
-- **Batch nền (P2, lô `1.000` dòng)** đạt **thông lượng cao nhất trên cả hai hệ** (`1.255,2 TPS` trên MySQL, chỉ giảm `-24,2%`; `2.172,4 TPS` trên MongoDB, chỉ giảm `-4,2%`) vì gom 1.000 bản ghi vào một thao tác nền trong khi truy vấn `"Xem đơn cũ"` vẫn là đọc thuần.
-- **Lazy (P3)** giữ **đỉnh p99 theo giây thấp nhất trên cả hai hệ** (`684,2 ms` trên MySQL; `234,0 ms` trên MongoDB ở `q=25%`) và giảm chờ khóa thấp nhất trên MySQL (`220 s`, giảm 9,3× so với Eager). Điểm khác biệt đáng chú ý ở độ trễ đọc-kèm-chuyển (`read_migrated_p99`): trên MySQL mỗi lần đọc trúng đơn cũ phải chịu `UPDATE + COMMIT (fsync)` nên p99 nhảy vọt từ `16,5 → 575,0 ms` (~35×), còn trên MongoDB độ trễ gần như phẳng (`99,2 → 102,6 ms`). Tuy nhiên khi `q` tăng lên `25%–50%`, biến thao tác đọc thành ghi vẫn kéo TPS của Lazy xuống thấp hơn Batch trên cả hai hệ (`-34,6%` đến `-47,6%` trên MySQL; `-20,5%` đến `-38,7%` trên MongoDB).
-- *TiDB 8.5.x cho mục 2.4 hiện ở trạng thái `NOT TESTED`.*
+**3. Đổi lược đồ gốc dưới tải & kẹt Metadata Lock (thí nghiệm E1, [2.4-e1](results/official/2.4-e1/E1_SUMMARY.md)):**
+
+| Hệ DBMS | Kịch bản E1 | VALID | TPS đo *(median)* | p99 toàn pha *(ms)* | Đỉnh p99 1s *(ms)* | Thời gian DDL *(s)* | Đóng băng lâu nhất *(s)* |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **MySQL 8.4.8** | `add_column_instant` | VALID | **1.415,1** | 527,3 | 714,6 | **0,28 s** | **0 s** |
+| **MySQL 8.4.8** | `add_column_copy` | 3/3 | **903,4** | 562,2 | **22.857,9** | **22,7 s** | **21 s** |
+| **MySQL 8.4.8** | `add_index_inplace` | 3/3 | **1.084,6** | 537,6 | 3.255,2 | **24,3 s** | **1 s** |
+| **MySQL 8.4.8** | **`mdl_freeze`** *(đọc `order_line` giữ 60s)* | 3/3 | **502,1** *(-66,5%)* | 350,8 | **58.066,7** | **58,0 s** | **57 s** |
+| **MySQL 8.4.8** | **`mdl_timeout_retry`** *(`lock_wait_timeout=3` + retry)* | 3/3 | **1.276,8** *(2,54×)* | 473,7 | **3.208,6** | 29,5 s *(timeout)* | **2 s** |
+| **MongoDB 8.0.20** | `create_index` *(không giao dịch dài)* | 3/3 | **2.125,5** | 171,8 | 422,9 | **8,8 s** | **0 s** |
+| **MongoDB 8.0.20** | `create_index_long_txn` *(đọc `order_line` giữ 60s)* | 3/3 | **706,1** *(-66,8%)* | 140,7 | 359,0 | **66,8 s** | **0 s** |
+| **TiDB 8.5.7** | `add_column_online` | 3/3 | **920,1** | 284,8 | 380,3 | **1,2 s** | **0 s** |
+| **TiDB 8.5.7** | `add_index_online` | 3/3 | **848,1** | 339,5 | 732,6 | **41,9 s** | **0 s** |
+| **TiDB 8.5.7** | **`mdl_long_txn`** *(đọc `order_line` giữ 60s)* | 3/3 | **1.042,2** | **250,9** | **422,7** | **59,3 s** | **0 s** |
+
+**Góc nhìn tổng quan & so sánh 3 hệ MySQL – MongoDB – TiDB (mục 2.4):**
+- **E1 – Kẹt Metadata Lock:** Trên **MySQL**, 1 giao dịch đọc `order_line` 60s làm `ALTER INSTANT` đóng băng cả bảng **57 giây** (`47–52` giao dịch `PENDING`, đỉnh p99 `58,1 s`, TPS `-66,5%`); đặt `lock_wait_timeout = 3` giảm đóng băng xuống **2 s** và giữ TPS gấp **2,54×**. Trên **MongoDB**, `createIndex` thường chỉ mất `8,8 s` (`0 s` đóng băng), nhưng gặp đọc 60s vẫn chờ `66,8 s` và tụt `-66,8%` TPS. **TiDB 8.5.7** là hệ duy nhất dù chờ giao dịch đọc `59,3 s` (đảm bảo 0 lỗi `schema changed`) nhưng **không chặn giao dịch mới** (`0 s` đóng băng, giữ `1.042,2 TPS`).
+- **E2 – Chuyển dữ liệu (`q=25%`):** **P2 Batch lô `1.000` thắng về TPS trên cả 3 hệ** (`-16,3%` MySQL; `-0,6%` MongoDB; `-8,7%` TiDB), còn **P1 Eager** xong nhanh nhất nhưng sụt mạnh nhất (`-53,0%` MySQL; `-42,0%` TiDB; `-6,1%` MongoDB). **P3 Lazy** giữ p99 sát nền nhất trên MongoDB (`1,02×`) và TiDB (`1,13×`).
+- **E3 (Biểu đồ 6b):** Trên **MySQL**, hai đường cắt nhau giữa `q = 5%` và `25%` (Lazy thắng ở `q = 5%`, Batch thắng ở `q = 25%–50%`); trên **MongoDB**, Batch thắng về TPS trên cả 3 mức (`+58,2%` ở `q=50%`).
+- *Phạm vi dừng ở mức demo theo góp ý giảng viên: `highload` (`θ=0,9, 128c`) và TiDB E3 (`q=5%, 50%`) ở trạng thái `NOT TESTED` (xem [docs/experiment-2.4.md](docs/experiment-2.4.md)).*
 
 [Câu lệnh SQL và MongoDB để trình bày](docs/cau-lenh-dbms-2.1.md) có ví dụ chép vào trình soạn truy vấn, gồm EXPLAIN, New-Order, Payment và rollback.
