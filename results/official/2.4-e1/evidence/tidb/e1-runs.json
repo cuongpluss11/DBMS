@@ -1,0 +1,117 @@
+{
+  "results": [
+    {
+      "run_id": "30044bac287a4667b0de9910a061fb15",
+      "engine": "tidb",
+      "scenario": "add_column_online",
+      "repetition": 1,
+      "status": "VALID",
+      "tps": 1082.5,
+      "p99_ms": 234.2,
+      "ddl_duration_s": 1.552,
+      "max_freeze_s": 0,
+      "ddl_succeeded": true
+    },
+    {
+      "run_id": "d327383d589241ada446516e7739a9b6",
+      "engine": "tidb",
+      "scenario": "add_column_online",
+      "repetition": 2,
+      "status": "VALID",
+      "tps": 842.8,
+      "p99_ms": 315.2,
+      "ddl_duration_s": 0.897,
+      "max_freeze_s": 0,
+      "ddl_succeeded": true
+    },
+    {
+      "run_id": "a0e64e140096428683be862b88eb476e",
+      "engine": "tidb",
+      "scenario": "add_column_online",
+      "repetition": 3,
+      "status": "VALID",
+      "tps": 920.1,
+      "p99_ms": 284.79,
+      "ddl_duration_s": 1.204,
+      "max_freeze_s": 0,
+      "ddl_succeeded": true
+    },
+    {
+      "run_id": "eef56e67bf8247cbaaa1ca3fcc9c0d12",
+      "engine": "tidb",
+      "scenario": "add_index_online",
+      "repetition": 1,
+      "status": "VALID",
+      "tps": 742.8,
+      "p99_ms": 376.5,
+      "ddl_duration_s": 62.023,
+      "max_freeze_s": 0,
+      "ddl_succeeded": true
+    },
+    {
+      "run_id": "3593a3d77bbf4a6fb1d9261fdcc95ad3",
+      "engine": "tidb",
+      "scenario": "add_index_online",
+      "repetition": 2,
+      "status": "VALID",
+      "tps": 848.12,
+      "p99_ms": 339.45,
+      "ddl_duration_s": 29.761,
+      "max_freeze_s": 0,
+      "ddl_succeeded": true
+    },
+    {
+      "run_id": "dfb406ecbc51440b9743d7a2cc6d5d92",
+      "engine": "tidb",
+      "scenario": "add_index_online",
+      "repetition": 3,
+      "status": "VALID",
+      "tps": 891.2,
+      "p99_ms": 313.72,
+      "ddl_duration_s": 41.889,
+      "max_freeze_s": 0,
+      "ddl_succeeded": true
+    },
+    {
+      "run_id": "cca830f226734666904254f5fc654e6b",
+      "engine": "tidb",
+      "scenario": "mdl_long_txn",
+      "repetition": 1,
+      "status": "VALID",
+      "tps": 900.5,
+      "p99_ms": 279.94,
+      "ddl_duration_s": 58.869,
+      "max_freeze_s": 0,
+      "ddl_succeeded": true
+    },
+    {
+      "run_id": "f3f9ee65f7ce42d88157d745108f1a44",
+      "engine": "tidb",
+      "scenario": "mdl_long_txn",
+      "repetition": 2,
+      "status": "VALID",
+      "tps": 1042.22,
+      "p99_ms": 250.88,
+      "ddl_duration_s": 59.275,
+      "max_freeze_s": 0,
+      "ddl_succeeded": true
+    },
+    {
+      "run_id": "56b553323e8045deb4aea8247e986deb",
+      "engine": "tidb",
+      "scenario": "mdl_long_txn",
+      "repetition": 3,
+      "status": "VALID",
+      "tps": 1082.31,
+      "p99_ms": 232.78,
+      "ddl_duration_s": 59.512,
+      "max_freeze_s": 0,
+      "ddl_succeeded": true
+    }
+  ],
+  "summary": {
+    "runs": 33,
+    "groups": 10,
+    "out_dir": "results/official/2.4-e1"
+  }
+}
