@@ -177,3 +177,23 @@ TPS trung vị của 3 lần lặp (p99 trung vị ms trong ngoặc):
 - **Nguyên nhân khả dĩ (từ số đo tài nguyên):** MySQL chỉ dùng **1,1–1,9 vCPU** (112–185% của một vCPU, tức 5–9% giới hạn CPU) ở cả hai cỡ, trong khi thời gian chờ khóa không đổi (ví dụ B: 2,90–2,93 triệu ms mỗi lượt ở cả ba pha). Workload này bị giới hạn bởi chờ khóa và/hoặc ghi đồng bộ, không phải CPU, nên thêm vCPU không giúp. Đây là bằng chứng nhất quán, chưa phải chứng minh (chưa đo riêng fsync).
 - **Điều chỉnh kết quả 22/11:** hệ số 0,89–0,94 (24 chậm hơn 20) **không tái hiện** khi giữ buffer pool và đảo thứ tự. So với phiên này, TPS 20 vCPU của 22/11 cao hơn 2–7% (ví dụ N=27: 2.040 so với 1.923) và TPS 24 vCPU của 22/11 thấp hơn 0–8% (N=27: 1.808 so với 1.940): hai cỡ lệch ngược chiều nhau, nên chênh lệch cũ nhiều khả năng là dao động giữa các phiên đo (và/hoặc buffer pool 1 GiB so với 3 GiB), không phải ảnh hưởng của số vCPU. Chưa tách riêng được buffer pool khỏi dao động giữa phiên (không đo buffer pool 1 GiB ở 20 vCPU lần này). Số 22/11 vì vậy không được dùng làm bằng chứng về mở rộng dọc.
 - **Giới hạn:** chỉ so hai cỡ (20 và 24 vCPU, chênh 20%); mốc mở rộng dọc đúng nghĩa cần nhiều cỡ hơn (ví dụ 4–8 vCPU) để tìm điểm bắt đầu bị giới hạn bởi CPU; 3 lần lặp mỗi ô. Warmup: `results/official/warmup-analysis-mysql-ctl.md`.
+
+
+## Lặp lại nhóm A, B, C ở lần dựng cụm thứ hai (AWS, 2026-11-24)
+
+`results/official/2.3-aws/tidb1-build2/` và `tidb3-build2/`: mỗi thư mục 15 lượt VALID, **cùng cấu hình và cùng script** với lần đo ngày 21–22/11 (TiDB c6i.4xlarge, PD c6i.large, TiKV m6i.large, TiDB v8.5.7, `configs/scaling.toml`, 64 client, lô mã 50, 3 lần lặp, `--placement spread`, một bản sao), nhưng là **hai cụm được dựng lại** (1 TiKV rồi 3 TiKV, cùng ngày). Mục đích: kiểm tra hệ số tăng tốc 3 ÷ 1 TiKV có ổn định giữa các lần dựng cụm không (kết quả ngày 22/11 chỉ có một cặp cụm).
+
+TPS trung vị của 3 lần lặp:
+
+| Cấu hình | 1 TiKV, lần dựng 1 | 1 TiKV, lần dựng 2 | 3 TiKV, lần dựng 1 | 3 TiKV, lần dựng 2 | 3 ÷ 1 TiKV, lần dựng 1 | 3 ÷ 1 TiKV, lần dựng 2 |
+| --- | --- | --- | --- | --- | --- | --- |
+| A: P1, kho đều, θ = 0 | 1.136 | 1.086 | 2.250 | 2.125 | 1,98 | 1,96 |
+| B: P1, một kho, θ = 0,9 | 616 | 631 | 751 | 812 | 1,22 | 1,29 |
+| C: P2 N=3 | 707 | 849 | 1.726 | 1.465 | 2,44 | 1,72 |
+| C: P2 N=9 | 849 | 904 | 2.087 | 2.160 | 2,46 | 2,39 |
+| C: P2 N=27 | 845 | 908 | 2.121 | 2.397 | 2,51 | 2,64 |
+
+- **Hệ số 3 ÷ 1 TiKV ổn định ở bốn trong năm cấu hình:** A 1,98 → 1,96; B 1,22 → 1,29; N=9 2,46 → 2,39; N=27 2,51 → 2,64 (lần dựng 1 → lần dựng 2). **Riêng N=3 lệch nhiều** (2,44 → 1,72): TPS N=3 dao động mạnh giữa các lần lặp ở cả hai lần dựng (ví dụ 1 TiKV lần dựng 1: 705–1.035; 3 TiKV lần dựng 1: 1.319–1.737), nên hệ số của N=3 không đáng tin bằng các ô còn lại.
+- **TPS tuyệt đối lệch giữa hai lần dựng cùng cấu hình khoảng 2–13%** (riêng N=3: +20% ở 1 TiKV và −15% ở 3 TiKV). Vì vậy hệ số tăng tốc nên được nêu dưới dạng khoảng giữa hai lần dựng chứ không phải một con số.
+- **Bảng 2×2 (θ = 0,9, 64 client) ở lần dựng thứ hai:** P1 631 (1 TiKV) → 812 (3 TiKV), tăng 1,29×; P2 N=27 908 → 2.397, tăng 2,64×; chia slot một mình: 1,44× (1 TiKV) và 2,95× (3 TiKV); kết hợp cả hai: 3,80×. Lần dựng 1: 1,22× / 2,51× / 1,37× / 2,82× / 3,44×. **Mô thức tái hiện:** thêm node một mình chỉ được khoảng 1,2–1,3×, chia slot một mình 1,4–2,9× tùy số node, và kết hợp cả hai khoảng 3,4–3,8×.
+- **Giới hạn:** hai lần dựng cùng ngày và cùng loại máy ảo; không đo ở lần dựng thứ hai các nhóm D, E.a và R; chưa xác nhận lại Region/leader ở lần dựng thứ hai.

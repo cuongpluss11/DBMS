@@ -159,6 +159,20 @@ for row in section_table(DOC23, "## Đo kiểm soát MySQL 20 và 24 vCPU", 0):
         check(f"CTL {row[0]} {note} TPS", tps, med(ct, run_note=note, **CFG[key]))
         check(f"CTL {row[0]} {note} p99", p99, med(ct, "p99_ms", run_note=note, **CFG[key]))
 
+# Lặp lại nhóm A, B, C ở lần dựng thứ hai
+b2 = {"tidb1": rows(R23 / "tidb1"), "tidb1-build2": rows(R23 / "tidb1-build2"), "tidb3": rows(R23 / "tidb3"), "tidb3-build2": rows(R23 / "tidb3-build2")}
+for row in section_table(DOC23, "## Lặp lại nhóm A, B, C ở lần dựng cụm thứ hai", 0):
+    if row[0].startswith("A:"):
+        sel = dict(variant="p1", theta="0.0", warehouse_mode="uniform")
+    elif row[0].startswith("B:"):
+        sel = dict(variant="p1", theta="0.9", warehouse_mode="single-warehouse")
+    else:
+        sel = dict(variant="p2", theta="0.9", slots=row[0].split("N=")[1])
+    for col, key in ((1, "tidb1"), (2, "tidb1-build2"), (3, "tidb3"), (4, "tidb3-build2")):
+        sub = [r for r in b2[key] if all(str(r[k]) == str(v) for k, v in sel.items()) and r["order_warehouses"] == "1-1"
+               and r["orders_key"] == "composite" and r["placement_scope"] in ("stock", "") and r["order_id_batch"] in ("0", "50")]
+        check(f"BUILD2 {row[0]} {key} TPS", vn(row[col]), statistics.median(float(r["tps"]) for r in sub) if sub else None)
+
 # Fault injection: bảng so với JSON
 files = {("TiDB", "thường, tồn 30"): "tidb-kill-stockout", ("TiDB", "thường, tồn 2.000"): "tidb-kill-orders",
          ("TiDB", "đối chứng âm"): "tidb-kill-idempotency-off", ("MySQL", "thường"): "mysql-kill",

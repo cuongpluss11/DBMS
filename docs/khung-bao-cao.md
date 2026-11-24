@@ -47,7 +47,7 @@ Mọi con số dưới đây truy được về CSV/JSON đã commit trong `resu
 | MySQL 24 so với 20 vCPU | Đo kiểm soát (cùng buffer pool, đảo thứ tự): TPS không đổi (−0,8% đến +2,2%); MySQL chỉ dùng 1,1–1,9 vCPU | Dùng kết quả 22/11 (0,89–0,94) |
 
 ## Bảng "chưa đo", viết thẳng vào giới hạn
-T3 trên TiDB; (MySQL 24 so với 20 vCPU đã đo kiểm soát 2026-11-24: không khác biệt); metric Raft theo từng điểm đo; vị trí Region nóng ở B; `EXPLAIN UPDATE` và `EXPLAIN` của `stock_slot` trên TiDB; fault injection MySQL/Mongo trên AWS; DBMS chết/failover; T2 chưa đo không lô ở N=3 và N=27; 2.4 mới ở mức sơ bộ trên Docker.
+T3 trên TiDB; (MySQL 24 so với 20 vCPU đã đo kiểm soát 2026-11-24: không khác biệt); metric Raft theo từng điểm đo; vị trí Region nóng ở B; fault injection MySQL/Mongo trên AWS; DBMS chết/failover; T2 chưa đo không lô ở N=3 và N=27; 2.4 mới ở mức sơ bộ trên Docker.
 
 ## Phân công viết và hạn
 | Phần | Người | Hạn |
