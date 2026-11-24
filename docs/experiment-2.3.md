@@ -111,6 +111,7 @@ Chỉ TiDB. Trước warmup của mỗi lượt (ngoài thời gian đo): chia `
 | C: P2 N=27 | 2.040,2 | 1.808,4 | 0,89 |
 
 - **MySQL không tăng tốc khi thêm CPU:** hệ số 0,89–0,94 (ngược lại: cỡ 24 vCPU chậm hơn cỡ 20 vCPU 6–11%, p99 cao hơn 7–58% tùy nhóm). So với TiDB 3 TiKV ÷ 1 TiKV: 1,98–2,82. Lượt 24 vCPU nằm trong cùng khoảng ba lần lặp chặt (chênh nội bộ vài %), nên khác biệt giữa hai cỡ lớn hơn nhiễu lặp.
+> **Cập nhật 2026-11-24:** kết quả 0,89–0,94 ở trên **không tái hiện** khi đo kiểm soát với cùng buffer pool và đảo thứ tự (20 → 24 → 20 vCPU): 24 so với 20 vCPU thay đổi từ −0,8% đến +2,2%; xem mục "Đo kiểm soát MySQL 20 và 24 vCPU" cuối tài liệu. Bảng này không còn được dùng làm bằng chứng về mở rộng dọc.
 - **Nguyên nhân chưa được kiểm chứng.** Giả thuyết: MySQL bị chặn bởi ghi log bền (`sync_binlog=1` + `innodb_flush_log_at_trx_commit=1` trên một EBS), không phải CPU, nên thêm vCPU không giúp. Chưa giải thích được vì sao cỡ lớn chậm hơn; hai yếu tố gây nhiễu chưa tách được: (1) buffer pool khác nhau (3 GiB so với 1 GiB, cố ý theo cache TiKV, `docs/assumptions.md`) và (2) **thứ tự đo** (24 vCPU đo trước, 20 vCPU đo sau trên cùng dataset). Cần một lượt đối chứng (đo lại 24 vCPU sau 20 vCPU, hoặc cùng buffer pool) trước khi kết luận về nguyên nhân.
 - **Warmup:** `results/official/warmup-analysis-mysql.md`; trung vị ramp 1,03 (20 vCPU) và 0,99 (24 vCPU).
 
@@ -156,3 +157,23 @@ TPS trung vị của 3 lần lặp (p99 trung vị ms trong ngoặc):
 - **Trôi hệ thống:** giữa hai pha rf=3 cùng cấu hình, TPS lệch từ −29% (A) đến +10% (N=27). Ngưỡng phân biệt hiệu ứng vì thế khoảng ±30%: các chênh lệch 25–30% (A pha 1, N=3, N=27 pha 3) sát nhiễu, còn N=9 (−43% đến −46%) và A pha 3 (−47%) rõ hơn.
 - **Bằng chứng cơ chế (Prometheus của cụm, trung bình trên cả pha, gồm cả lúc reset nên chỉ so tương đối):** thời gian `commit_log` của Raft 4,87 ms (pha 1, rf=3) / 3,50 ms (pha 2, rf=1) / 5,62 ms (pha 3, rf=3), tức +39% và +61% khi rf=3; `apply_log` 0,45 / 0,36 / 0,65 ms; `append_log` 2,01 / 1,65 / 2,16 ms. Đĩa dữ liệu của TiKV không bão hòa: `%util` trung bình 34–38% ở rf=1 và 39–48% ở rf=3, `w_await` 1,1–1,5 ms (`iostat` trên cả ba TiKV, `results/official/2.3-aws/tidb3-R2/extra/`, file `.gz`). CPU TiKV ở rf=3 pha 3 chạm trần ở cả ba TiKV (197/200/199% ở A), còn ở rf=1 kém đồng đều hơn (A: 199/163/162%). Nhất quán với: mỗi ghi thêm bản sao tăng việc Raft (commit/apply) và CPU TiKV (2 vCPU) là giới hạn, không phải đĩa. Vẫn là bằng chứng nhất quán, không phải chứng minh (không tách riêng từng bước Raft theo từng lượt).
 - **Giới hạn:** 3 lần lặp mỗi ô; hai pha rf=3 lệch nhau tới 29% nên không nên trích một con số duy nhất cho mức giảm, mà trích khoảng 25–47% kèm thứ tự đo; TiKV chỉ 2 vCPU (kết luận về mức giảm chỉ đúng cho cỡ máy này); metric Raft là trung bình cả pha chứ không theo từng điểm đo; vị trí Region nóng ở B chưa được kiểm soát. Warmup: `results/official/warmup-analysis-tidb3-R2.md`: 3/45 lượt ngoài khoảng ramp 0,9–1,1, trung vị ramp 1,01.
+
+
+## Đo kiểm soát MySQL 20 và 24 vCPU (AWS, 2026-11-24)
+
+`results/official/2.3-aws/mysql-ctl/`: 45 lượt VALID trong **một phiên, một máy ảo, một dataset** (`configs/scaling.toml`, MySQL-chỉnh 8.4.8 trên `m6i.8xlarge` giới hạn bằng cpuset, **buffer pool 3 GiB ở cả hai cỡ**, `innodb_flush_log_at_trx_commit=1`, `sync_binlog=1`, 64 client, 3 lần lặp mỗi ô, 30 s warmup + 60 s đo). Mục đích: kết quả đo ngày 22/11 cho thấy cỡ 24 vCPU **chậm hơn** cỡ 20 vCPU (0,89–0,94) nhưng hai cỡ khác nhau cả buffer pool (3 và 1 GiB) và thứ tự đo (24 rồi 20, hai lần dựng khác nhau). Lần này giữ buffer pool bằng nhau và đảo thứ tự **20 → 24 → 20 vCPU** (đổi cỡ bằng tạo lại container, dữ liệu giữ nguyên), cùng 5 điểm A, B, C (N = 3, 9, 27).
+
+TPS trung vị của 3 lần lặp (p99 trung vị ms trong ngoặc):
+
+| Cấu hình | Pha 1: 20 vCPU | Pha 2: 24 vCPU | Pha 3: 20 vCPU | 24 so với 20 (trung bình hai pha 20 vCPU) | Trôi giữa hai pha 20 vCPU |
+| --- | --- | --- | --- | --- | --- |
+| A: P1, kho đều, θ = 0 | 1.201 (672) | 1.184 (688) | 1.187 (689) | −0,8% | −1,2% |
+| B: P1, một kho, θ = 0,9 | 1.234 (688) | 1.228 (692) | 1.224 (697) | −0,1% | −0,8% |
+| C: P2 N=3 | 1.901 (598) | 1.895 (597) | 1.905 (597) | −0,4% | +0,2% |
+| C: P2 N=9 | 1.920 (560) | 1.972 (549) | 1.940 (549) | +2,2% | +1,0% |
+| C: P2 N=27 | 1.938 (553) | 1.940 (554) | 1.908 (559) | +0,9% | −1,5% |
+
+- **Kết quả:** với cùng buffer pool, **TPS không phụ thuộc vào số vCPU** khi tăng từ 20 lên 24 (thay đổi từ −0,8% đến +2,2%, p99 gần như không đổi) ở cả 5 cấu hình. Độ trôi giữa hai pha cùng cỡ (20 vCPU) chỉ ±1,5%, nhỏ hơn rất nhiều so với TiDB (±30% ở nhóm R2), nên mức thay đổi trên nằm trong nhiễu.
+- **Nguyên nhân khả dĩ (từ số đo tài nguyên):** MySQL chỉ dùng **1,1–1,9 vCPU** (112–185% của một vCPU, tức 5–9% giới hạn CPU) ở cả hai cỡ, trong khi thời gian chờ khóa không đổi (ví dụ B: 2,90–2,93 triệu ms mỗi lượt ở cả ba pha). Workload này bị giới hạn bởi chờ khóa và/hoặc ghi đồng bộ, không phải CPU, nên thêm vCPU không giúp. Đây là bằng chứng nhất quán, chưa phải chứng minh (chưa đo riêng fsync).
+- **Điều chỉnh kết quả 22/11:** hệ số 0,89–0,94 (24 chậm hơn 20) **không tái hiện** khi giữ buffer pool và đảo thứ tự. So với phiên này, TPS 20 vCPU của 22/11 cao hơn 2–7% (ví dụ N=27: 2.040 so với 1.923) và TPS 24 vCPU của 22/11 thấp hơn 0–8% (N=27: 1.808 so với 1.940): hai cỡ lệch ngược chiều nhau, nên chênh lệch cũ nhiều khả năng là dao động giữa các phiên đo (và/hoặc buffer pool 1 GiB so với 3 GiB), không phải ảnh hưởng của số vCPU. Chưa tách riêng được buffer pool khỏi dao động giữa phiên (không đo buffer pool 1 GiB ở 20 vCPU lần này). Số 22/11 vì vậy không được dùng làm bằng chứng về mở rộng dọc.
+- **Giới hạn:** chỉ so hai cỡ (20 và 24 vCPU, chênh 20%); mốc mở rộng dọc đúng nghĩa cần nhiều cỡ hơn (ví dụ 4–8 vCPU) để tìm điểm bắt đầu bị giới hạn bởi CPU; 3 lần lặp mỗi ô. Warmup: `results/official/warmup-analysis-mysql-ctl.md`.

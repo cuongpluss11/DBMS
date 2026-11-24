@@ -10,6 +10,7 @@
 | 2.2-aws\mysql-t3 | 48 | 48 | 0 | 0 | mysql 8.4.8 | remote | m22-mysql-t3 | 363 | không |
 | 2.2-aws\tidb3 | 145 | 138 | 0 | 7 | tidb 8.0.11-TiDB-v8.5.7 | remote | m22-tidb3 | 246 | không |
 | 2.3-aws\mysql | 30 | 30 | 0 | 0 | mysql 8.4.8 | remote | mysql-20vcpu, mysql-24vcpu | 439 | không |
+| 2.3-aws\mysql-ctl | 45 | 45 | 0 | 0 | mysql 8.4.8 | remote | mysql-ctl-ph1-20vcpu, mysql-ctl-ph2-24vcpu, mysql-ctl-ph3-20vcpu | 416 | không |
 | 2.3-aws\tidb1 | 21 | 21 | 0 | 0 | tidb 8.0.11-TiDB-v8.5.7 | remote | m23-tidb1 | 113 | không |
 | 2.3-aws\tidb3 | 48 | 48 | 0 | 0 | tidb 8.0.11-TiDB-v8.5.7 | remote | m23-tidb3 | 257 | không |
 | 2.3-aws\tidb3-R | 30 | 30 | 0 | 0 | tidb 8.0.11-TiDB-v8.5.7 | remote | tidb3-rf1, tidb3-rf3 | 247 | không |

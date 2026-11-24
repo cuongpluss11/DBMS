@@ -148,6 +148,17 @@ for row in section_table(DOC23, "## Nhóm R2: kiểm soát thứ tự", 0):
         check(f"R2 {row[0]} {note} TPS", tps, med(r2, run_note=note, **CFG[key]))
         check(f"R2 {row[0]} {note} p99", p99, med(r2, "p99_ms", run_note=note, **CFG[key]))
 
+# Đo kiểm soát MySQL 20/24 vCPU (ba pha)
+ct = rows(R23 / "mysql-ctl")
+for row in section_table(DOC23, "## Đo kiểm soát MySQL 20 và 24 vCPU", 0):
+    key = "A" if row[0].startswith("A:") else "B" if row[0].startswith("B:") else next((k for k in CFG if k in row[0]), None)
+    if key is None:
+        continue
+    for col, note in ((1, "mysql-ctl-ph1-20vcpu"), (2, "mysql-ctl-ph2-24vcpu"), (3, "mysql-ctl-ph3-20vcpu")):
+        tps, p99 = cell(row[col])
+        check(f"CTL {row[0]} {note} TPS", tps, med(ct, run_note=note, **CFG[key]))
+        check(f"CTL {row[0]} {note} p99", p99, med(ct, "p99_ms", run_note=note, **CFG[key]))
+
 # Fault injection: bảng so với JSON
 files = {("TiDB", "thường, tồn 30"): "tidb-kill-stockout", ("TiDB", "thường, tồn 2.000"): "tidb-kill-orders",
          ("TiDB", "đối chứng âm"): "tidb-kill-idempotency-off", ("MySQL", "thường"): "mysql-kill",

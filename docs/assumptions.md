@@ -92,3 +92,7 @@ Phần này ghi các lựa chọn khi chạy chuỗi đo MySQL (2.2 và 2.3) tr�
 | --- | --- | --- |
 | Đề 2.2 nhóm T3 (P2 so với P3, tải vòng mở) cho cả ba hệ → còn 5 ngày đến hạn nộp (28/11), nhận xét của cô yêu cầu thu hẹp phạm vi, và T3 trên MongoDB cho thấy P3 chỉ giảm p99 (không tăng TPS). | **Không đo T3 trên TiDB** (đã thống nhất khi duyệt kế hoạch phiên `tidb3` 2026-11-23); dùng phiên đó cho nhóm R, test tích hợp và fault injection trên TiDB. | T3 chỉ có ở MongoDB và MySQL; không rút kết luận P3 cho TiDB. Báo cáo ghi rõ là chưa đo. |
 | Nhóm R (rf=3) mặc định bị chặn bởi kiểm tra `max-replicas=1` trong `pd_status()` → cần cho phép tường minh. | Thêm `FLASHSALE_TIDB_REPLICAS` (mặc định 1); manifest luôn ghi `max_replicas` thật đọc từ PD, không suy từ biến môi trường. | Lượt chính vẫn bị chặn nếu PD khác 1; chỉ nhóm R đặt biến này. |
+
+| Yêu cầu gốc → vấn đề | Phương án | Ảnh hưởng tính so sánh |
+| --- | --- | --- |
+| MySQL-chỉnh hai cỡ vCPU (mốc mở rộng dọc, đề 2.3): 24 chậm hơn 20 vCPU (0,89–0,94) ngày 22/11 nhưng hai cỡ khác buffer pool (3 và 1 GiB) và thứ tự/lần dựng. | Đo kiểm soát 2026-11-24: cùng buffer pool 3 GiB, đảo thứ tự 20 → 24 → 20 vCPU cùng phiên và dataset (`results/official/2.3-aws/mysql-ctl/`, 45 lượt VALID). | 24 so với 20 vCPU: −0,8% đến +2,2%, trôi giữa hai pha cùng cỡ ±1,5%; MySQL chỉ dùng 1,1–1,9 vCPU. Kết quả 22/11 không tái hiện và không dùng làm bằng chứng. Chưa tách riêng buffer pool khỏi dao động giữa phiên. |
