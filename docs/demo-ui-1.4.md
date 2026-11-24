@@ -212,9 +212,9 @@ CREATE TABLE stock (
   PRIMARY KEY (s_w_id, s_i_id)
 );
 
--- Dùng AUTO_RANDOM của TiDB để rải khóa chính sang nhiều Region, tránh điểm nóng ghi thêm
+-- Dùng AUTO_RANDOM của TiDB (bọc trong /*T![auto_rand] ... */ để MySQL Workbench không báo gạch đỏ)
 CREATE TABLE orders (
-  o_id BIGINT PRIMARY KEY AUTO_RANDOM,
+  o_id BIGINT PRIMARY KEY /*T![auto_rand] AUTO_RANDOM */,
   o_i_id INT NOT NULL,
   qty INT NOT NULL,
   status VARCHAR(16) NOT NULL
