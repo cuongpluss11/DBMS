@@ -1,0 +1,78 @@
+{
+ "P1: trừ kho một lệnh có điều kiện (stock)": {
+  "sql": "UPDATE stock SET s_quantity=s_quantity+-4, s_ytd=s_ytd+4, s_order_cnt=s_order_cnt+1 WHERE s_w_id=1 AND s_i_id=5 AND s_quantity>=4",
+  "plan": [
+   {
+    "id": "Update",
+    "estRows": "N/A",
+    "task": "root",
+    "access object": "",
+    "operator info": "N/A"
+   },
+   {
+    "id": "└─Selection",
+    "estRows": "0.00",
+    "task": "root",
+    "access object": "",
+    "operator info": "ge(flashsale_86c89ddfe9834a0fa6b62f701c7b96d2.stock.s_quantity, 4)"
+   },
+   {
+    "id": "  └─Point_Get",
+    "estRows": "1.00",
+    "task": "root",
+    "access object": "table:stock, clustered index:PRIMARY(s_w_id, s_i_id)",
+    "operator info": "lock"
+   }
+  ]
+ },
+ "P2: trừ kho trên slot (stock_slot)": {
+  "sql": "UPDATE stock_slot SET ss_quantity=ss_quantity+-4, ss_ytd=ss_ytd+4, ss_order_cnt=ss_order_cnt+1 WHERE ss_w_id=1 AND ss_i_id=1 AND ss_slot=3 AND ss_quantity>=4",
+  "plan": [
+   {
+    "id": "Update",
+    "estRows": "N/A",
+    "task": "root",
+    "access object": "",
+    "operator info": "N/A"
+   },
+   {
+    "id": "└─Selection",
+    "estRows": "0.00",
+    "task": "root",
+    "access object": "",
+    "operator info": "ge(flashsale_86c89ddfe9834a0fa6b62f701c7b96d2.stock_slot.ss_quantity, 4)"
+   },
+   {
+    "id": "  └─Point_Get",
+    "estRows": "1.00",
+    "task": "root",
+    "access object": "table:stock_slot, clustered index:PRIMARY(ss_w_id, ss_i_id, ss_slot)",
+    "operator info": "lock"
+   }
+  ]
+ },
+ "Mã đơn: đọc bộ đếm district (FOR UPDATE)": {
+  "sql": "SELECT d_next_o_id FROM district WHERE d_w_id=1 AND d_id=1 FOR UPDATE",
+  "plan": [
+   {
+    "id": "Point_Get",
+    "estRows": "1.00",
+    "task": "root",
+    "access object": "table:district, clustered index:PRIMARY(d_w_id, d_id)",
+    "operator info": "lock"
+   }
+  ]
+ },
+ "Idempotency: tìm đơn theo request_id": {
+  "sql": "SELECT o_id FROM orders WHERE request_id='abc'",
+  "plan": [
+   {
+    "id": "Point_Get",
+    "estRows": "1.00",
+    "task": "root",
+    "access object": "table:orders, index:uq_request_id(request_id)",
+    "operator info": ""
+   }
+  ]
+ }
+}

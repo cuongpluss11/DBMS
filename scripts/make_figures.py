@@ -240,7 +240,31 @@ def main() -> None:
     fig.savefig(out / "fig8_replication_order.png", dpi=160)
     plt.close(fig)
     write_csv(out / "fig8_replication_order.csv", ["pha", "cau_hinh", "tps_median", "tps_min", "tps_max", "n"], table)
-    print(f"Đã ghi 8 hình và CSV vào {out}")
+    # Hình 9: hệ số 3 ÷ 1 TiKV ở hai lần dựng cụm
+    builds = {"tidb1": rows(R23 / "tidb1"), "tidb1-build2": rows(R23 / "tidb1-build2"),
+              "tidb3": rows(R23 / "tidb3"), "tidb3-build2": rows(R23 / "tidb3-build2")}
+    sels = [("A", dict(variant="p1", theta="0.0", warehouse_mode="uniform")),
+            ("B", dict(variant="p1", theta="0.9", warehouse_mode="single-warehouse")),
+            ("N=3", dict(variant="p2", theta="0.9", slots="3")), ("N=9", dict(variant="p2", theta="0.9", slots="9")),
+            ("N=27", dict(variant="p2", theta="0.9", slots="27"))]
+    common = dict(order_warehouses="1-1", orders_key="composite", placement_scope="stock")
+    table, speed = [], {"lần dựng 1": [], "lần dựng 2": []}
+    for label, kw in sels:
+        for tag, one, three in (("lần dựng 1", "tidb1", "tidb3"), ("lần dựng 2", "tidb1-build2", "tidb3-build2")):
+            a = stat([r for r in builds[one] if all(str(r.get(k)) == str(v) for k, v in {**kw, **common}.items())])
+            b = stat([r for r in builds[three] if all(str(r.get(k)) == str(v) for k, v in {**kw, **common}.items())])
+            ratio = (b[0] / a[0]) if a[0] and b[0] else None
+            speed[tag].append((ratio, ratio, ratio, 1))
+            table.append([label, tag, a[0], b[0], ratio])
+    fig, ax = plt.subplots(figsize=(8, 4))
+    bars(ax, [s[0] for s in sels], speed, "TPS 3 TiKV ÷ TPS 1 TiKV")
+    ax.axhline(3, color="gray", linestyle=":", linewidth=1)
+    ax.set_title("Hệ số tăng tốc 3 ÷ 1 TiKV ở hai lần dựng cụm (đường chấm = tuyến tính 3×)")
+    fig.tight_layout()
+    fig.savefig(out / "fig9_speedup_two_builds.png", dpi=160)
+    plt.close(fig)
+    write_csv(out / "fig9_speedup_two_builds.csv", ["cau_hinh", "lan_dung", "tps_1tikv", "tps_3tikv", "he_so"], table)
+    print(f"Đã ghi 9 hình và CSV vào {out}")
 
 
 if __name__ == "__main__":

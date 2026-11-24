@@ -49,7 +49,7 @@ Smoke nhỏ (cần DBMS đang chạy): `flashsale smoke mysql --start --variant 
 
 - Đã chạy: unit test (`tests/test_hotspot.py`, `tests/test_throttle.py`) PASS; `pytest -m integration` trên **MySQL 8.4.8 thật (Docker máy dev, nhãn sơ bộ)**: 4 test PASS gồm `test_hotspot_variants_p1_p2_contract`; smoke ngoài chương trình (ngân sách RAM Docker bị bỏ qua cho smoke) trên MySQL: legacy, P1 + lô mã, P2 N=1 và N=3 VALID, P0 INVALID đúng như dự kiến (mất cập nhật, đối soát của đề báo 1 dòng lệch), P3 và tải vòng mở VALID với giới hạn L giảm 8→1 khi đặt ngưỡng p99 = 1 ms.
 - Đã chạy thêm trên **MongoDB 8.0.20 thật (Docker máy dev, sơ bộ)**: 4 test integration PASS (gồm `test_hotspot_variants_p1_p2_contract`, tức aggregation đối soát có slot hoạt động); smoke legacy, P0, P1 + lô mã, P2 N=1 và N=3, P3, tải vòng mở đều VALID. **P0 trên MongoDB VALID, không bán vượt**: giao dịch snapshot hủy khi xung đột ghi nên không mất cập nhật (đề dự đoán trước điều này: "nếu ra vậy thì đó là kết quả"); smoke nhỏ chưa đủ để kết luận ở tải cao.
-- **TiDB:** trên Docker máy dev không chạy được (3,9 GiB RAM); đã thử trên AWS (v8.5.7, 3 TiKV) ngày 2026-11-23: `pytest -m integration` 12 PASS (gồm `test_hotspot_variants_p1_p2_contract`, `test_smoke_exports`; log `results/official/fault-injection/tidb-integration-pytest.txt`) và T1, T2, T4 (bi quan/lạc quan) đã đo ở `results/official/2.2-aws/tidb3/`. **Vẫn NOT TESTED:** `EXPLAIN UPDATE` và `EXPLAIN` truy vấn `stock_slot` trên TiDB; truy vấn `stock_slot` chưa có EXPLAIN; ngưỡng P3 mặc định (500 ms, 10%) chưa được chỉnh bằng số đo.
+- **TiDB:** trên Docker máy dev không chạy được (3,9 GiB RAM); đã thử trên AWS (v8.5.7, 3 TiKV) ngày 2026-11-23: `pytest -m integration` 12 PASS (gồm `test_hotspot_variants_p1_p2_contract`, `test_smoke_exports`; log `results/official/fault-injection/tidb-integration-pytest.txt`) và T1, T2, T4 (bi quan/lạc quan) đã đo ở `results/official/2.2-aws/tidb3/`. **`EXPLAIN` trên TiDB v8.5.7 (2026-11-24, `EXPLAIN FORMAT='brief'`, `results/official/explain-tidb.json`):** cả bốn câu lệnh chính đều dùng `Point_Get` đúng chỉ mục: `UPDATE stock` (P1) qua `clustered index:PRIMARY(s_w_id, s_i_id)`; `UPDATE stock_slot` (P2) qua `clustered index:PRIMARY(ss_w_id, ss_i_id, ss_slot)`; đọc bộ đếm `district` (`FOR UPDATE`) qua `clustered index:PRIMARY(d_w_id, d_id)`; tìm đơn theo `request_id` qua `index:uq_request_id(request_id)`. Hai câu `UPDATE` có thêm `Selection` điều kiện `s_quantity >= n`. Mô thức cùng một lược đồ trên dataset smoke tạm (không phải dataset đo). **Vẫn NOT TESTED:** truy vấn `stock_slot` chưa có EXPLAIN; ngưỡng P3 mặc định (500 ms, 10%) chưa được chỉnh bằng số đo.
 
 ## Smoke G1 trên AWS (2026-11-21, sơ bộ, không phải số đo chính thức)
 
@@ -154,3 +154,25 @@ Sinh từ các `result.json`/`INDEX.csv` đã commit, không đo thêm: `scripts
 - **Nguyên nhân (đọc từ `throttle_result`):** bộ điều tiết P3 hạ giới hạn đồng thời xuống 2–3 (`min_limit`) vì p99 của giao dịch nóng vượt ngưỡng 500 ms của đặc tả (p99 của chính P2 ở tải này đã 580–700 ms), nên nó liên tục chia đôi L; 23–49% yêu cầu bị từ chối do hàng đợi đầy (`rejected_pct`), thời gian chờ chuyển từ DBMS sang tầng ứng dụng. Đây trả lời trực tiếp câu hỏi của đề: trên MySQL ở tải này P3 **chỉ chuyển thời gian chờ** chứ không giảm sụp hiệu năng, và còn làm giảm throughput.
 - **Giới hạn quan trọng:** chỉ thử một bộ ngưỡng (p99 500 ms, abort 10%, theo đặc tả); kết quả phụ thuộc ngưỡng, chưa thử ngưỡng khác (đặt cao hơn p99 bình thường của hệ có thể đổi kết luận). Trái lại trên MongoDB ngưỡng này không bị chạm (p99 thấp hơn) nên P3 không có hại, chỉ giảm p99 ở 256 client.
 - **Warmup:** `results/official/warmup-analysis-mysql-t3.md`: 10/48 lượt ngoài khoảng ramp 0,9–1,1 (9 lượt ramp > 1,1), không lượt nào TPS thấp; trung vị ramp 1,00.
+
+
+### Độ nhạy của P3 theo ngưỡng p99 trên MySQL (AWS, 2026-11-24)
+
+`results/official/2.2-aws/mysql-p3sens/`: 30 lượt VALID, **cùng phiên, cùng máy ảo và dataset** với cấu hình T3 trước (MySQL-chỉnh 24 vCPU/60 GiB, buffer pool 3 GiB, `configs/hotspot.toml`, 256 client, θ = 0,9, N = 9, lô mã 50, tải vòng mở, hàng đợi 64, 3 lần lặp). Chỉ đổi ngưỡng p99 của bộ điều tiết P3 (`--p99-limit-ms`; ngưỡng abort giữ 10%); ngưỡng 500 ms (mặc định theo đặc tả) được đo hai lần (đầu và cuối mỗi mức tải) để kiểm trôi.
+
+| Tải đặt | Cấu hình | TPS thực trung vị (min–max) | p99 trung vị (ms) | Yêu cầu bị từ chối (%) |
+| --- | --- | --- | --- | --- |
+| 1.800 | P2 | 1.788 (1.788–1.800) | 555 | 0,0 |
+| 1.800 | P3, ngưỡng 500 ms | 1.399 (1.285–1.505) | 4.712 | 20,7 |
+| 1.800 | P3, ngưỡng 500 ms (lặp lại) | 1.383 (1.169–1.596) | 4.216 | 21,6 |
+| 1.800 | P3, ngưỡng 1000 ms | 1.800 (1.790–1.800) | 598 | 0,0 |
+| 1.800 | P3, ngưỡng 2000 ms | 1.799 (1.786–1.800) | 608 | 0,0 |
+| 2.200 | P2 | 2.041 (2.041–2.130) | 1.736 | 5,7 |
+| 2.200 | P3, ngưỡng 500 ms | 1.071 (971–1.074) | 5.172 | 50,5 |
+| 2.200 | P3, ngưỡng 500 ms (lặp lại) | 1.070 (1.056–1.159) | 5.005 | 50,5 |
+| 2.200 | P3, ngưỡng 1000 ms | 1.908 (1.853–2.099) | 2.128 | 12,8 |
+| 2.200 | P3, ngưỡng 2000 ms | 2.034 (1.984–2.110) | 1.634 | 5,9 |
+
+- **Kết quả:** với ngưỡng 1.000 hoặc 2.000 ms, **P3 không còn kém P2**: ở 1.800 yêu cầu/giây P3 đạt 1.800 và 1.799 TPS (P2: 1.788), p99 598 và 608 ms (P2: 555); ở 2.200, P3 ngưỡng 2.000 ms đạt 2.034 TPS (P2: 2.041) với p99 1.634 ms (P2: 1.736), P3 ngưỡng 1.000 ms đạt 1.908 TPS (thấp hơn P2 khoảng 7%) với p99 2.128 ms. Với ngưỡng 500 ms, P3 giảm TPS xuống 1.399 và 1.383 (hai lần đo) ở 1.800, và 1.071 và 1.070 ở 2.200 (tái hiện kết quả T3 trước: 1.303 và 1.100) và từ chối khoảng 21% và 51% yêu cầu.
+- **Diễn giải:** ngưỡng 500 ms thấp hơn p99 tự nhiên của MySQL ở các mức tải này (p99 của P2 là 555 ms ở 1.800 và 1.736 ms ở 2.200), nên bộ điều khiển liên tục chia đôi giới hạn đồng thời (`min_limit` trung vị 1–1,5) và từ chối yêu cầu. Khi ngưỡng cao hơn p99 tự nhiên thì giới hạn đồng thời giữ ở 256 (ngưỡng 1.000 và 2.000 ms ở 1.800) hoặc tụt vừa phải (21 và 64 ở 2.200) và P3 gần bằng P2. Kết luận "P3 làm giảm TPS trên MySQL" của T3 vì vậy chỉ đúng khi ngưỡng thấp hơn p99 tự nhiên của hệ; **đây là hiệu ứng của ngưỡng, không phải của P3 nói chung**, và P3 ở ngưỡng cao chưa cho thấy lợi ích nào so với P2 trên MySQL (TPS và p99 tương đương).
+- **Giới hạn:** chỉ ba ngưỡng (500, 1.000, 2.000 ms) và hai mức tải ở 256 client; chưa đo ngưỡng abort khác; trôi giữa hai lần đo ngưỡng 500 ms khá lớn ở 1.800 (1.169–1.596 TPS giữa các lần lặp). Warmup: 4/30 lượt có cảnh báo `warmup_may_be_short`.

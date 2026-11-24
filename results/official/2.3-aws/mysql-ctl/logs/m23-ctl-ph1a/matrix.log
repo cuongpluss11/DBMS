@@ -1,0 +1,11 @@
+05:13:47 Bắt đầu ma trận 2.3: engine=mysql tier=a dry=0 B=50 hot_items=100 log=/home/ubuntu/m23-ctl-ph1a
+05:13:47 Điểm 1: a-uniform (configs/scaling.toml --variant p1 --theta 0 --no-hot-item --warehouse-mode uniform)
+05:20:01 Xong 1 điểm. Tổng hợp: flashsale report --results-dir results --out /home/ubuntu/m23-ctl-ph1a/report
+{
+  "runs": 3,
+  "groups": 1,
+  "invalid": 0,
+  "speedup_pairs": 0,
+  "warmup_may_be_short": 2,
+  "out_dir": "/home/ubuntu/m23-ctl-ph1a/report"
+}

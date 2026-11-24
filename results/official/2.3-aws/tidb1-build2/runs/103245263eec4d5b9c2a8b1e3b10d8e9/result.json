@@ -1,0 +1,637 @@
+{
+  "schema_version": 5,
+  "run_id": "103245263eec4d5b9c2a8b1e3b10d8e9",
+  "engine": "tidb",
+  "version": "8.0.11-TiDB-v8.5.7",
+  "label": "scaling",
+  "repetition": 3,
+  "seed": 2026,
+  "idempotency": true,
+  "variant": "p2",
+  "slots": 3,
+  "hot_items": 100,
+  "order_id_batch": 50,
+  "arrival_rate": 0.0,
+  "lock_order": false,
+  "nowait": false,
+  "txn_mode": "default",
+  "mongo_design": "a",
+  "stored_procedure": false,
+  "placement": "spread",
+  "placement_scope": "stock",
+  "orders_key": "composite",
+  "order_warehouses": [
+    1,
+    1
+  ],
+  "warehouse_groups": 3,
+  "placement_result": {
+    "layout": "spread",
+    "scope": "stock",
+    "stores": [
+      1
+    ],
+    "replicas": 1,
+    "previous_schedule": {
+      "leader-schedule-limit": 4,
+      "region-schedule-limit": 2048,
+      "merge-schedule-limit": 8,
+      "hot-region-schedule-limit": 4
+    },
+    "tables": {
+      "stock": {
+        "1": 13
+      },
+      "stock_slot": {
+        "1": 16
+      }
+    },
+    "load_base_split": [
+      [
+        "10.20.1.253:20160",
+        "split.byte-threshold",
+        "31457280"
+      ],
+      [
+        "10.20.1.253:20160",
+        "split.detect-times",
+        "10"
+      ],
+      [
+        "10.20.1.253:20160",
+        "split.grpc-thread-cpu-overload-threshold-ratio",
+        "0.5"
+      ],
+      [
+        "10.20.1.253:20160",
+        "split.qps-threshold",
+        "3000"
+      ],
+      [
+        "10.20.1.253:20160",
+        "split.region-cpu-overload-threshold-ratio",
+        "0.25"
+      ],
+      [
+        "10.20.1.253:20160",
+        "split.sample-num",
+        "20"
+      ],
+      [
+        "10.20.1.253:20160",
+        "split.sample-threshold",
+        "100"
+      ],
+      [
+        "10.20.1.253:20160",
+        "split.split-balance-score",
+        "0.8"
+      ],
+      [
+        "10.20.1.253:20160",
+        "split.split-contained-score",
+        "0.5"
+      ],
+      [
+        "10.20.1.253:20160",
+        "split.unified-read-pool-thread-cpu-overload-threshold-ratio",
+        "0.4"
+      ]
+    ],
+    "hot_regions_after": [
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "read",
+        "MAX_HOT_DEGREE": 72,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 0
+      },
+      {
+        "TABLE_NAME": "orders",
+        "TYPE": "read",
+        "MAX_HOT_DEGREE": 100,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 0
+      },
+      {
+        "TABLE_NAME": "new_order",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 344306
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 12117
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 19,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 238909
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 12501
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 12121
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 11832
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 12319
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 12252
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 12215
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 22,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 12522
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 12436
+      },
+      {
+        "TABLE_NAME": "stats_buckets",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 8,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 8066
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 11937
+      },
+      {
+        "TABLE_NAME": "order_line",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 10,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 637084
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 12048
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 12372
+      },
+      {
+        "TABLE_NAME": "orders",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 608633
+      },
+      {
+        "TABLE_NAME": "history",
+        "TYPE": "write",
+        "MAX_HOT_DEGREE": 21,
+        "REGION_COUNT": 0,
+        "FLOW_BYTES": 12404
+      }
+    ]
+  },
+  "tikv_count": 1,
+  "migration_strategy": "none",
+  "old_order_read_pct": 0.0,
+  "migration_batch_size": null,
+  "migration": null,
+  "throttle_result": null,
+  "variant_setup": {
+    "variant": "p2",
+    "slots": 3,
+    "hot_items": 100,
+    "order_id_batch": 50,
+    "arrival_rate": 0.0,
+    "queue_size": null,
+    "throttle": null,
+    "prepare_seconds": 3.081425463999949,
+    "slot_rows": 3600
+  },
+  "client_timeout_seconds": 15.0,
+  "concurrency": 64,
+  "warehouse_mode": "single-warehouse",
+  "theta": 0.9,
+  "hot_item": false,
+  "inventory_mode": "performance",
+  "resource_limits": {
+    "cpus": 20.0,
+    "memory_bytes": 47244640256
+  },
+  "theoretical_selection": {
+    "rank1_pct": 4.505990589609496,
+    "top100_pct": 28.958787085480257
+  },
+  "warmup": {
+    "seconds": 30,
+    "tps": 881.5666666666667,
+    "success": 26447,
+    "failed": 0,
+    "drained_requests": 64,
+    "new_order_success": 13216,
+    "payment_success": 13231,
+    "old_order_success": 0,
+    "p50_ms": 29.05579699995542,
+    "p95_ms": 392.18002999996315,
+    "p99_ms": 785.3036490000704,
+    "abort_pct": 0.0,
+    "rejected": 0,
+    "rejected_pct": 0.0,
+    "unserved_at_deadline": 0,
+    "queue_wait_mean_ms": null,
+    "queue_wait_p99_ms": null,
+    "out_of_stock_pct": 0.0,
+    "retry_pct": 0.07562294400120996,
+    "retry_attempts": 21,
+    "error_counts": {
+      "timeout": 0,
+      "deadlock": 21,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0,
+      "busy": 0,
+      "lock_nowait": 0
+    },
+    "failure_counts": {
+      "timeout": 0,
+      "deadlock": 0,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0,
+      "busy": 0,
+      "lock_nowait": 0
+    },
+    "request_error_pct": {
+      "timeout": 0.0,
+      "deadlock": 0.07562294400120996,
+      "write_conflict": 0.0
+    },
+    "rank_draws": 39706,
+    "observed_rank1_pct": 4.503097768599204,
+    "observed_top100_pct": 29.469097869339645,
+    "out_of_stock_all": 0,
+    "unknown_commits_all": 0,
+    "slot_attempts": 11589,
+    "slot_attempts_per_item": 1.0,
+    "read_migrated_p99_ms": null,
+    "read_clean_p99_ms": null,
+    "migrated_on_demand": null,
+    "migration_conflicts": null
+  },
+  "measurement": {
+    "seconds": 60,
+    "tps": 869.6833333333333,
+    "success": 52181,
+    "failed": 0,
+    "drained_requests": 64,
+    "new_order_success": 26076,
+    "payment_success": 26105,
+    "old_order_success": 0,
+    "p50_ms": 29.77276499996151,
+    "p95_ms": 413.8542530001814,
+    "p99_ms": 764.4302209998841,
+    "abort_pct": 0.0,
+    "rejected": 0,
+    "rejected_pct": 0.0,
+    "unserved_at_deadline": 0,
+    "queue_wait_mean_ms": null,
+    "queue_wait_p99_ms": null,
+    "out_of_stock_pct": 0.0,
+    "retry_pct": 0.07282344148253196,
+    "retry_attempts": 38,
+    "error_counts": {
+      "timeout": 0,
+      "deadlock": 38,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0,
+      "busy": 0,
+      "lock_nowait": 0
+    },
+    "failure_counts": {
+      "timeout": 0,
+      "deadlock": 0,
+      "write_conflict": 0,
+      "connection": 0,
+      "duplicate_key": 0,
+      "transaction_abort": 0,
+      "database_error": 0,
+      "application_error": 0,
+      "out_of_stock": 0,
+      "unknown_commit": 0,
+      "busy": 0,
+      "lock_nowait": 0
+    },
+    "request_error_pct": {
+      "timeout": 0.0,
+      "deadlock": 0.07282344148253196,
+      "write_conflict": 0.0
+    },
+    "rank_draws": 78618,
+    "observed_rank1_pct": 4.468442341448523,
+    "observed_top100_pct": 28.911954005444045,
+    "out_of_stock_all": 0,
+    "unknown_commits_all": 0,
+    "slot_attempts": 22495,
+    "slot_attempts_per_item": 1.0,
+    "read_migrated_p99_ms": null,
+    "read_clean_p99_ms": null,
+    "migrated_on_demand": null,
+    "migration_conflicts": null
+  },
+  "lock_wait_ms": null,
+  "server_deadlocks": null,
+  "container_cpu_pct": {
+    "pd": 17.411366833626964,
+    "tidb": 319.46783618081355,
+    "tikv1": 199.82255461370696
+  },
+  "loadgen_cpu_pct": 71.16127896092223,
+  "resource_warnings": [],
+  "validation": {
+    "status": "VALID",
+    "rules": {
+      "nonnegative": true,
+      "reconciliation": true,
+      "idempotency": true
+    },
+    "errors": {
+      "nonnegative": [],
+      "reconciliation": [],
+      "idempotency": []
+    },
+    "committed_orders": 39396,
+    "tagged_rows": {
+      "orders": 39396,
+      "order_line": 118031
+    },
+    "doc_check": {
+      "violations": 0,
+      "sample": []
+    },
+    "protocol_errors": []
+  },
+  "tps_series": {
+    "warmup": [
+      906,
+      961,
+      811,
+      834,
+      953,
+      907,
+      857,
+      783,
+      954,
+      932,
+      803,
+      918,
+      880,
+      911,
+      843,
+      867,
+      932,
+      878,
+      855,
+      874,
+      911,
+      951,
+      900,
+      877,
+      847,
+      886,
+      860,
+      759,
+      858,
+      939
+    ],
+    "measurement": [
+      947,
+      983,
+      934,
+      814,
+      895,
+      904,
+      816,
+      964,
+      884,
+      1002,
+      895,
+      925,
+      817,
+      887,
+      956,
+      878,
+      809,
+      864,
+      752,
+      861,
+      864,
+      806,
+      887,
+      836,
+      874,
+      854,
+      818,
+      776,
+      885,
+      1041,
+      888,
+      857,
+      860,
+      676,
+      879,
+      852,
+      895,
+      944,
+      838,
+      967,
+      833,
+      851,
+      823,
+      777,
+      885,
+      920,
+      724,
+      964,
+      819,
+      925,
+      802,
+      919,
+      835,
+      851,
+      893,
+      845,
+      808,
+      871,
+      809,
+      943
+    ]
+  },
+  "p99_series": {
+    "warmup": [
+      273.209394000105,
+      716.4046340001278,
+      832.826895000153,
+      910.3482709999753,
+      654.5914979999452,
+      483.8986019999538,
+      745.7171730000027,
+      940.3679669999292,
+      757.3626659998354,
+      874.4474039999659,
+      833.4326280000823,
+      688.0952399999387,
+      662.0531129999563,
+      787.7902739999172,
+      1043.9137089999804,
+      762.5671879998208,
+      666.3687000000209,
+      609.9545470001431,
+      846.0787839999284,
+      901.2592660001246,
+      839.9042609999015,
+      911.3173599998845,
+      841.6194150001957,
+      740.8933320000415,
+      603.1027760000143,
+      625.3668929998639,
+      653.0963370000791,
+      553.9237390000835,
+      639.2988520001381,
+      705.2057659998354
+    ],
+    "measurement": [
+      452.2641720000138,
+      578.1506969999555,
+      617.1786490001523,
+      713.7711210000361,
+      865.6748350001635,
+      769.9585579998711,
+      706.9805200001156,
+      599.371402000088,
+      719.1253210000923,
+      728.0845440000121,
+      717.3564070001248,
+      721.7258080002011,
+      643.4494700001778,
+      618.4631940000145,
+      503.8339890002135,
+      495.90999200017905,
+      923.8855950000016,
+      826.9639269999516,
+      922.1581489998698,
+      994.9843320000582,
+      883.7439430001268,
+      904.4100300000082,
+      759.7564390000571,
+      838.5859630000141,
+      939.1934340001171,
+      667.9210469999362,
+      768.4392220000973,
+      778.447068999867,
+      612.6615890000267,
+      492.95179900013864,
+      590.9705860001395,
+      696.0493580002094,
+      1018.6192539999865,
+      1152.1219179999207,
+      818.1310340000891,
+      863.4252539998215,
+      565.1451639998868,
+      524.235003000058,
+      567.840846000081,
+      549.5619749999605,
+      704.0081710001687,
+      829.0841210000508,
+      663.6701620000167,
+      756.1081450000984,
+      554.7634399999879,
+      816.9769179999093,
+      745.1397180000185,
+      593.3649280000282,
+      669.9914949999766,
+      553.5253959999409,
+      746.0976739998841,
+      836.7598340000768,
+      1138.0007710001792,
+      1112.772816000188,
+      1073.6531500001547,
+      1005.7673900000736,
+      642.9537129999972,
+      741.9564970000465,
+      854.2640789999041,
+      674.0054399999735
+    ]
+  },
+  "warmup_stability": {
+    "window_seconds": 10,
+    "warmup_tail_tps": 881.5,
+    "measurement_head_tps": 919.0,
+    "drift_pct": 4.254112308564946
+  }
+}
