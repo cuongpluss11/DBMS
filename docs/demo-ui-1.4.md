@@ -17,7 +17,10 @@ Tài liệu này hướng dẫn từng bước **khởi động, kiểm chứng 
 
 ## 0. Chuẩn bị & Bảng ánh xạ Mục 1.4 ↔ Phụ lục A.8 / B.8 ↔ Phần 2
 
-### 0.1. Thông số kết nối UI trên máy cá nhân (Windows + Docker Desktop)
+### 0.1. Thông số kết nối UI & File mã nguồn kịch bản minh chứng
+
+- **File script MongoDB (`.js`):** [`scripts/demo/demo_mongo_1.4.js`](../scripts/demo/demo_mongo_1.4.js) *(Mục 1.4 & Phụ lục A.8)*
+- **File script TiDB (`.sql`):** [`scripts/demo/demo_tidb_1.4.sql`](../scripts/demo/demo_tidb_1.4.sql) *(Mục 1.4 & Phụ lục B.8)*
 
 | Hệ DBMS | File Docker Compose | Công cụ UI sử dụng | Địa chỉ kết nối (Docker local) |
 | :--- | :--- | :--- | :--- |
@@ -376,8 +379,8 @@ SHOW VARIABLES WHERE Variable_name IN (
   'tidb_txn_mode', 'tidb_enable_async_commit', 'tidb_enable_1pc', 'transaction_isolation'
 );
 
--- 4. Kiểm tra kế hoạch thực thi đi đúng khóa chính
-EXPLAIN ANALYZE SELECT * FROM stock WHERE s_w_id = 1 AND s_i_id = 101;
+-- 4. Kiểm tra kế hoạch thực thi đi đúng khóa chính (dùng EXPLAIN chuẩn tương thích MySQL 8.0.11 của Workbench)
+EXPLAIN SELECT * FROM stock WHERE s_w_id = 1 AND s_i_id = 101;
 
 -- 5. Đặt con trỏ vào câu dưới đây bấm Ctrl + Enter để hiện Region của bảng stock rồi bấm chụp:
 SELECT DISTINCT
@@ -398,7 +401,11 @@ WHERE r.DB_NAME = 'demo_flashsale' AND r.TABLE_NAME = 'stock';
 ---
 
 ### Kịch bản B.8-5: Online DDL không chặn giao dịch đang hoạt động (**[📸 Điểm chụp TI-4: Hình B.7]**)
-1. Tại **Kết nối Workbench 1 (`TiDB_Local`)**, khởi tạo bảng `demo_ose.order_line` và giữ mở một giao dịch đọc:
+> **Mẹo chống lỗi `Error 2013 (30.000 sec)` của MySQL Workbench:**
+> - Vào **Edit → Preferences → SQL Editor** → đổi ô **`DBMS connection read time out (in seconds)`** từ `30` lên **`300`** → bấm **OK**.
+> - Trước khi chạy bước chụp ảnh, **nhấp chuột phải vào vùng trắng của khung `Action Output` ở đáy màn hình → chọn `Clear`** để xóa sạch log cũ.
+
+1. Tại **Kết nối Workbench 1 (`TiDB_Local`)**, bấm `Ctrl + T` mở tab SQL mới và chạy:
    ```sql
    CREATE DATABASE IF NOT EXISTS demo_ose;
    USE demo_ose;
@@ -415,59 +422,58 @@ WHERE r.DB_NAME = 'demo_flashsale' AND r.TABLE_NAME = 'stock';
    );
    INSERT INTO order_line VALUES (1, 1, 1001, 1, 101, 2);
 
-   -- Mở giao dịch đọc và GIỮ MỞ (chưa COMMIT)
+   -- Mở giao dịch đọc và GIỮ MỞ
    BEGIN;
    SELECT * FROM order_line LIMIT 1;
    ```
-2. Bấm về màn hình **Home (🏠)** của Workbench → nhấp đúp vào `TiDB_Local` để mở **Kết nối độc lập số 2 (`TiDB_Local (1)`)** và chạy Online DDL:
+2. Bấm về màn hình **Home (🏠)** của Workbench → nhấp đúp vào `TiDB_Local` để mở **Kết nối độc lập số 2 (`TiDB_Local (1)`)** → chuột phải vào **Action Output** chọn **`Clear`**, rồi dán và chạy (`Ctrl + Shift + Enter`) câu lệnh Online DDL:
    ```sql
    USE demo_ose;
    ALTER TABLE order_line
      ADD COLUMN ol_discount BIGINT NULL,
      ADD COLUMN ol_mig_state VARCHAR(16) NOT NULL DEFAULT 'UNMIGRATED';
    ```
-   > **Lưu ý cơ chế Metadata Lock của TiDB v8.5.7:** Nếu Kết nối 2 đợi phiên đọc cũ ở Kết nối 1 kết thúc, bạn có thể mở thêm **Kết nối 3** chạy `SELECT * FROM demo_ose.order_line;` hoặc `INSERT` đơn mới — Kết nối 3 vẫn thực thi **xong ngay tức thì (0 giây đóng băng)**, không hề bị chặn dây chuyền toàn bảng như Exclusive MDL của MySQL (sẽ phân tích sâu ở **Mục 2.6.1**). Sau khi chạy `COMMIT;` ở Kết nối 1, lệnh `ALTER TABLE` hoàn tất ngay trong vài trăm ms.
-3. Trên **Kết nối 2 (`TiDB_Local (1)`)**, chạy câu chuẩn SQL dưới đây để kiểm tra lịch sử Online DDL (thay cho `ADMIN SHOW DDL JOBS 5;` không bị dấu `x` đỏ trên Workbench) rồi bấm chụp:
+3. **Trong vòng 3–5 giây ngay sau đó**, bấm sang **Kết nối 1 (`TiDB_Local`)** chạy `SELECT * FROM order_line;` (thấy vẫn đọc bình thường không bị chặn!) rồi chạy **`COMMIT;`** để nhả phiên đọc lược đồ cũ.
+4. Quay lại **Kết nối 2 (`TiDB_Local (1)`)**: thấy câu `ALTER TABLE` đã báo **tích xanh `✔` thành công**! Dán thêm câu kiểm tra `DDL_JOBS` ngay bên dưới và bấm **`Ctrl + Enter`** tại câu đó rồi bấm chụp:
    ```sql
    SELECT JOB_ID, DB_NAME, TABLE_NAME, JOB_TYPE, STATE
    FROM information_schema.DDL_JOBS
+   WHERE DB_NAME = 'demo_ose'
    ORDER BY JOB_ID DESC
-   LIMIT 5;
+   LIMIT 3;
    ```
 > **📸 DỪNG LẠI CHỤP ẢNH TI-4 (dùng cho Hình B.7):**
-> Khung hình MySQL Workbench cần lấy rõ:
-> 1. **Thanh tab trên cùng:** Thấy rõ đang mở song song **2 kết nối** (`TiDB_Local` và `TiDB_Local (1)`).
-> 2. **SQL Editor (trên):** Hiện câu `ALTER TABLE order_line ADD COLUMN ...` và câu `SELECT ... FROM information_schema.DDL_JOBS`.
-> 3. **Result Grid (giữa):** Bảng `DDL_JOBS` có dòng `DB_NAME = demo_ose`, `TABLE_NAME = order_line`, cột **`STATE = synced`**.
-> 4. **Action Output (dưới):** Dòng log `ALTER TABLE ...` có tích xanh hoàn tất nhanh (`0.xxx sec`).
+> Khung hình MySQL Workbench lúc này xanh sạch 100%, lấy rõ:
+> 1. **Thanh tab trên cùng:** Đang mở song song **2 kết nối** (`TiDB_Local` và `TiDB_Local (1)`).
+> 2. **SQL Editor (trên):** Chỉ có đúng khối `USE demo_ose; ALTER TABLE order_line ...` và `SELECT ... FROM information_schema.DDL_JOBS`.
+> 3. **Result Grid (giữa):** Bảng `DDL_JOBS` hiện `DB_NAME = demo_ose`, `TABLE_NAME = order_line`, cột **`STATE = synced`**.
+> 4. **Action Output (dưới):** Cả 3 dòng (`USE`, `ALTER TABLE`, `SELECT`) đều là **tích xanh `✔`**, không có lỗi đỏ.
 
 ---
 
-### Kịch bản B.8-6: Tranh chấp đồng thời 2 phiên trên cùng 1 dòng `stock` (`pessimistic`) *(Không bắt buộc chụp trong báo cáo — tùy chọn cho slide dẫn sang Mục 2.2)*
-1. Ở **Kết nối Workbench 1 (`TiDB_Local`)**, đặt lại tồn kho `= 5` rồi mở giao dịch trừ 1 sản phẩm và **giữ khóa chưa `COMMIT`**:
+### Kịch bản B.8-6: Tranh chấp đồng thời 2 phiên trên cùng 1 dòng `stock` (`pessimistic`) (**[📸 Tùy chọn chụp Hình B.8]**)
+1. Ở **Kết nối Workbench 1 (`TiDB_Local`)**, bấm `Ctrl + T` mở tab SQL trắng mới rồi bấm **`Ctrl + Shift + Enter`** (tia sét đầu tiên `⚡` để chạy hết cả khối):
    ```sql
    SET SQL_SAFE_UPDATES = 0;
-   USE demo_flashsale;
-   UPDATE stock SET s_quantity = 5 WHERE s_w_id = 1 AND s_i_id = 101;
+   UPDATE demo_flashsale.stock SET s_quantity = 5 WHERE s_w_id = 1 AND s_i_id = 101;
 
    BEGIN;
-   UPDATE stock
+   UPDATE demo_flashsale.stock
    SET s_quantity = s_quantity - 1
    WHERE s_w_id = 1 AND s_i_id = 101 AND s_quantity >= 1;
    -- DỪNG LẠI, CHƯA CHẠY COMMIT! (Phiên 1 đang giữ khóa bi quan trên dòng 1, 101)
    ```
-2. Chuyển sang **Kết nối Workbench 2 (`TiDB_Local (1)`)**, chạy cùng lệnh cập nhật đó:
+2. Chuyển sang **Kết nối Workbench 2 (`TiDB_Local (1)`)**, bấm **`Ctrl + T` mở tab SQL trắng mới**, chuột phải vào **Action Output** chọn **`Clear`**, rồi dán và bấm **`Ctrl + Shift + Enter`** (tia sét đầu tiên `⚡`):
    ```sql
-   USE demo_flashsale;
    BEGIN;
-   UPDATE stock
+   UPDATE demo_flashsale.stock
    SET s_quantity = s_quantity - 1
    WHERE s_w_id = 1 AND s_i_id = 101 AND s_quantity >= 1;
    ```
-   - **Quan sát trực quan trên UI:** Tab Kết nối 2 chuyển sang xoay vòng **`Running...`** (bị xếp hàng `lock wait` chờ Phiên 1 giải phóng khóa — *nếu muốn đưa lên slide làm cầu nối sang Mục 2.2 thì bấm chụp ngay khoảnh khắc `Running...` này*).
+   - **📸 Chụp Hình B.8 ngay khoảnh khắc này:** Khung SQL gọn sạch chỉ có 4 dòng trên, và ở **Action Output** hiện tích xanh `BEGIN` kèm dòng `UPDATE demo_flashsale.stock ...` đang **`Running...`** (chờ khóa bi quan của Phiên 1).
 3. Quay lại **Kết nối 1** chạy `COMMIT;` → lập tức **Kết nối 2** chạy xong (`1 row(s) affected`). Chạy tiếp `COMMIT;` ở **Kết nối 2** rồi đối soát kết quả:
    ```sql
-   SELECT * FROM stock WHERE s_w_id = 1 AND s_i_id = 101;
+   SELECT * FROM demo_flashsale.stock WHERE s_w_id = 1 AND s_i_id = 101;
    -- Kết quả: s_quantity = 3 (giảm chính xác 2 đơn vị từ 5 -> 3, không xảy ra Lost Update)
    ```
 
@@ -510,8 +516,8 @@ Khi kết thúc phần demo UI Mục 1.4, người thuyết trình dùng chính 
 2. **Từ B.8-6 (chờ khóa dòng) & A.8-4 (MVCC snapshot) → Mục 2.2 & 2.4 (Chẩn đoán & giảm nghẽn Hot SKU):**
    - *Điều vừa thấy trên UI:* Trên Workbench ở Kịch bản B.8-6, Phiên 2 chạm cùng mặt hàng `(1, 101)` đã phải đứng chờ khóa của Phiên 1; trên MongoDB, hai giao dịch snapshot chạm cùng document sẽ nảy sinh `WriteConflict`.
    - *Vấn đề nghiên cứu Phần 2:* Khi mọi yêu cầu Flash-sale dồn vào **1 mặt hàng nóng (Hot SKU)** ở **Mục 2.2**, TPS cả 3 hệ sụp **2,8–3,7 lần** theo 3 cơ chế nghẽn khác nhau (MySQL tốn **97% thời gian chờ khóa dòng**; MongoDB nổ **~75.200 lỗi `write_conflict`/lượt**; TiDB xếp hàng ở Region nóng), khiến việc tăng thêm client hoàn toàn vô tác dụng. Điều này dẫn tới giải pháp **chia tồn kho thành `N` slot (`P2`)** và **cấp mã đơn theo lô** ở **Mục 2.4** giúp tăng thông lượng **5,9–8,5 lần** mà vẫn `VALID` tuyệt đối.
-3. **Từ B.8-4 (`SHOW TABLE stock REGIONS`) → Mục 2.5 (Mở rộng ngang, 2PC & Replication trên TiDB):**
-   - *Điều vừa thấy trên UI:* Cụm TiDB có tới **3 nút TiKV**, nhưng `SHOW TABLE stock REGIONS` cho thấy mặt hàng nóng mặc định chỉ nằm trong **1 Region duy nhất** do 1 nút TiKV giữ Leader.
+3. **Từ B.8-4 (`TIKV_REGION_STATUS`) → Mục 2.5 (Mở rộng ngang, 2PC & Replication trên TiDB):**
+   - *Điều vừa thấy trên UI:* Cụm TiDB có tới **3 nút TiKV**, nhưng truy vấn `TIKV_REGION_STATUS` cho thấy mặt hàng nóng mặc định chỉ nằm trong **1 Region duy nhất** do 1 nút TiKV giữ Leader.
    - *Vấn đề nghiên cứu Phần 2:* Trả lời câu hỏi lớn ở **Mục 2.5** *"Thêm TiKV có cứu được Flash-sale không?"* — nếu giữ nguyên 1 dòng tồn kho (`P1`), tăng từ 1 lên 3 TiKV chỉ đạt `1,22×` vì 1 store gánh hết tải; chỉ khi kết hợp **chia slot (`P2 N=27`) + tách Region** rải đều qua 3 TiKV thì TPS mới vọt lên **`3,44×`** (hiệu ứng tương tác), đồng thời định lượng chi phí giao dịch liên phân vùng (2PC) và chi phí sao chép Raft (`rf=3` giảm `25–47%` ở tải ghi lan rộng).
 4. **Từ A.8-5 (Schemaless backfill) & B.8-5 (Online DDL) → Mục 2.6 (Đổi lược đồ khi đang bán hàng):**
    - *Điều vừa thấy trên UI:* Trên vài dòng demo, MongoDB thêm trường mới tức thì và TiDB chạy `ADD COLUMN` không chặn giao dịch mới, nhưng các dòng cũ vẫn cần bước cập nhật dữ liệu lịch sử (`backfill`).
@@ -521,18 +527,23 @@ Khi kết thúc phần demo UI Mục 1.4, người thuyết trình dùng chính 
 
 ---
 
-## 5. Checklist ảnh chụp báo cáo (Mục 1.4 & Phụ lục A, B)
+## 5. Danh mục tên chuẩn cho bộ ảnh Demo (Mục 1.4 & Phụ lục A, B)
 
-| Ký hiệu Hình | Vị trí trong báo cáo | Nguồn chụp trên UI | Nội dung cần hiện rõ trên ảnh |
-| :--- | :--- | :--- | :--- |
-| **Hình 4.1 / Hình A.1** | Mục 1.4.2 & Phụ lục A.8-1 | **MongoDB Compass** + `>_ MONGOSH` | Kết nối `127.0.0.1:27018`, output `db.version()` = `8.0.20` và `rs.status()` báo `PRIMARY`, `health: 1`. |
-| **Hình A.2** | Phụ lục A.8-3 | Tab `>_ MONGOSH` trong Compass | Hai lệnh `db.stock.updateOne` trả về `modifiedCount: 1` (mua 3 còn 2) và `modifiedCount: 0` (mua 4 bị từ chối). |
-| **Hình A.3** | Phụ lục A.8-4 | Tab `>_ MONGOSH` trong Compass | Sau `commitTransaction()` (đơn 9001) và `abortTransaction()` (đơn 9002), `db.orders.find()` chỉ còn đơn `9001`. |
-| **Hình A.4** | Phụ lục A.8-5 | Giao diện Document **Compass** | Collection `demo_ose.order_line` hiển thị song song document cũ (chưa có `ol_discount`) và document mới (`MIGRATED`). |
-| **Hình A.5** | Phụ lục A.8-6 | `>_ MONGOSH` + tab **Performance** | `wiredTiger.cache` = `3221225472` byte (3 GiB), `connections`, `currentOp` và biểu đồ Performance. |
-| **Hình 4.2 / Hình B.6** | Mục 1.4.2, 1.4.4 & Phụ lục B.8-4 | **TiDB Dashboard** + **MySQL Workbench** | Dashboard **Cluster Info → Instances** đủ 5 nút `v8.5.7` (`Up`) + kết quả `SHOW TABLE stock REGIONS`. |
-| **Hình B.5** | Phụ lục B.8-2 | **MySQL Workbench** | Kết quả `SELECT * FROM orders` sau `ROLLBACK` chỉ có dòng `'COMMITTED'`, không có `'SHOULD_ROLLBACK'`. |
-| **Hình B.7** | Phụ lục B.8-5 | **MySQL Workbench** (2 tab kết nối) | Lệnh `ALTER TABLE order_line ADD COLUMN ...` hoàn tất (`ADMIN SHOW DDL JOBS 5` báo `synced`) song song giao dịch mở. |
+| Ký hiệu Hình | Vị trí trong báo cáo | Tên chú thích chuẩn (copy-paste dưới ảnh) |
+| :--- | :--- | :--- |
+| **Hình 4.1** | Báo cáo chính (Mục 1.4.2) | *Hình 4.1. Giao diện kết nối MongoDB Compass và kiểm chứng trạng thái Replica Set flashsale (MongoDB 8.0.20).* |
+| **Hình 4.2** | Báo cáo chính (Mục 1.4.2) | *Hình 4.2. Giao diện quản trị và giám sát cụm TiDB v8.5.7 (1 PD, 1 TiDB Server, 3 TiKV) trên TiDB Dashboard.* |
+| **Hình A.1** | Phụ lục A (Trang 10 trên) | *Hình A.1. Giao diện kết nối MongoDB Compass và kiểm chứng phiên bản 8.0.20, trạng thái Replica Set PRIMARY.* |
+| **Hình A.2** | Phụ lục A (Trang 10 dưới) | *Hình A.2. Cập nhật tồn kho nguyên tử có điều kiện chống âm kho trên MongoDB (`modifiedCount: 1` và `0`).* |
+| **Hình A.3** | Phụ lục A (Trang 11 trên) | *Hình A.3. Giao dịch ACID nhiều tài liệu trên MongoDB: lưu đơn 9001 (`COMMIT`) và hoàn nguyên đơn 9002 (`ABORT`).* |
+| **Hình A.4** | Phụ lục A (Trang 11 dưới) | *Hình A.4. Hai phiên bản tài liệu (cũ chưa có `ol_discount` và mới `MIGRATED`) cùng tồn tại trong `order_line`.* |
+| **Hình A.5** | Phụ lục A (Trang 12) | *Hình A.5. Giám sát bộ nhớ đệm WiredTiger (3 GiB), kết nối trên `mongosh` và biểu đồ thời gian thực tab Performance.* |
+| **Hình B.4** | Phụ lục B (Trang 16 dưới) | *Hình B.4. Trạng thái hoạt động 5 nút (`1 PD`, `1 TiDB`, `3 TiKV` nhánh `v8.5.7`) trên giao diện TiDB Dashboard.* |
+| **Hình B.5** | Phụ lục B (Trang 17 trên) | *Hình B.5. Kết nối MySQL Workbench và kiểm chứng phiên bản `8.0.11-TiDB-v8.5.7`.* |
+| **Hình B.6** | Phụ lục B (Trang 17 dưới) | *Hình B.6. Kiểm chứng giao dịch ACID trên TiDB: lưu đơn `'COMMITTED'` (`AUTO_RANDOM`) và hoàn nguyên `'SHOULD_ROLLBACK'`.* |
+| **Hình B.7** | Phụ lục B (Trang 18 trên) | *Hình B.7. Quan sát phân bố `REGION_ID` và `LEADER_STORE_ID` của bảng `stock` trên tầng lưu trữ TiKV.* |
+| **Hình B.8** | Phụ lục B (Trang 18 dưới) | *Hình B.8. Thực thi Online DDL thêm cột trên bảng `order_line` hoàn tất (`STATE = synced`) trên 2 phiên kết nối.* |
+| **Hình B.9** | Phụ lục B (Trang 19 trên) | *Hình B.9. Cơ chế khóa bi quan (`pessimistic`) trên TiDB: phiên thứ hai chờ khóa (`Running...`) trên cùng dòng `stock`.* |
 
 ---
 

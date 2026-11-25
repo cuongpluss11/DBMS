@@ -1,39 +1,117 @@
-# Flash-sale DBMS Benchmark
+# Phân tích và tối ưu hiệu năng giao dịch Flash-sale trên MySQL, MongoDB và TiDB
 
-Bài tập lớn DBMS: chẩn đoán và giảm nghẽn do tranh chấp khóa, 2PC và đổi lược đồ khi đang chạy trên MySQL InnoDB, MongoDB và TiDB, với tải Flash-sale dựa trên TPC-C. Dự án nạp cùng dữ liệu TPC-C, chạy New-Order và Payment trên ba hệ, rồi xuất bằng chứng để tái hiện phép đo và đối soát tồn kho.
+![MySQL InnoDB](https://img.shields.io/badge/MySQL_InnoDB-8.4.8_LTS-4479A1?style=flat&logo=mysql&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-8.0.20-47A248?style=flat&logo=mongodb&logoColor=white)
+![TiDB](https://img.shields.io/badge/TiDB_/_TiKV_/_PD-v8.5.7_LTS-E30C34?style=flat&logo=tidb&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat&logo=python&logoColor=white)
+![PyMySQL](https://img.shields.io/badge/PyMySQL-1.1.2-00758F?style=flat&logo=python&logoColor=white)
+![PyMongo](https://img.shields.io/badge/PyMongo-4.15.5-00ED64?style=flat&logo=mongodb&logoColor=black)
+<br/>
+![AWS EC2](https://img.shields.io/badge/AWS-EC2_%26_EBS_gp3-FF9900?style=flat&logo=amazonwebservices&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-IaC-844FBA?style=flat&logo=terraform&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker&logoColor=white)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04_LTS-E95420?style=flat&logo=ubuntu&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-Metrics-E6522C?style=flat&logo=prometheus&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-Dashboards-F46800?style=flat&logo=grafana&logoColor=white)
+![Pytest](https://img.shields.io/badge/Pytest-Verified-0A9EDC?style=flat&logo=pytest&logoColor=white)
 
-## Trạng thái và điểm vào (cập nhật 2026-11-21)
+> **BÁO CÁO BÀI TẬP LỚN — HỆ QUẢN TRỊ CƠ SỞ DỮ LIỆU**
+> **Trường Đại học Công nghệ – Đại học Quốc gia Hà Nội (UET – VNU) · Khoa Công nghệ thông tin**
+> - **Giảng viên hướng dẫn:** TS. Nguyễn Thị Cẩm Vân
+> - **Thực hiện — Nhóm 16:**
+>   1. **Nguyễn Mạnh Cường** — `24020052`
+>   2. **Hoàng Xuân Lực** — `24020214`
+>   3. **Tạ Duy Anh** — `24020025`
 
-- **Mục 2.1 đã nghiệm thu trên AWS** (3 hệ, 152 lượt đo): [acceptance-2.1.md](docs/acceptance-2.1.md), kết quả ở `results/official/2.1-aws/`.
-- **Đang làm 2.2, 2.3 và 2.4** theo [docs/scope-2-weeks.md](docs/scope-2-weeks.md): phạm vi theo tầng, cổng kiểm, lịch 14 ngày, phân công và bảng trạng thái.
-- Quy tắc cho người và AI viết code: [AGENTS.md](AGENTS.md). Khác biệt so với tài liệu ý tưởng: [docs/assumptions.md](docs/assumptions.md).
-- Tài liệu ý tưởng bản chốt (`bao_cao_DBMS_ban_chot.docx`) **không nằm trong repo**; nhóm trưởng chia sẻ riêng.
+---
 
-| Phụ trách | Phạm vi | Đọc trước |
-| --- | --- | --- |
-| Lực | 2.2, 2.3, vận hành AWS | `docs/scope-2-weeks.md`, `docs/acceptance-2.1.md`, `infra/aws/README.md` |
-| Cường | 2.4 | `docs/scope-2-weeks.md` (mục "Ghi chú thiết kế 2.4"), mục 2.4 trong tài liệu ý tưởng |
-| Duy Anh | Hỗ trợ 2.2 và 2.3, báo cáo | `docs/scope-2-weeks.md`, `docs/citation-check.md`, `docs/acceptance-2.1.md` |
+## 1. Tổng quan đề tài
 
-Số đo chính thức lấy trên AWS nhiều VM ([infra/aws/README.md](infra/aws/README.md)); Docker một VM chỉ để phát triển và thử. Chỉ `terraform apply` và `destroy` do Lực thực hiện. Hướng dẫn triển khai Docker ba VM của giai đoạn 2.1 còn lưu ở [docs/trien-khai-2.1.md](docs/trien-khai-2.1.md) (đã hoàn thành, chỉ để tham khảo); giao thức thực nghiệm 2.1 ở [docs/experiment-2.1.md](docs/experiment-2.1.md).
+Bộ khung thực nghiệm có khả năng tái lập (**reproducible benchmark suite**) phục vụ chẩn đoán và giảm nghẽn giao dịch **Flash-sale** (dựa trên lược đồ 9 bảng/collection của **TPC-C**) trên ba đại diện kiến trúc cơ sở dữ liệu hiện đại: **RDBMS truyền thống (MySQL InnoDB 8.4.8)**, **NoSQL hướng tài liệu (MongoDB 8.0.20)** và **NewSQL phân tán (TiDB v8.5.7)**.
 
-## Cài đặt trên Ubuntu 24.04 LTS
+Nghiên cứu tập trung giải quyết bốn bài toán kỹ thuật cốt lõi dưới cùng ngân sách tài nguyên, bộ nhớ đệm (`3 GiB`) và mức bảo đảm độ bền giao dịch tương đương:
+1. **Chẩn đoán điểm nóng ghi (Hot SKU):** Phân tích cơ chế sụp giảm thông lượng (chờ khóa dòng, bão `write_conflict` & thử lại, xếp hàng tại Region nóng) khi tải dồn vào một mặt hàng.
+2. **Bảo toàn tính đúng đắn tồn kho dưới tải cao & sự cố:** Kiểm chứng độc lập hệ **ba luật bất biến (`INV1–INV3`)** và cơ chế chống trùng đơn (`request_id UNIQUE`) khi tiến trình ứng dụng chết đột ngột giữa cửa sổ commit.
+3. **Giảm nghẽn và mở rộng ngang trên NewSQL:** Định lượng hiệu quả riêng rẽ và tương tác giữa **chia tồn kho thành `N` slot (`P2`)**, **cấp mã đơn theo lô**, **điều tiết thích ứng (`P3`)**, mở rộng nút lưu trữ **TiKV (`1 → 3` nút)**, giao dịch liên phân vùng (**2PC**) và hệ số sao chép **Raft (`rf = 1` vs `rf = 3`)**.
+4. **Đổi lược đồ trực tuyến khi đang bán hàng (Online Schema Evolution):** Phân tích hiện tượng đóng băng toàn bảng do kẹt *Metadata Lock (MDL)* và đánh đổi giữa ba chiến lược chuyển đổi dữ liệu lịch sử (**Eager, Batch nền, Lazy**).
 
-Dùng VM x86_64 với ít nhất 12 vCPU, 20 GiB RAM cấp cho VM (ví dụ AWS `c6i.4xlarge`: 16 vCPU, 32 GiB) và 10 GiB đĩa trống. Chừa thêm dung lượng cho các volume W=10 và tài nguyên cho load generator.
+> **Quy mô bằng chứng thực nghiệm:** **839 lượt đo chính thức trên AWS đa máy ảo** (Mục 2.2–2.5), **159 lượt đo mở rộng đổi lược đồ** trên AWS Docker `c6i.4xlarge` (Mục 2.6) và **152 lượt đo nghiệm thu nền** (Mục 2.1). Toàn bộ con số trong báo cáo đều truy xuất trực tiếp về CSV trong [`results/official/`](results/official/) và được đối chiếu tự động qua `scripts/verify_doc_numbers.py` (**285 ô số liệu, 0 sai lệch**; xem [`results/official/VERIFY.md`](results/official/VERIFY.md)).
+
+---
+
+## 2. Tóm tắt các phát hiện chính & Ma trận đánh đổi
+
+### 2.1. Trả lời các câu hỏi nghiên cứu (Mục 2.7.1)
+
+| Câu hỏi nghiên cứu | Kết quả thực nghiệm chính |
+| :--- | :--- |
+| **RQ1:** Nghẽn Flash-sale xuất phát từ đâu? | Xuất phát từ **điểm nóng ghi**, không phải độ lệch Zipf thông thường (`θ ≤ 0,7` chưa gãy; chế độ *"một món"* làm TPS sụp **2,8–3,7 lần** ở cả ba hệ và tăng thêm client không cứu được). Cơ chế nghẽn khác nhau: MySQL tốn **97% thời gian chờ khóa dòng**; MongoDB (a) bùng phát **~75.207 lỗi `write_conflict`/lượt** (retry `40,4%`); TiDB xếp hàng tại Region nóng. |
+| **RQ2:** Phương pháp nào giảm nghẽn mà vẫn đúng 3 luật? | **Chia tồn kho thành `N` slot (`P2`, `N=27`)** là đòn bẩy lớn nhất, tăng TPS **5,9–8,5 lần** ở kịch bản *"một món"* (`426 → 2.741` MySQL; `673 → 3.955` MongoDB; `255 → 2.157` TiDB) và **100% lượt chạy đều `VALID`**. **Cấp mã đơn theo lô (`50` mã/lần)** là nguồn lợi ích độc lập (tăng tới **2,5×** trên TiDB ở `θ = 0,9`). |
+| **RQ3:** Khi nào cơ chế tối ưu gây tác dụng phụ hoặc đánh đổi? | **Điều tiết thích ứng (`P3`)** nhạy mạnh với ngưỡng cấu hình: ở ngưỡng `p99 = 500 ms` dưới tải `≥ 100%`, P3 làm giảm **27–50% TPS** trên MySQL do hạ giới hạn đồng thời quá thấp; ở ngưỡng `1.000–2.000 ms` thì ngang `P2`. **MongoDB thiết kế (b)** (bỏ giao dịch đa tài liệu) tăng tốc **~9,9×** (`8.354 TPS`) nhưng **vi phạm `INV2`** khi ứng dụng sập giữa bước trừ kho và ghi đơn. |
+| **RQ4–RQ6:** Thêm nút TiKV, 2PC và sao chép Raft tác động thế nào? | Trên Hot SKU, thêm `1 → 3` TiKV một mình chỉ tăng **`1,22–1,29×`** vì tải dồn vào 1 Region; kết hợp với **chia slot (`P2 N=27`)** đạt **`3,44–3,80×`** (hiệu ứng tương tác). Tăng hệ số nhân bản **`rf = 1 → 3`** làm giảm **25–47% TPS** ở tải ghi phân tán do chi phí Raft/CPU trên nút TiKV `2 vCPU`. |
+| **Mục 2.6:** Đổi lược đồ bảng `order_line` (~3 triệu dòng) dưới tải? | Trên MySQL, 1 giao dịch đọc dài `60 s` khiến `ALTER INSTANT` gây kẹt *Metadata Lock*, đóng băng toàn bảng **57 giây**; đặt `lock_wait_timeout = 3` kèm retry giảm đóng băng còn **2 giây** (giữ TPS gấp **2,54×**). TiDB Online DDL đạt **0 giây đóng băng** giao dịch mới. Ở bước chuyển dữ liệu cũ, **Batch lô `1.000`** đạt TPS cao nhất trên cả 3 hệ (`-16,3%` MySQL; `-0,6%` MongoDB; `-8,7%` TiDB so với nền). |
+
+### 2.2. Ma trận khuyến nghị thiết kế (Mục 2.7.2)
+
+| Tình huống vận hành | Khuyến nghị kiến trúc | Đánh đổi cần lưu ý |
+| :--- | :--- | :--- |
+| **Hot SKU, yêu cầu đúng đắn tuyệt đối** | `P1` + chia slot (`P2`) + cấp mã đơn theo lô trong giao dịch ACID | Logic ứng dụng phức tạp hơn khi tồn kho chạm đáy (cần quét các slot còn dư). |
+| **Ưu tiên thông lượng tối đa trên MongoDB** | Thiết kế `(b)` (cập nhật đơn tài liệu + đơn nhúng) | Chấp nhận rủi ro lệch đối soát tồn kho (`INV2`) nếu tiến trình chết giữa chừng; cần cơ chế đối soát bù. |
+| **Mở rộng ngang cụm NewSQL (TiDB)** | Phá điểm nóng dữ liệu (chia slot + `AUTO_RANDOM` + tách Region) **trước**, thêm nút TiKV **sau** | Bật độ bền production (`rf = 3`) tiêu tốn thêm `25–47%` thông lượng ghi trên cấu hình thử nghiệm. |
+| **Đổi lược đồ bảng lớn đang bán hàng** | Kiểm tra giao dịch dài + `lock_wait_timeout` ngắn → `INSTANT` / Online DDL → **Batch lô `1.000`** | Thời gian hoàn tất migration dài hơn `Eager`, đổi lại tránh sụp TPS và tránh vọt đỉnh độ trễ `p99`. |
+
+---
+
+## 3. Bản đồ Báo cáo ↔ Mã nguồn, Demo UI & Dữ liệu thực nghiệm
+
+| Phần trong Báo cáo | Tài liệu & Hướng dẫn chi tiết | Mã nguồn / Kịch bản thực thi | Dữ liệu kết quả & Biểu đồ |
+| :--- | :--- | :--- | :--- |
+| **Phần 1 — Mục 1.4 & Phụ lục A.8, B.8** *(Cài đặt, cấu hình & Demo UI)* | [`docs/demo-ui-1.4.md`](docs/demo-ui-1.4.md) | [`scripts/demo/demo_mongo_1.4.js`](scripts/demo/demo_mongo_1.4.js)<br/>[`scripts/demo/demo_tidb_1.4.sql`](scripts/demo/demo_tidb_1.4.sql) | Kịch bản kiểm chứng phiên bản, CRUD, chống âm kho, ACID, Region & Online DDL trên **Compass** & **Workbench**. |
+| **Phần 2 — Mục 2.1** *(Workload, hạ tầng & phương pháp đo)* | [`docs/acceptance-2.1.md`](docs/acceptance-2.1.md)<br/>[`docs/experiment-2.1.md`](docs/experiment-2.1.md) | [`src/flashsale/workload/`](src/flashsale/workload/)<br/>[`src/flashsale/validation/`](src/flashsale/validation/)<br/>[`infra/aws/`](infra/aws/) | [`results/official/2.1-aws/`](results/official/2.1-aws/)<br/>[`results/official/explain-tidb.json`](results/official/explain-tidb.json) |
+| **Phần 2 — Mục 2.2, 2.3 & 2.4** *(Nghẽn Hot SKU, Fault Injection, P0–P3 & T4)* | [`docs/experiment-2.2.md`](docs/experiment-2.2.md)<br/>[`docs/fault-injection.md`](docs/fault-injection.md)<br/>[`docs/demo-phan-2.md`](docs/demo-phan-2.md) | [`src/flashsale/transactions/`](src/flashsale/transactions/)<br/>[`scripts/run-matrix-2.2.sh`](scripts/run-matrix-2.2.sh)<br/>[`scripts/fault_kill_cycles.py`](scripts/fault_kill_cycles.py) | [`results/official/2.2-aws/`](results/official/2.2-aws/)<br/>[`results/official/fault-injection/`](results/official/fault-injection/)<br/>[`results/official/figures/`](results/official/figures/) |
+| **Phần 2 — Mục 2.5** *(Mở rộng TiKV, 2PC liên kho & Raft `rf=3`)* | [`docs/experiment-2.3.md`](docs/experiment-2.3.md) | [`scripts/run-matrix-2.3.sh`](scripts/run-matrix-2.3.sh)<br/>[`scripts/placement_summary.py`](scripts/placement_summary.py) | [`results/official/2.3-aws/`](results/official/2.3-aws/) |
+| **Phần 2 — Mục 2.6** *(Online Schema Evolution: E1, E2, E3)* | [`docs/experiment-2.4.md`](docs/experiment-2.4.md)<br/>[`docs/demo-ui-2.6.md`](docs/demo-ui-2.6.md) | [`scripts/run-2.4-e1.sh`](scripts/run-2.4-e1.sh)<br/>[`scripts/run-2.4-eager.sh`](scripts/run-2.4-eager.sh)<br/>[`scripts/run-2.4-batch.sh`](scripts/run-2.4-batch.sh)<br/>[`scripts/run-2.4-lazy.sh`](scripts/run-2.4-lazy.sh) | [`results/official/2.4-e1/`](results/official/2.4-e1/) · [`2.4-eager/`](results/official/2.4-eager/)<br/>[`results/official/2.4-batch/`](results/official/2.4-batch/) · [`2.4-lazy/`](results/official/2.4-lazy/)<br/>[`docs/figures/2.4/`](docs/figures/2.4/) |
+| **Đối soát số liệu toàn báo cáo** | [`docs/assumptions.md`](docs/assumptions.md)<br/>[`AGENTS.md`](AGENTS.md) | [`scripts/verify_doc_numbers.py`](scripts/verify_doc_numbers.py)<br/>[`scripts/verify_results.py`](scripts/verify_results.py) | [`results/official/VERIFY.md`](results/official/VERIFY.md) *(285 ô số liệu, 0 lệch)* |
+
+---
+
+## 4. Kiến trúc hệ thống & Thiết lập công bằng
+
+### 4.1. Cấu trúc package `src/flashsale/`
+- `adapters/`: Giao diện kết nối, quản lý phiên giao dịch và truy vấn đồng nhất cho MySQL, MongoDB và TiDB (giữ nguyên ngữ nghĩa riêng của từng hệ).
+- `workload/`: Bộ sinh tải Flash-sale theo phân phối Zipf (`θ ∈ {0; 0,3; 0,5; 0,7; 0,9}` và chế độ *"một món"* qua hoán vị cố định theo `seed`), chọn kho `uniform` / `single-warehouse` / đa kho, backoff lũy thừa tối đa 5 lần retry.
+- `transactions/`: Nghiệp vụ `New-Order` (1–5 mặt hàng, các biến thể `P0`, `P1`, `P2` chia slot, `P3` điều tiết, cấp mã theo lô) và `Payment` tách biệt khỏi tầng kết nối.
+- `benchmark/`: Tiến trình sinh tải đa worker (vòng đóng & vòng mở), tách riêng `30 s` warmup và `60 s` đo chính thức, thu thập `tps_per_second.csv`, độ trễ `p50/p95/p99` và chỉ số hệ thống.
+- `validation/`: Kiểm chứng độc lập **ba luật tồn kho (`INV1` không âm kho, `INV2` đối soát tồn đầu − tồn cuối = tổng `order_line` đã commit, `INV3` không trùng `request_id`)** bằng cả Python lẫn câu truy vấn/aggregation chéo trên DBMS (`doc_reconciliation`).
+- `data/`: Khởi tạo lược đồ 9 bảng/collection TPC-C, nạp dữ liệu (`W = 10` hoặc `W = 12`, `100.000` mặt hàng/kho), quản lý snapshot và khôi phục trạng thái sạch trước mỗi lần lặp.
+
+### 4.2. Hạ tầng và độ bền tương đương (Mục 2.1.3)
+
+| Thành phần | Hạ tầng AWS chính thức (Mục 2.2–2.5) | Docker Compose phát triển / Mục 1.4 & 2.6 | Cấu hình bộ nhớ đệm & Độ bền giao dịch |
+| :--- | :--- | :--- | :--- |
+| **MySQL 8.4.8** | `m6i.8xlarge` (giới hạn `24 vCPU / 60 GiB`) | `8 vCPU / 16 GiB` (`:13306`) | Buffer pool `3 GiB` (`baseline-tuned`), `innodb_flush_log_at_trx_commit = 1`, `sync_binlog = 1`. |
+| **MongoDB 8.0.20** | `m6i.8xlarge` (giới hạn `24 vCPU / 60 GiB`) | `8 vCPU / 16 GiB` (`:27018`) | Replica Set 1 nút `flashsale`, WiredTiger cache `3 GiB`, `readConcern: "snapshot"`, `writeConcern: {w: "majority", j: true}`. |
+| **TiDB v8.5.7** | TiDB `c6i.4xlarge` + PD `c6i.large` + `3 ×` TiKV `m6i.large` (tổng `24 vCPU / 60 GiB`) | `1 PD + 1 TiDB + 3 TiKV` (tổng `8 vCPU / 16 GiB`, SQL `:14000`, PD `:12379`) | Block cache `1 GiB × 3 TiKV = 3 GiB`, Raft log đồng bộ mặc định, `pessimistic`, `rf = 1` (và `rf = 3` ở nhóm R2). |
+| **Máy sinh tải** | VM riêng `c6i.4xlarge` (`16 vCPU`), EBS `gp3` | Chạy cùng máy dev (ghi nhãn *sơ bộ*) | Đa tiến trình Python 3.12 (CPU máy tải thực đo `≤ 78%`, không là nút thắt). |
+
+---
+
+## 5. Hướng dẫn Cài đặt & Vận hành
+
+### 5.1. Thiết lập môi trường (Ubuntu 24.04 LTS / WSL2)
+
+Yêu cầu máy ảo `x86_64` có Python 3.12, `venv`, Docker Engine và Docker Compose V2 (khuyến nghị `≥ 12 vCPU, 20 GiB RAM` khi nạp dataset đầy đủ `W = 10`):
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y python3.12 python3.12-venv git
-```
 
-Nếu VM chưa có Docker Engine và plugin Compose, chạy bước quản trị dưới đây rồi đăng nhập lại để quyền nhóm Docker có hiệu lực. [Hướng dẫn cài Docker chính thức](https://docs.docker.com/engine/install/ubuntu/)
-
-```bash
+# Nếu máy ảo chưa cài Docker Engine & Compose V2 (tách riêng bước cần quyền quản trị):
 sudo bash scripts/bootstrap-docker.sh --install
-sudo usermod -aG docker "$USER"
+sudo usermod -aG docker "$USER"   # đăng nhập lại sau lệnh này
 ```
 
-Từ gốc checkout, tạo môi trường Python, chạy unit test và kiểm tra Docker. Có thể sao chép `.env.example` thành `.env` để đổi cổng loopback khi cần.
+Khởi tạo môi trường ảo Python, chạy bộ unit test và kiểm tra trạng thái Docker:
 
 ```bash
 bash scripts/setup.sh
@@ -41,9 +119,25 @@ source .venv/bin/activate
 flashsale doctor
 ```
 
-## Kiểm tra nhanh một DBMS
+### 5.2. Chạy Demo UI Mục 1.4 (MongoDB Compass & MySQL Workbench)
 
-Ví dụ dưới dùng MySQL. Trên VM của TV2 dùng `mongo`, còn trên VM của TV3 dùng `tidb`.
+Thực hiện trên máy cá nhân (Windows/macOS/Linux có Docker Desktop), chỉ bật **một hệ tại một thời điểm** (chi tiết từng bước chụp hình tại [`docs/demo-ui-1.4.md`](docs/demo-ui-1.4.md)):
+
+```bash
+# 1. Demo MongoDB 8.0.20 (Compass: mongodb://127.0.0.1:27018/?directConnection=true)
+docker compose -f docker/compose.mongo.yml up -d
+docker exec -i flashsale-mongo-mongo-1 mongosh --quiet < scripts/demo/demo_mongo_1.4.js
+docker compose -f docker/compose.mongo.yml stop
+
+# 2. Demo TiDB v8.5.7 (Workbench: 127.0.0.1:14000 | Dashboard: http://127.0.0.1:12379/dashboard)
+docker compose -f docker/compose.tidb.yml up -d
+# Mở scripts/demo/demo_tidb_1.4.sql trên MySQL Workbench để chạy kịch bản B.8-1 -> B.8-6
+docker compose -f docker/compose.tidb.yml stop
+```
+
+### 5.3. Kiểm tra nhanh một hệ DBMS (Integration Test & Smoke Benchmark)
+
+Thay `mysql` bằng `mongo` hoặc `tidb` tùy hệ cần kiểm tra (chỉ chạy 1 hệ tại một thời điểm):
 
 ```bash
 flashsale start mysql
@@ -53,141 +147,68 @@ flashsale smoke mysql
 flashsale stop mysql
 ```
 
-Smoke tạo dataset nhỏ, kiểm tra tình huống hết hàng và dọn database tạm. Có thể dùng `flashsale smoke mysql --start` để CLI tự khởi động hệ đang dừng và dừng lại sau smoke. `bash scripts/setup.sh --smoke-all` cài môi trường, tải image đã pin và smoke tuần tự cả ba hệ.
+*(Có thể chạy `bash scripts/setup.sh --smoke-all` để tự động tải các image đã pin SHA256 và chạy smoke tuần tự cả ba hệ).*
 
-## Tự chạy baseline MySQL W=10
-
-Baseline mặc định có 8 client, θ=0, chọn kho uniform, 3 lần lặp, mỗi lần 30 giây warmup và 60 giây measurement. Chạy từng lệnh và kiểm tra kết quả trước khi sang bước tiếp theo.
+### 5.4. Quy trình nạp dữ liệu, chạy Benchmark `W = 10` & Đối soát 3 luật
 
 ```bash
-flashsale start mysql
+# 1. Khởi động MySQL (mặc định 128 MiB cho mốc baseline; đặt 3 GiB cho baseline-tuned)
+FLASHSALE_MYSQL_BUFFER_POOL_BYTES=3221225472 flashsale start mysql
 flashsale status mysql
 
-DATASET=$(flashsale load mysql --config configs/baseline.toml |
+# 2. Nạp dataset W=10 (9 bảng TPC-C) và lưu tên database
+DATASET=$(flashsale load mysql --config configs/baseline-tuned.toml |
     python -c 'import json,sys; print(json.load(sys.stdin)["database"])')
-flashsale run mysql --config configs/baseline.toml --dataset "$DATASET" --reset-between
-```
 
-Lưu `run_id` của lần lặp cuối nếu muốn chạy lại đối soát khi database còn giữ nguyên trạng thái của lượt đó. Thay `RUN_UUID_HEX` bằng giá trị thực rồi dừng MySQL.
+# 3. Chạy 3 lần lặp độc lập (30s warmup + 60s đo), tự động khôi phục dataset giữa các lần
+flashsale run mysql --config configs/baseline-tuned.toml --dataset "$DATASET" --reset-between
 
-```bash
+# 4. Đối soát độc lập lại 3 luật tồn kho (thay RUN_UUID_HEX bằng run_id thực tế) và dừng hệ
 flashsale validate mysql --run-id RUN_UUID_HEX
 flashsale stop mysql
 ```
 
-Mỗi lần lặp có `manifest.json`, `result.json` và `result.csv` trong `results/<run_id>/`. Chỉ đưa các lượt `VALID` có cấu hình so sánh tương đương vào bảng hiệu năng. `results/examples/` chứa ví dụ định dạng.
+Mỗi lần chạy xuất đầy đủ `manifest.json` (phiên bản, digest image, cấu hình cache/độ bền, Git commit), `result.json`, `result.csv` và `tps_per_second.csv` vào `results/<run_id>/`.
 
-**MySQL-chỉnh (`configs/baseline-tuned.toml`)**: đề yêu cầu thêm một mốc MySQL có buffer pool tương đương cache của TiKV/MongoDB (3 GiB = 3 TiKV x 1 GiB) để so công bằng. Đặt biến rồi khởi động lại MySQL (dữ liệu giữ nguyên trong volume; cần `load` lại nếu muốn dataset mới):
+### 5.5. Bảng tra cứu lệnh CLI `flashsale`
 
-```bash
-flashsale stop mysql
-FLASHSALE_MYSQL_BUFFER_POOL_BYTES=3221225472 flashsale start mysql
-flashsale run mysql --config configs/baseline-tuned.toml --dataset "$DATASET" --reset-between
-```
+| Lệnh CLI | Chức năng |
+| :--- | :--- |
+| `flashsale doctor` · `flashsale status ENGINE` | Kiểm tra môi trường chung và readiness thực tế của từng DBMS (`mysql`, `mongo`, `tidb`). |
+| `flashsale start ENGINE` · `flashsale stop ENGINE` | Bật hoặc dừng container của hệ tương ứng (bảo toàn volume dữ liệu). |
+| `flashsale smoke ENGINE [--variant p2 --slots 9]` | Nạp dataset thu gọn, kiểm thử tình huống hết hàng, đối soát 3 luật rồi tự dọn sạch. |
+| `flashsale load ENGINE --config PROFILE` | Khởi tạo lược đồ, nạp dữ liệu TPC-C và xuất fingerprint dataset. |
+| `flashsale reset ENGINE --config PROFILE --dataset NAME --confirm NAME` | Khôi phục tồn kho và bảng đơn hàng về trạng thái ban đầu trước lượt đo mới. |
+| `flashsale run ENGINE --config PROFILE --dataset NAME --reset-between` | Thực thi điểm đo nhiều lần lặp, thu thập độ trễ, xung đột và tự động kiểm 3 luật. |
+| `flashsale validate ENGINE --run-id ID` | Chạy kiểm tra độc lập 3 luật tồn kho + câu truy vấn đối soát chéo trên DB. |
+| `flashsale report --results-dir DIR --out OUT` | Tổng hợp `INDEX.csv`, `SUMMARY.md` và phân tích độ ổn định warmup. |
+| `flashsale drop ENGINE --dataset NAME --confirm NAME` | Xóa tường minh dataset đã đăng ký (yêu cầu tên xác nhận khớp tuyệt đối). |
 
-Runner từ chối chạy nếu nhãn không khớp buffer pool thực (`baseline` bắt buộc 128 MiB, `baseline-tuned` bắt buộc lớn hơn). Mọi lần chạy MySQL ghi `buffer_pool_bytes`, `flush_at_commit`, `sync_binlog` vào manifest. MongoDB ghi `j: true` trong writeConcern giao dịch và `wiredtiger_cache_bytes` (đặt bằng `FLASHSALE_MONGO_CACHE_GB`, mặc định 3).
-
-**Chạy cả ma trận 2.1 cho một hệ và tổng hợp:**
-
-```bash
-scripts/run-matrix-2.1.sh mysql --dry-run          # in danh sách điểm, không chạy
-scripts/run-matrix-2.1.sh mysql                    # lưới evidence; --grid full cho toàn bộ θ × client
-flashsale report --results-dir results --out results/report   # INDEX.csv, SUMMARY.md, kiểm warmup
-```
-
-`run`/`benchmark` có thêm `--theta` và `--hot-item`. Đặt `FLASHSALE_IOSTAT_SSH=ubuntu@<IP VM DBMS>` để ghi `iostat` mỗi điểm đo. Script dừng ngay khi một điểm lỗi hoặc INVALID (trừ `idempotency-off`, vốn dự kiến INVALID).
-
-**Vẽ TPS theo giây để kiểm warmup** (không cần thư viện ngoài, ra file SVG):
+### 5.6. Tái lập các ma trận thực nghiệm & Kiểm chứng số liệu báo cáo
 
 ```bash
-python scripts/plot_tps_per_second.py --results-dir results/official/2.1-aws
+# Chạy lưới thực nghiệm theo từng mục (thêm --dry-run để xem trước danh sách cấu hình):
+bash scripts/run-matrix-2.1.sh mysql --dry-run
+bash scripts/run-matrix-2.2.sh mysql --dry-run
+bash scripts/run-matrix-2.3.sh --dry-run
+
+# Chạy các kịch bản Online Schema Evolution (Mục 2.6: E1, E2, E3) & vẽ lại biểu đồ:
+bash scripts/run-2.4-e1.sh mysql
+bash scripts/run-2.4-eager.sh mysql
+bash scripts/run-2.4-batch.sh mysql
+Q_LIST="5 25 50" bash scripts/run-2.4-lazy.sh mysql
+python scripts/plot-2.4.py
+
+# Vẽ biểu đồ Phần 2 và đối chiếu tự động 285 con số trong báo cáo với CSV gốc:
+python scripts/make_figures.py
+python scripts/verify_doc_numbers.py
 ```
 
-**Kiểm warmup 30 giây**: mỗi lượt xuất `tps_per_second.csv` và `warmup_stability` trong `result.json` (TPS 10 giây cuối warmup so với 10 giây đầu đo; `drift_pct` lớn nghĩa là cần kéo dài warmup cho mọi hệ).
+---
 
-Các điểm đo phụ theo đề dùng cùng cách chạy, chỉ đổi `--config`: `configs/baseline-single-warehouse.toml` (θ=0, một kho), `configs/baseline-1client.toml` (1 client), `configs/payment-ytd.toml` (Payment bật `w_ytd`/`d_ytd`) và `configs/idempotency-off.toml` (tắt mã chống trùng, lược đồ và dataset riêng; INVALID luật 3 là kết quả dự kiến, không xếp hạng). Ba profile baseline dùng chung một dataset, chỉ cần `load` một lần.
+## 6. Tài liệu tham chiếu bổ sung trong Repo
 
-## Lệnh vận hành
-
-| Lệnh | Khi dùng |
-| --- | --- |
-| `flashsale doctor`, `flashsale status ENGINE` | Kiểm tra môi trường chung và trạng thái một hệ. |
-| `flashsale start ENGINE`, `flashsale stop ENGINE` | Khởi động hoặc dừng container dự án. Dừng giữ volume và dữ liệu. |
-| `flashsale load ENGINE --config PROFILE` | Tạo dataset UUID và in tên database, fingerprint và số dòng. |
-| `flashsale reset ENGINE --config PROFILE --dataset NAME --confirm NAME` | Khôi phục dataset đã dùng. Tên xác nhận phải khớp tên dataset. |
-| `flashsale run ENGINE --config PROFILE --dataset NAME --reset-between` | Chạy một điểm đo nhiều lần lặp. Có thể dùng `benchmark` thay `run`. |
-| `flashsale validate ENGINE --run-id ID` | Chạy lại ba luật trên dataset của run khi dữ liệu còn ở trạng thái tương ứng. |
-| `flashsale drop ENGINE --dataset NAME --confirm NAME` | Xóa đúng dataset đã đăng ký khi nhóm xác nhận cần xóa. |
-
-**[Nghiệm thu mục 2.1](docs/acceptance-2.1.md)** có kết quả đo thật, khác biệt so với đề và danh sách NOT TESTED; dữ liệu chính thức ở [results/official/2.1/](results/official/2.1/INDEX.csv). [Hướng dẫn cho nhóm](docs/trien-khai-2.1.md) có lệnh baseline một kho, lượt kiểm luật, lượt so sánh ba hệ và cách bàn giao kết quả. Xem thêm [ánh xạ yêu cầu](docs/requirements-2.1.md), [các quyết định thực nghiệm](docs/assumptions.md) và [định nghĩa trường kết quả](docs/experiment-2.1.md). Mục 2.2 đang làm: biến thể trừ kho P0/P1/P2 và lệnh chạy ở [docs/experiment-2.2.md](docs/experiment-2.2.md) (mã và test đơn vị, chưa có số đo). Mục 2.3 (TiDB): nhóm A–E.a, đặt Region/leader, hệ số tăng tốc ở [docs/experiment-2.3.md](docs/experiment-2.3.md) (mã và test đơn vị, chưa có số đo).
-
-## Mục 2.4 – Online Schema Evolution trên MySQL, MongoDB và TiDB (E1, E2, E3)
-
-Thực nghiệm đổi lược đồ khi đang bán hàng (thêm `ol_discount` và `ol_mig_state` vào ~3 triệu dòng/tài liệu `order_line` ở `W=10`, tải nền Flash-sale `64 client`, `θ=0,5` kèm giao dịch đọc `"Xem đơn cũ"` chiếm tỉ lệ `q`). Xem báo cáo đầy đủ kèm **Biểu đồ 6, 6b**, bằng chứng `metadata_locks` và quy trình khuyến nghị 6 bước tại **[docs/experiment-2.4.md](docs/experiment-2.4.md)**.
-
-Cách chạy:
-```bash
-bash scripts/run-2.4-eager.sh mysql                                    # P1 – Eager (q=25%)
-bash scripts/run-2.4-batch.sh mysql                                    # P2 – Batch nền (lô 1.000 và 5.000 dòng, q=25%)
-Q_LIST="5 25 50" bash scripts/run-2.4-lazy.sh mysql                    # P3 – Lazy (quét q = 5%, 25%, 50%)
-PARTS="baseline e3_batch e1" bash scripts/run-2.4-missing.sh mongo     # Đường nền none, E3 Batch q=5/50%, và E1 DDL/MDL
-bash scripts/run-2.4-tidb-compact.sh                                   # TiDB 8.5.7 bản gọn (baseline, E2, E1)
-python scripts/plot-2.4.py                                             # Xuất lại Biểu đồ 6 & 6b vào docs/figures/2.4/
-```
-
-### Tổng quan kết quả thực nghiệm mục 2.4 (159/159 lượt VALID: 66 MySQL + 54 MongoDB + 39 TiDB; 1 VM Docker `c6i.4xlarge`, sơ bộ, bộ đệm 3 GiB & độ bền ngang nhau)
-
-**1. So sánh 3 chiến lược chuyển dữ liệu ở cùng tải nền (`q = 25%`, thí nghiệm E2, so với đường nền chuẩn `none`):**
-
-| Hệ DBMS | Chiến lược | TPS trung vị *(min–max)* | Giảm TPS so với nền | p99 toàn pha *(ms)* | Tăng p99 so với nền | Đỉnh p99 theo giây *(ms)* | `read_clean` / `read_migrated` p99 *(ms)* | Hoàn tất migration *(s)* |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **MySQL 8.4.8** | **Nền (`none`, `q=25%`)** ([2.4-baseline](results/official/2.4-baseline/SUMMARY.md)) | **1.499,6** *(1.483,2–1.543,5)* | **0,0%** | **457,6** | **1,00×** | — | — | — |
-| **MySQL 8.4.8** | **P1 – Eager** ([2.4-eager](results/official/2.4-eager/SUMMARY.md)) | **704,9** *(684,2–773,2)* | **-53,0%** | **896,6** | **1,96×** | **8.202,9** | 13,8 / — | **71,3 s** |
-| **MySQL 8.4.8** | **P2 – Batch 5.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **1.104,8** *(1.094,2–1.106,0)* | **-26,3%** | **619,5** | **1,35×** | **846,0** | 15,3 / — | **89,7 s** |
-| **MySQL 8.4.8** | **P2 – Batch 1.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **1.255,2** *(1.254,7–1.349,5)* | **-16,3%** | **578,2** | **1,26×** | **730,2** | 15,4 / — | **106,5 s** |
-| **MySQL 8.4.8** | **P3 – Lazy (`q=25%`)** ([2.4-lazy](results/official/2.4-lazy/SUMMARY.md)) | **1.069,8** *(1.066,6–1.072,6)* | **-28,7%** | **588,5** | **1,29×** | **684,2** | **16,5 / 575,0** | **97,6 s** |
-| **MongoDB 8.0.20** | **Nền (`none`, `q=25%`)** ([2.4-baseline](results/official/2.4-baseline/SUMMARY.md)) | **2.185,4** *(2.153,0–2.277,5)* | **0,0%** | **140,7** | **1,00×** | — | 94,8 / — | — |
-| **MongoDB 8.0.20** | **P1 – Eager** ([2.4-eager](results/official/2.4-eager/SUMMARY.md)) | **2.053,0** *(2.036,8–2.062,0)* | **-6,1%** | **201,5** | **1,43×** | **479,8** | 158,4 / — | **126,8 s** |
-| **MongoDB 8.0.20** | **P2 – Batch 5.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **2.088,7** *(2.062,0–2.133,8)* | **-4,4%** | **161,1** | **1,15×** | **393,5** | 99,2 / — | **197,3 s** |
-| **MongoDB 8.0.20** | **P2 – Batch 1.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **2.172,4** *(2.080,2–2.186,8)* | **-0,6%** | **162,3** | **1,15×** | **477,7** | 107,7 / — | **207,8 s** |
-| **MongoDB 8.0.20** | **P3 – Lazy (`q=25%`)** ([2.4-lazy](results/official/2.4-lazy/SUMMARY.md)) | **1.755,2** *(1.720,6–1.777,2)* | **-19,7%** | **143,6** | **1,02×** | **234,0** | **99,2 / 102,6** | **202,0 s** |
-| **TiDB 8.5.7** | **Nền (`none`, `q=25%`)** ([2.4-baseline](results/official/2.4-baseline/SUMMARY.md)) | **980,1** *(909,7–1.005,2)* | **0,0%** | **276,6** | **1,00×** | — | 35,5 / — | — |
-| **TiDB 8.5.7** | **P1 – Eager** ([2.4-eager](results/official/2.4-eager/SUMMARY.md)) | **568,5** *(532,8–619,7)* | **-42,0%** | **588,5** | **2,13×** | **1.668,5** | 60,0 / — | **81,3 s** |
-| **TiDB 8.5.7** | **P2 – Batch 5.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **702,1** *(523,4–748,0)* | **-28,4%** | **506,4** | **1,83×** | **934,1** | 55,1 / — | **117,4 s** |
-| **TiDB 8.5.7** | **P2 – Batch 1.000** ([2.4-batch](results/official/2.4-batch/SUMMARY.md)) | **895,0** *(753,7–918,5)* | **-8,7%** | **340,4** | **1,23×** | **599,9** | 39,9 / — | **133,8 s** |
-| **TiDB 8.5.7** | **P3 – Lazy (`q=25%`)** ([2.4-lazy](results/official/2.4-lazy/SUMMARY.md)) | **655,0** *(628,2–660,4)* | **-33,2%** | **311,8** | **1,13×** | **707,6** | **39,0 / 226,9** | **131,9 s** |
-
-**2. Ảnh hưởng của tỉ lệ truy cập dữ liệu cũ `q` — Biểu đồ 6b hoàn chỉnh trên cả hai hệ (thí nghiệm E3: P2 Batch 1.000 so với P3 Lazy):**
-
-| Hệ DBMS | Tỉ lệ `q` | Nền chuẩn (`none`) TPS / p99 | **P2 – Batch 1.000** TPS *(giảm)* / p99 *(× nền)* | **P3 – Lazy** TPS *(giảm)* / p99 *(× nền)* | Dòng on-demand (Lazy) | Hoàn tất P2 / P3 *(s)* |
-| --- | --- | --- | --- | --- | --- | --- |
-| **MySQL 8.4.8** | **`q = 5%`** | **1.262,0** *(501,5 ms)* | 988,0 *(-21,7%)* / 644,7 ms *(1,29×)* | **1.027,1** *(-18,6%)* / **603,8 ms** *(1,20×)* | **27.515** *(0,92%)* | **99,7 s** / **99,3 s** |
-| **MySQL 8.4.8** | **`q = 25%`** | **1.499,6** *(457,6 ms)* | **1.255,2** *(-16,3%)* / **578,2 ms** *(1,26×)* | 1.069,8 *(-28,7%)* / 588,5 ms *(1,29×)* | **141.056** *(4,70%)* | **106,5 s** / **97,6 s** |
-| **MySQL 8.4.8** | **`q = 50%`** | **2.011,8** *(386,1 ms)* | **1.553,4** *(-22,8%)* / 559,5 ms *(1,45×)* | 1.165,4 *(-42,1%)* / **553,3 ms** *(1,43×)* | **294.463** *(9,82%)* | **98,5 s** / **95,6 s** |
-| **MongoDB 8.0.20** | **`q = 5%`** | **1.882,9** *(152,5 ms)* | **1.835,5** *(-2,5%)* / 162,6 ms *(1,07×)* | **1.754,7** *(-6,8%)* / **157,6 ms** *(1,03×)* | **47.846** *(1,60%)* | **204,4 s** / **209,0 s** |
-| **MongoDB 8.0.20** | **`q = 25%`** | **2.185,4** *(140,7 ms)* | **2.172,4** *(-0,6%)* / 162,3 ms *(1,15×)* | **1.755,2** *(-19,7%)* / **143,6 ms** *(1,02×)* | **228.944** *(7,63%)* | **207,8 s** / **202,0 s** |
-| **MongoDB 8.0.20** | **`q = 50%`** | **3.044,2** *(101,0 ms)* | **2.829,7** *(-7,0%)* / 114,2 ms *(1,13×)* | **1.788,9** *(-41,2%)* / **107,3 ms** *(1,06×)* | **446.218** *(14,88%)* | **201,9 s** / **192,5 s** |
-
-**3. Đổi lược đồ gốc dưới tải & kẹt Metadata Lock (thí nghiệm E1, [2.4-e1](results/official/2.4-e1/E1_SUMMARY.md)):**
-
-| Hệ DBMS | Kịch bản E1 | VALID | TPS đo *(median)* | p99 toàn pha *(ms)* | Đỉnh p99 1s *(ms)* | Thời gian DDL *(s)* | Đóng băng lâu nhất *(s)* |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **MySQL 8.4.8** | `add_column_instant` | VALID | **1.415,1** | 527,3 | 714,6 | **0,28 s** | **0 s** |
-| **MySQL 8.4.8** | `add_column_copy` | 3/3 | **903,4** | 562,2 | **22.857,9** | **22,7 s** | **21 s** |
-| **MySQL 8.4.8** | `add_index_inplace` | 3/3 | **1.084,6** | 537,6 | 3.255,2 | **24,3 s** | **1 s** |
-| **MySQL 8.4.8** | **`mdl_freeze`** *(đọc `order_line` giữ 60s)* | 3/3 | **502,1** *(-66,5%)* | 350,8 | **58.066,7** | **58,0 s** | **57 s** |
-| **MySQL 8.4.8** | **`mdl_timeout_retry`** *(`lock_wait_timeout=3` + retry)* | 3/3 | **1.276,8** *(2,54×)* | 473,7 | **3.208,6** | 29,5 s *(timeout)* | **2 s** |
-| **MongoDB 8.0.20** | `create_index` *(không giao dịch dài)* | 3/3 | **2.125,5** | 171,8 | 422,9 | **8,8 s** | **0 s** |
-| **MongoDB 8.0.20** | `create_index_long_txn` *(đọc `order_line` giữ 60s)* | 3/3 | **706,1** *(-66,8%)* | 140,7 | 359,0 | **66,8 s** | **0 s** |
-| **TiDB 8.5.7** | `add_column_online` | 3/3 | **920,1** | 284,8 | 380,3 | **1,2 s** | **0 s** |
-| **TiDB 8.5.7** | `add_index_online` | 3/3 | **848,1** | 339,5 | 732,6 | **41,9 s** | **0 s** |
-| **TiDB 8.5.7** | **`mdl_long_txn`** *(đọc `order_line` giữ 60s)* | 3/3 | **1.042,2** | **250,9** | **422,7** | **59,3 s** | **0 s** |
-
-**Góc nhìn tổng quan & so sánh 3 hệ MySQL – MongoDB – TiDB (mục 2.4):**
-- **E1 – Kẹt Metadata Lock:** Trên **MySQL**, 1 giao dịch đọc `order_line` 60s làm `ALTER INSTANT` đóng băng cả bảng **57 giây** (`47–52` giao dịch `PENDING`, đỉnh p99 `58,1 s`, TPS `-66,5%`); đặt `lock_wait_timeout = 3` giảm đóng băng xuống **2 s** và giữ TPS gấp **2,54×**. Trên **MongoDB**, `createIndex` thường chỉ mất `8,8 s` (`0 s` đóng băng), nhưng gặp đọc 60s vẫn chờ `66,8 s` và tụt `-66,8%` TPS. **TiDB 8.5.7** là hệ duy nhất dù chờ giao dịch đọc `59,3 s` (đảm bảo 0 lỗi `schema changed`) nhưng **không chặn giao dịch mới** (`0 s` đóng băng, giữ `1.042,2 TPS`).
-- **E2 – Chuyển dữ liệu (`q=25%`):** **P2 Batch lô `1.000` thắng về TPS trên cả 3 hệ** (`-16,3%` MySQL; `-0,6%` MongoDB; `-8,7%` TiDB), còn **P1 Eager** xong nhanh nhất nhưng sụt mạnh nhất (`-53,0%` MySQL; `-42,0%` TiDB; `-6,1%` MongoDB). **P3 Lazy** giữ p99 sát nền nhất trên MongoDB (`1,02×`) và TiDB (`1,13×`).
-- **E3 (Biểu đồ 6b):** Trên **MySQL**, hai đường cắt nhau giữa `q = 5%` và `25%` (Lazy thắng ở `q = 5%`, Batch thắng ở `q = 25%–50%`); trên **MongoDB**, Batch thắng về TPS trên cả 3 mức (`+58,2%` ở `q=50%`).
-- **E2 tải cao Flash-sale (`θ = 0,9`, `128 client`, `q = 25%`, [2.4-highload](results/official/2.4-highload/SUMMARY.md), 45/45 VALID):** **P2 Batch 1.000** tiếp tục dẫn đầu TPS trên cả 3 hệ (`1.587,8 TPS` `-16,0%` MySQL; `2.478,6 TPS` `-6,5%` MongoDB; `710,4 TPS` `-33,8%` TiDB), cắt **25,5×** đỉnh p99 1s của MySQL Eager (`22,2 s → 0,87 s`).
-- *Phạm vi `NOT TESTED`: TiDB E3 (`q=5%, 50%`) và hạ tầng đa VM AWS cho 2.4 (xem chi tiết + 4 biểu đồ PNG tại [docs/experiment-2.4.md](docs/experiment-2.4.md)).*
-
-[Câu lệnh SQL và MongoDB để trình bày](docs/cau-lenh-dbms-2.1.md) có ví dụ chép vào trình soạn truy vấn, gồm EXPLAIN, New-Order, Payment và rollback.
+- [`AGENTS.md`](AGENTS.md): Quy tắc kỹ thuật, bất biến thực nghiệm và an toàn vận hành.
+- [`infra/aws/README.md`](infra/aws/README.md): Cấu hình Terraform, TiUP topology và quy trình vận hành hạ tầng AWS nhiều máy ảo.
+- [`docs/assumptions.md`](docs/assumptions.md): Các quyết định thiết kế có chủ đích và khác biệt so với TPC-C chuẩn.
+- [`docs/cau-lenh-dbms-2.1.md`](docs/cau-lenh-dbms-2.1.md): Tập câu lệnh SQL / MongoDB mẫu giải thích cơ chế giao dịch và truy vấn đối soát.
