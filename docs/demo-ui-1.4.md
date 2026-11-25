@@ -223,8 +223,8 @@ db.order_line.find().toArray();
 > - **📸 Điểm chụp TI-1 (Bước chuẩn bị):** Trình duyệt **TiDB Dashboard** → `Cluster Info → Instances` (**Hình 4.2** & nửa trên **Hình B.6**).
 > - *Kịch bản B.8-1 & B.8-3:* **Không bắt buộc chụp** (chạy để khởi tạo bảng và đưa tồn kho từ `5 → 2` làm nền cho B.8-2).
 > - **📸 Điểm chụp TI-2 (Cuối Kịch bản B.8-2):** MySQL Workbench chạy `SELECT * FROM orders;` sau `ROLLBACK` (**Hình B.5**).
-> - **📸 Điểm chụp TI-3 (Cuối Kịch bản B.8-4):** MySQL Workbench chạy `SHOW TABLE stock REGIONS;` (ghép làm nửa dưới **Hình B.6**).
-> - **📸 Điểm chụp TI-4 (Cuối Kịch bản B.8-5):** MySQL Workbench mở 2 tab kết nối, chạy `ADMIN SHOW DDL JOBS 5;` báo `synced` (**Hình B.7**).
+> - **📸 Điểm chụp TI-3 (Cuối Kịch bản B.8-4):** MySQL Workbench truy vấn `TIKV_REGION_STATUS` & `TIKV_REGION_PEERS` xem phân bố Region (ghép làm nửa dưới **Hình B.6**).
+> - **📸 Điểm chụp TI-4 (Cuối Kịch bản B.8-5):** MySQL Workbench mở 2 tab kết nối, truy vấn `information_schema.DDL_JOBS` báo `synced` (**Hình B.7**).
 > - *Kịch bản B.8-6:* **Không bắt buộc chụp trong báo cáo** (tùy chọn chụp lúc tab 2 báo `Running...` nếu muốn đưa lên slide dẫn sang Mục 2.2).
 >
 > **Mẹo giao diện MySQL Workbench:** Ở góc trên bên phải cửa sổ Workbench, bật sáng đủ **3 biểu tượng khung nhìn** để màn hình hiện đồng thời: **(1) SQL Editor** ở trên, **(2) Result Grid** ở giữa và **(3) Action Output** ở dưới cùng.
@@ -357,6 +357,7 @@ SELECT * FROM orders;
 ---
 
 ### Kịch bản B.8-4: Quan sát phân bố cụm PD / TiKV, cấu hình & Region (**[📸 Điểm chụp TI-3: nửa dưới Hình B.6]**)
+*(Toàn bộ câu lệnh dưới đây dùng chuẩn `SELECT ... FROM information_schema` tương thích 100% với bộ kiểm tra cú pháp của MySQL Workbench, không bị báo dấu `x` đỏ như `SHOW CONFIG` / `SHOW TABLE ... REGIONS`):*
 ```sql
 USE demo_flashsale;
 
@@ -365,8 +366,10 @@ SELECT TYPE, INSTANCE, STATUS_ADDRESS, VERSION
 FROM information_schema.CLUSTER_INFO
 ORDER BY TYPE, INSTANCE;
 
--- 2. Kiểm chứng cấu hình Phụ lục B.7: block-cache = 1GiB trên mỗi TiKV (tổng 3 GiB) & max-replicas = 1
-SHOW CONFIG WHERE name IN ('storage.block-cache.capacity', 'replication.max-replicas');
+-- 2. Kiểm chứng cấu hình nhân bản PD (max-replicas = 1 cho lượt đo chính Mục B.7)
+SELECT TYPE, INSTANCE, `KEY`, VALUE
+FROM information_schema.CLUSTER_CONFIG
+WHERE `KEY` = 'replication.max-replicas';
 
 -- 3. Kiểm chứng chế độ giao dịch mặc định (pessimistic) và tối ưu 2PC (async commit, 1PC)
 SHOW VARIABLES WHERE Variable_name IN (
@@ -376,12 +379,21 @@ SHOW VARIABLES WHERE Variable_name IN (
 -- 4. Kiểm tra kế hoạch thực thi đi đúng khóa chính
 EXPLAIN ANALYZE SELECT * FROM stock WHERE s_w_id = 1 AND s_i_id = 101;
 
--- 5. Bôi đen chạy RIÊNG câu dưới đây để hiện danh sách Region lên Result Grid rồi bấm chụp:
-SHOW TABLE stock REGIONS;
+-- 5. Đặt con trỏ vào câu dưới đây bấm Ctrl + Enter để hiện Region của bảng stock rồi bấm chụp:
+SELECT DISTINCT
+  r.TABLE_NAME,
+  r.REGION_ID,
+  r.START_KEY,
+  r.END_KEY,
+  p.PEER_ID AS LEADER_ID,
+  p.STORE_ID AS LEADER_STORE_ID
+FROM information_schema.TIKV_REGION_STATUS r
+JOIN information_schema.TIKV_REGION_PEERS p
+  ON r.REGION_ID = p.REGION_ID AND p.IS_LEADER = 1
+WHERE r.DB_NAME = 'demo_flashsale' AND r.TABLE_NAME = 'stock';
 ```
 > **📸 DỪNG LẠI CHỤP ẢNH TI-3 (ghép đôi với Ảnh TI-1 làm Hình B.6):**
-> - Trên MySQL Workbench, lấy rõ câu `SHOW TABLE stock REGIONS;` đang được tô sáng và bảng **Result Grid** bên dưới hiện rõ các cột `TABLE_NAME` (`stock`), `REGION_ID`, `LEADER_ID`, **`LEADER_STORE_ID`** và `PEERS`.
-> - *(Tùy chọn cho slide Mục 2.1.3: Có thể bôi đen chạy riêng câu số 2 `SHOW CONFIG ...` ở trên và chụp thêm 1 tấm nhỏ để chứng minh 3 nút TiKV đặt đúng `1GiB` block-cache).*
+> - Trên MySQL Workbench, lấy rõ câu truy vấn `TIKV_REGION_STATUS` và bảng **Result Grid** bên dưới hiện rõ các cột `TABLE_NAME` (`stock`), `REGION_ID`, `LEADER_ID` và **`LEADER_STORE_ID`**.
 
 ---
 
@@ -415,15 +427,18 @@ SHOW TABLE stock REGIONS;
      ADD COLUMN ol_mig_state VARCHAR(16) NOT NULL DEFAULT 'UNMIGRATED';
    ```
    > **Lưu ý cơ chế Metadata Lock của TiDB v8.5.7:** Nếu Kết nối 2 đợi phiên đọc cũ ở Kết nối 1 kết thúc, bạn có thể mở thêm **Kết nối 3** chạy `SELECT * FROM demo_ose.order_line;` hoặc `INSERT` đơn mới — Kết nối 3 vẫn thực thi **xong ngay tức thì (0 giây đóng băng)**, không hề bị chặn dây chuyền toàn bảng như Exclusive MDL của MySQL (sẽ phân tích sâu ở **Mục 2.6.1**). Sau khi chạy `COMMIT;` ở Kết nối 1, lệnh `ALTER TABLE` hoàn tất ngay trong vài trăm ms.
-3. Trên **Kết nối 2 (`TiDB_Local (1)`)**, bôi đen chạy riêng câu kiểm tra lịch sử Online DDL rồi bấm chụp:
+3. Trên **Kết nối 2 (`TiDB_Local (1)`)**, chạy câu chuẩn SQL dưới đây để kiểm tra lịch sử Online DDL (thay cho `ADMIN SHOW DDL JOBS 5;` không bị dấu `x` đỏ trên Workbench) rồi bấm chụp:
    ```sql
-   ADMIN SHOW DDL JOBS 5;
+   SELECT JOB_ID, DB_NAME, TABLE_NAME, JOB_TYPE, STATE
+   FROM information_schema.DDL_JOBS
+   ORDER BY JOB_ID DESC
+   LIMIT 5;
    ```
 > **📸 DỪNG LẠI CHỤP ẢNH TI-4 (dùng cho Hình B.7):**
 > Khung hình MySQL Workbench cần lấy rõ:
 > 1. **Thanh tab trên cùng:** Thấy rõ đang mở song song **2 kết nối** (`TiDB_Local` và `TiDB_Local (1)`).
-> 2. **SQL Editor (trên):** Hiện câu `ALTER TABLE order_line ADD COLUMN ...` và `ADMIN SHOW DDL JOBS 5;`.
-> 3. **Result Grid (giữa):** Bảng `DDL JOBS` có dòng `DB_NAME = demo_ose`, `TABLE_NAME = order_line`, cột **`STATE = synced`**.
+> 2. **SQL Editor (trên):** Hiện câu `ALTER TABLE order_line ADD COLUMN ...` và câu `SELECT ... FROM information_schema.DDL_JOBS`.
+> 3. **Result Grid (giữa):** Bảng `DDL_JOBS` có dòng `DB_NAME = demo_ose`, `TABLE_NAME = order_line`, cột **`STATE = synced`**.
 > 4. **Action Output (dưới):** Dòng log `ALTER TABLE ...` có tích xanh hoàn tất nhanh (`0.xxx sec`).
 
 ---
