@@ -38,7 +38,15 @@ Tài liệu này hướng dẫn từng bước **khởi động, kiểm chứng 
 
 ## Phần I. Kịch bản Demo MongoDB 8.0.20 trên **MongoDB Compass** (Phụ lục A.7 & A.8)
 
-### Kịch bản A.8-1: Khởi tạo, kết nối Replica Set & Kiểm chứng phiên bản (**Hình 4.1 & Hình A.1**)
+> **📌 Tổng hợp nhanh các điểm cần chụp hình trong Phần I (5 điểm bắt buộc):**
+> - **📸 Điểm chụp MG-1 (Cuối Kịch bản A.8-1):** Giao diện Compass + output `db.version()` & `rs.status()` (**Hình 4.1 & Hình A.1**).
+> - *Kịch bản A.8-2:* **Không bắt buộc chụp** (chạy để tạo dữ liệu nền `s_quantity: 5` cho A.8-3).
+> - **📸 Điểm chụp MG-2 (Cuối Kịch bản A.8-3):** Output `mongosh` hiện `modifiedCount: 1` và `modifiedCount: 0` (**Hình A.2**).
+> - **📸 Điểm chụp MG-3 (Cuối Kịch bản A.8-4):** Output `db.orders.find()` chỉ còn đơn `9001`, không có `9002` (**Hình A.3**).
+> - **📸 Điểm chụp MG-4 (Giữa Kịch bản A.8-5):** Giao diện Document của `demo_ose.order_line` hiện song song bản ghi cũ & mới (**Hình A.4**).
+> - **📸 Điểm chụp MG-5 (Cuối Kịch bản A.8-6):** Output `wiredTigerCacheBytes: 3221225472` + tab **Performance** (**Hình A.5**).
+
+### Kịch bản A.8-1: Khởi tạo, kết nối Replica Set & Kiểm chứng phiên bản (**[📸 Điểm chụp MG-1: Hình 4.1 & Hình A.1]**)
 1. Mở PowerShell tại thư mục repo `e:\BTL-DBMS`, bật container MongoDB:
    ```powershell
    docker compose -f docker/compose.mongo.yml up -d
@@ -60,11 +68,11 @@ Tài liệu này hướng dẫn từng bước **khởi động, kiểm chứng 
      id: m._id, name: m.name, stateStr: m.stateStr, health: m.health
    }));
    ```
-   - **Kết quả kỳ vọng:** Trả về `"8.0.20"`, `stateStr: "PRIMARY"`, `health: 1`. *(Chụp **Hình 4.1 / Hình A.1**: giao diện Compass + output `rs.status()`)*.
+   > **📸 DỪNG LẠI CHỤP ẢNH MG-1 (dùng cho Hình 4.1 và Hình A.1):** Lấy rõ cột kết nối `127.0.0.1:27018` bên trái và khung `mongosh` trả về `"8.0.20"`, `stateStr: "PRIMARY"`, `health: 1`.
 
 ---
 
-### Kịch bản A.8-2: CRUD cơ bản trên mô hình Document BSON (`demo_flashsale`)
+### Kịch bản A.8-2: CRUD cơ bản trên mô hình Document BSON (`demo_flashsale`) *(Không bắt buộc chụp — chạy tạo dữ liệu nền)*
 Chạy tiếp trong thanh **`>_ MONGOSH`** của Compass:
 ```javascript
 use demo_flashsale;
@@ -91,7 +99,7 @@ db.orders.find().toArray(); // []
 
 ---
 
-### Kịch bản A.8-3: Cập nhật nguyên tử có điều kiện — Chống âm kho (**Hình A.2**)
+### Kịch bản A.8-3: Cập nhật nguyên tử có điều kiện — Chống âm kho (**[📸 Điểm chụp MG-2: Hình A.2]**)
 ```javascript
 // Lần (a): Mua 3 khi kho còn 5 -> thỏa s_quantity >= 3 -> modifiedCount: 1, tồn giảm còn 2
 db.stock.updateOne(
@@ -108,12 +116,12 @@ db.stock.updateOne(
 // Kiểm chứng: s_quantity giữ nguyên là 2 (không phát sinh tồn kho âm)
 db.stock.findOne({ s_w_id: 1, s_i_id: 101 });
 ```
-- **Chụp Hình A.2:** Output `mongosh` thể hiện rõ `modifiedCount: 1` ở lần (a) và `modifiedCount: 0` ở lần (b).
+> **📸 DỪNG LẠI CHỤP ẢNH MG-2 (dùng cho Hình A.2):** Lấy rõ output `mongosh` có đủ `modifiedCount: 1` (lần a), `modifiedCount: 0` (lần b) và `s_quantity: 2`.
 - **Ý nghĩa nối sang Phần 2:** `updateOne` chỉ đảm bảo nguyên tử trên **1 document** `stock`. Khi tạo đơn hàng cần đồng thời trừ `stock` và chèn `orders`/`order_line`, nếu không bọc trong Multi-document Transaction (như Thiết kế (b) ở **Mục 2.3.3**), ứng dụng sập giữa 2 lệnh sẽ làm mất tồn kho mà không có đơn (vi phạm `INV2`).
 
 ---
 
-### Kịch bản A.8-4: Multi-document ACID Transaction — `COMMIT` & `ABORT` (**Hình A.3**)
+### Kịch bản A.8-4: Multi-document ACID Transaction — `COMMIT` & `ABORT` (**[📸 Điểm chụp MG-3: Hình A.3]**)
 ```javascript
 // --- Phiên (a) COMMIT: Mua nốt 2 đơn vị khi kho còn 2 -> tồn về 0 & lưu đơn 9001 ---
 const s1 = db.getMongo().startSession();
@@ -153,14 +161,15 @@ if (res2.modifiedCount === 0) {
 }
 s2.endSession();
 
-// Kiểm chứng (Chụp Hình A.3): tồn = 0 và db.orders.find() CHỈ còn đơn 9001
+// Kiểm chứng: tồn = 0 và db.orders.find() CHỈ còn đơn 9001
 db.stock.findOne({ s_w_id: 1, s_i_id: 101 });
 db.orders.find().toArray();
 ```
+> **📸 DỪNG LẠI CHỤP ẢNH MG-3 (dùng cho Hình A.3):** Lấy rõ dòng log `COMMIT` / `ABORT`, `s_quantity: 0` và mảng `db.orders.find().toArray()` chỉ chứa duy nhất đơn `9001` (không có `9002`).
 
 ---
 
-### Kịch bản A.8-5: Đổi lược đồ trực tuyến — Schema-on-read & Backfill (**Hình A.4**)
+### Kịch bản A.8-5: Đổi lược đồ trực tuyến — Schema-on-read & Backfill (**[📸 Điểm chụp MG-4: Hình A.4]**)
 ```javascript
 use demo_ose;
 db.order_line.drop();
@@ -177,7 +186,7 @@ db.order_line.insertOne({
   ol_discount: 1200, ol_mig_state: "MIGRATED"
 });
 ```
-> **Dừng lại bấm Refresh trên giao diện Compass → mở `demo_ose.order_line` để chụp Hình A.4:** Cho thấy rõ document cũ (chưa có `ol_discount`) và document mới (`3001` có `ol_discount: 1200`, `ol_mig_state: "MIGRATED"`) cùng tồn tại song song mà không phát sinh khóa bảng/MDL. Sau đó chạy tiếp bước backfill:
+> **📸 DỪNG LẠI CHỤP ẢNH MG-4 (dùng cho Hình A.4 — chụp TRƯỚC khi chạy lệnh backfill bên dưới):** Bấm **Refresh** ở cột trái Compass → nhấp vào collection **`demo_ose` → `order_line`** để chụp màn hình Document GUI hiển thị song song document cũ (`1001`, `1002` chưa có `ol_discount`) và document mới (`3001` có `ol_discount: 1200`, `ol_mig_state: "MIGRATED"`). Sau khi chụp xong mới chạy tiếp bước 3:
 
 ```javascript
 // 3. Cập nhật (backfill) có điều kiện các document cũ chưa chuyển đổi
@@ -192,22 +201,35 @@ db.order_line.find().toArray();
 
 ---
 
-### Kịch bản A.8-6: Giám sát vận hành — WiredTiger Cache & Connections (**Hình A.5**)
-```javascript
-// 1. Kiểm chứng bộ nhớ đệm WiredTiger đặt tường minh đúng 3 GiB = 3,221,225,472 byte
-db.serverStatus().wiredTiger.cache["maximum bytes configured"];
-
-// 2. Kiểm tra số kết nối hiện hành và các thao tác đang hoạt động
-db.serverStatus().connections;
-db.currentOp({ active: true });
-```
-- Bấm thêm vào tab **Performance** trên thanh điều hướng của Compass để quan sát metrics thời gian thực và chụp **Hình A.5**.
+### Kịch bản A.8-6: Giám sát vận hành — WiredTiger Cache & Connections (**[📸 CHỤP HÌNH A.5]**)
+1. Trong thanh **`>_ MONGOSH`**, gõ `cls` để xóa màn hình cũ rồi chạy câu lệnh gộp ngắn gọn sau để cả 3 chỉ số hiển thị trọn vẹn trong 1 khung hình (không bị trôi chữ):
+   ```javascript
+   ({
+     wiredTigerCacheBytes: db.serverStatus().wiredTiger.cache["maximum bytes configured"],
+     connections: db.serverStatus().connections,
+     activeOpsCount: db.currentOp({ active: true }).inprog.length
+   })
+   ```
+   *(Kết quả hiển thị rõ `wiredTigerCacheBytes: 3221225472` = đúng 3 GiB).*
+2. **Cách mở tab Performance trên MongoDB Compass giao diện mới:**
+   - Nhìn sang cột bên trái dưới mục **`CONNECTIONS`**, nhấp **chuột phải** vào dòng **`127.0.0.1:27018`** *(hoặc bấm dấu **`...`** cuối dòng)* → chọn **View performance metrics** *(hoặc bấm dấu **`+`** trên hàng tab trên cùng → **Open Performance**)*.
+3. **📸 DỪNG LẠI CHỤP HÌNH A.5:** Chụp kết quả object `mongosh` ở bước 1 kèm màn hình biểu đồ thời gian thực của tab **Performance** ở bước 2.
 
 ---
 
 ## Phần II. Kịch bản Demo TiDB v8.5.7 trên **MySQL Workbench** & **TiDB Dashboard** (Phụ lục B.7 & B.8)
 
-### Bước chuẩn bị: Dừng MongoDB, bật cụm TiDB 5 nút & Kết nối UI (**Hình 4.2**)
+> **📌 Tổng hợp nhanh các điểm cần chụp hình trong Phần II (chỉ có 4 điểm bắt buộc):**
+> - **📸 Điểm chụp TI-1 (Bước chuẩn bị):** Trình duyệt **TiDB Dashboard** → `Cluster Info → Instances` (**Hình 4.2** & nửa trên **Hình B.6**).
+> - *Kịch bản B.8-1 & B.8-3:* **Không bắt buộc chụp** (chạy để khởi tạo bảng và đưa tồn kho từ `5 → 2` làm nền cho B.8-2).
+> - **📸 Điểm chụp TI-2 (Cuối Kịch bản B.8-2):** MySQL Workbench chạy `SELECT * FROM orders;` sau `ROLLBACK` (**Hình B.5**).
+> - **📸 Điểm chụp TI-3 (Cuối Kịch bản B.8-4):** MySQL Workbench chạy `SHOW TABLE stock REGIONS;` (ghép làm nửa dưới **Hình B.6**).
+> - **📸 Điểm chụp TI-4 (Cuối Kịch bản B.8-5):** MySQL Workbench mở 2 tab kết nối, chạy `ADMIN SHOW DDL JOBS 5;` báo `synced` (**Hình B.7**).
+> - *Kịch bản B.8-6:* **Không bắt buộc chụp trong báo cáo** (tùy chọn chụp lúc tab 2 báo `Running...` nếu muốn đưa lên slide dẫn sang Mục 2.2).
+>
+> **Mẹo giao diện MySQL Workbench:** Ở góc trên bên phải cửa sổ Workbench, bật sáng đủ **3 biểu tượng khung nhìn** để màn hình hiện đồng thời: **(1) SQL Editor** ở trên, **(2) Result Grid** ở giữa và **(3) Action Output** ở dưới cùng.
+
+### Bước chuẩn bị: Dừng MongoDB, bật cụm TiDB 5 nút & Kết nối UI (**[📸 Điểm chụp TI-1: Hình 4.2 & nửa trên Hình B.6]**)
 1. Chạy trong PowerShell (`e:\BTL-DBMS`):
    ```powershell
    docker compose -f docker/compose.mongo.yml stop
@@ -215,9 +237,11 @@ db.currentOp({ active: true });
    docker compose -f docker/compose.tidb.yml ps
    ```
    *(Đợi ~15–20 giây để 3 nút TiKV đăng ký đầy đủ với PD.)*
-2. **Mở TiDB Dashboard (Web UI — chụp Hình 4.2):**
+2. **Mở TiDB Dashboard trên trình duyệt:**
    - Truy cập `http://127.0.0.1:12379/dashboard` → đăng nhập Username `root`, Password *(để trống)*.
-   - Mở mục **Cluster Info → Instances**: hiển thị đủ 5 nút (`1 PD`, `1 TiDB`, `3 TiKV`) trạng thái `Up`.
+   - Menu bên trái chọn **Cluster Info** → tab **Instances**.
+   > **📸 DỪNG LẠI CHỤP ẢNH TI-1 (dùng cho Hình 4.2 và nửa trên Hình B.6):**
+   > - Lấy rõ thanh địa chỉ `127.0.0.1:12379/dashboard` và bảng danh sách đủ **5 thành phần** (`1 PD`, `1 TiDB`, `3 TiKV`: `tikv1`, `tikv2`, `tikv3`), cột **Version** đều là `v8.5.7`, cột **Status** đều tích xanh **`Up`**.
 3. **Kết nối MySQL Workbench tới TiDB:**
    - Mở **MySQL Workbench** → bấm dấu **`+`** cạnh *MySQL Connections*:
      - **Connection Name:** `TiDB_Local`
@@ -227,7 +251,7 @@ db.currentOp({ active: true });
 
 ---
 
-### Kịch bản B.8-1: Kiểm chứng phiên bản, DDL (`AUTO_RANDOM`) & CRUD cơ bản
+### Kịch bản B.8-1: Kiểm chứng phiên bản, DDL (`AUTO_RANDOM`) & CRUD cơ bản *(Không bắt buộc chụp — chạy tạo bảng nền)*
 Dán và chạy khối lệnh sau trong SQL Editor của **MySQL Workbench** (`Ctrl + Shift + Enter`):
 ```sql
 -- Tắt Safe Updates mặc định của MySQL Workbench để tránh lỗi 1175 khi DELETE/UPDATE không theo PK
@@ -279,10 +303,10 @@ SELECT * FROM orders; -- Đã xóa đơn kiểm thử, tồn kho vẫn là 5
 
 ---
 
-### Kịch bản B.8-3 & B.8-2: Trừ tồn kho có điều kiện & Giao dịch ACID (**Hình B.5**)
-> **Lưu ý thứ tự chạy:** Ta chạy **B.8-3** trước để tồn kho giảm từ `5 → 2`, rồi chạy ngay **B.8-2** để tồn kho giảm từ `2 → 0` (`COMMIT`) và chạm ngưỡng hết hàng (`ROW_COUNT() = 0` → `ROLLBACK`), khớp chính xác các con số trong bảng Phụ lục B.8.
+### Kịch bản B.8-3 & B.8-2: Trừ tồn kho có điều kiện & Giao dịch ACID (**[📸 Điểm chụp TI-2: Hình B.5]**)
+> **Lưu ý thứ tự chạy:** Chạy **B.8-3** trước để tồn kho giảm từ `5 → 2`, rồi chạy ngay **B.8-2** để tồn kho giảm từ `2 → 0` (`COMMIT`) và chạm ngưỡng hết hàng (`ROW_COUNT() = 0` → `ROLLBACK`), khớp chính xác các con số trong bảng Phụ lục B.8.
 
-#### (1) Kịch bản B.8-3 — Trừ tồn kho có điều kiện (chống âm kho)
+#### (1) Kịch bản B.8-3 — Trừ tồn kho có điều kiện *(Không bắt buộc chụp — chỉ chụp tùy chọn nếu muốn đưa thêm lên slide 1.4.3)*
 ```sql
 USE demo_flashsale;
 
@@ -299,7 +323,7 @@ WHERE s_w_id = 1 AND s_i_id = 101 AND s_quantity >= 4;
 SELECT * FROM stock WHERE s_w_id = 1 AND s_i_id = 101; -- s_quantity = 2
 ```
 
-#### (2) Kịch bản B.8-2 — Giao dịch ACID phân tán (`COMMIT` & `ROLLBACK`)
+#### (2) Kịch bản B.8-2 — Giao dịch ACID phân tán (`COMMIT` & `ROLLBACK`) (**[📸 Điểm chụp TI-2: Hình B.5]**)
 ```sql
 -- Phiên (a): Trừ nốt 2 đơn vị tồn kho (2 -> 0) và chèn đơn 'COMMITTED' -> COMMIT
 BEGIN;
@@ -321,14 +345,18 @@ WHERE s_w_id = 1 AND s_i_id = 101 AND s_quantity >= 1;
 SELECT ROW_COUNT() AS updated_rows; -- Hiển thị 0 (thiếu hàng)
 ROLLBACK;
 
--- Kiểm chứng sau ROLLBACK (Chụp Hình B.5): tồn = 0, bảng orders CHỈ có đơn 'COMMITTED'
-SELECT * FROM stock;
+-- Cuối cùng bôi đen chạy riêng câu dưới đây để hiện bảng kết quả lên Result Grid rồi bấm chụp:
 SELECT * FROM orders;
 ```
+> **📸 DỪNG LẠI CHỤP ẢNH TI-2 (dùng cho Hình B.5):**
+> Khung hình MySQL Workbench cần lấy rõ cả 3 vùng:
+> 1. **SQL Editor (trên):** Thấy khối `BEGIN; INSERT ... 'SHOULD_ROLLBACK' ... UPDATE ... ROLLBACK; SELECT * FROM orders;`.
+> 2. **Result Grid (giữa):** Bảng `orders` **chỉ có duy nhất 1 dòng** `status = 'COMMITTED'` (`qty = 2`, cột `o_id` là số ngẫu nhiên lớn của `AUTO_RANDOM`), **không có** dòng `'SHOULD_ROLLBACK'`.
+> 3. **Action Output (dưới):** Log tích xanh cho thấy lệnh `UPDATE` khi hết hàng báo `0 row(s) affected` rồi `ROLLBACK` thành công.
 
 ---
 
-### Kịch bản B.8-4: Quan sát phân bố cụm PD / TiKV, cấu hình & Region (**Hình B.6**)
+### Kịch bản B.8-4: Quan sát phân bố cụm PD / TiKV, cấu hình & Region (**[📸 Điểm chụp TI-3: nửa dưới Hình B.6]**)
 ```sql
 USE demo_flashsale;
 
@@ -345,15 +373,19 @@ SHOW VARIABLES WHERE Variable_name IN (
   'tidb_txn_mode', 'tidb_enable_async_commit', 'tidb_enable_1pc', 'transaction_isolation'
 );
 
--- 4. Quan sát REGION_ID, LEADER_STORE_ID của bảng stock và kế hoạch thực thi đi đúng khóa chính
-SHOW TABLE stock REGIONS;
+-- 4. Kiểm tra kế hoạch thực thi đi đúng khóa chính
 EXPLAIN ANALYZE SELECT * FROM stock WHERE s_w_id = 1 AND s_i_id = 101;
+
+-- 5. Bôi đen chạy RIÊNG câu dưới đây để hiện danh sách Region lên Result Grid rồi bấm chụp:
+SHOW TABLE stock REGIONS;
 ```
-- **Chụp Hình B.6:** Kết hợp màn hình **TiDB Dashboard → Cluster Info** và bảng kết quả `SHOW TABLE stock REGIONS`.
+> **📸 DỪNG LẠI CHỤP ẢNH TI-3 (ghép đôi với Ảnh TI-1 làm Hình B.6):**
+> - Trên MySQL Workbench, lấy rõ câu `SHOW TABLE stock REGIONS;` đang được tô sáng và bảng **Result Grid** bên dưới hiện rõ các cột `TABLE_NAME` (`stock`), `REGION_ID`, `LEADER_ID`, **`LEADER_STORE_ID`** và `PEERS`.
+> - *(Tùy chọn cho slide Mục 2.1.3: Có thể bôi đen chạy riêng câu số 2 `SHOW CONFIG ...` ở trên và chụp thêm 1 tấm nhỏ để chứng minh 3 nút TiKV đặt đúng `1GiB` block-cache).*
 
 ---
 
-### Kịch bản B.8-5: Online DDL không chặn giao dịch đang hoạt động (**Hình B.7**)
+### Kịch bản B.8-5: Online DDL không chặn giao dịch đang hoạt động (**[📸 Điểm chụp TI-4: Hình B.7]**)
 1. Tại **Kết nối Workbench 1 (`TiDB_Local`)**, khởi tạo bảng `demo_ose.order_line` và giữ mở một giao dịch đọc:
    ```sql
    CREATE DATABASE IF NOT EXISTS demo_ose;
@@ -383,15 +415,20 @@ EXPLAIN ANALYZE SELECT * FROM stock WHERE s_w_id = 1 AND s_i_id = 101;
      ADD COLUMN ol_mig_state VARCHAR(16) NOT NULL DEFAULT 'UNMIGRATED';
    ```
    > **Lưu ý cơ chế Metadata Lock của TiDB v8.5.7:** Nếu Kết nối 2 đợi phiên đọc cũ ở Kết nối 1 kết thúc, bạn có thể mở thêm **Kết nối 3** chạy `SELECT * FROM demo_ose.order_line;` hoặc `INSERT` đơn mới — Kết nối 3 vẫn thực thi **xong ngay tức thì (0 giây đóng băng)**, không hề bị chặn dây chuyền toàn bảng như Exclusive MDL của MySQL (sẽ phân tích sâu ở **Mục 2.6.1**). Sau khi chạy `COMMIT;` ở Kết nối 1, lệnh `ALTER TABLE` hoàn tất ngay trong vài trăm ms.
-3. Trên **Kết nối 2**, kiểm tra lịch sử Online DDL (*chụp **Hình B.7***):
+3. Trên **Kết nối 2 (`TiDB_Local (1)`)**, bôi đen chạy riêng câu kiểm tra lịch sử Online DDL rồi bấm chụp:
    ```sql
-   ADMIN SHOW DDL JOBS 5; -- Thấy JOB_TYPE = add column, STATE = synced
-   SELECT * FROM order_line;
+   ADMIN SHOW DDL JOBS 5;
    ```
+> **📸 DỪNG LẠI CHỤP ẢNH TI-4 (dùng cho Hình B.7):**
+> Khung hình MySQL Workbench cần lấy rõ:
+> 1. **Thanh tab trên cùng:** Thấy rõ đang mở song song **2 kết nối** (`TiDB_Local` và `TiDB_Local (1)`).
+> 2. **SQL Editor (trên):** Hiện câu `ALTER TABLE order_line ADD COLUMN ...` và `ADMIN SHOW DDL JOBS 5;`.
+> 3. **Result Grid (giữa):** Bảng `DDL JOBS` có dòng `DB_NAME = demo_ose`, `TABLE_NAME = order_line`, cột **`STATE = synced`**.
+> 4. **Action Output (dưới):** Dòng log `ALTER TABLE ...` có tích xanh hoàn tất nhanh (`0.xxx sec`).
 
 ---
 
-### Kịch bản B.8-6: Tranh chấp đồng thời 2 phiên trên cùng 1 dòng `stock` (`pessimistic`)
+### Kịch bản B.8-6: Tranh chấp đồng thời 2 phiên trên cùng 1 dòng `stock` (`pessimistic`) *(Không bắt buộc chụp trong báo cáo — tùy chọn cho slide dẫn sang Mục 2.2)*
 1. Ở **Kết nối Workbench 1 (`TiDB_Local`)**, đặt lại tồn kho `= 5` rồi mở giao dịch trừ 1 sản phẩm và **giữ khóa chưa `COMMIT`**:
    ```sql
    SET SQL_SAFE_UPDATES = 0;
@@ -412,7 +449,7 @@ EXPLAIN ANALYZE SELECT * FROM stock WHERE s_w_id = 1 AND s_i_id = 101;
    SET s_quantity = s_quantity - 1
    WHERE s_w_id = 1 AND s_i_id = 101 AND s_quantity >= 1;
    ```
-   - **Quan sát trực quan trên UI:** Tab Kết nối 2 chuyển sang xoay vòng **`Running...`** (bị xếp hàng `lock wait` chờ Phiên 1 giải phóng khóa).
+   - **Quan sát trực quan trên UI:** Tab Kết nối 2 chuyển sang xoay vòng **`Running...`** (bị xếp hàng `lock wait` chờ Phiên 1 giải phóng khóa — *nếu muốn đưa lên slide làm cầu nối sang Mục 2.2 thì bấm chụp ngay khoảnh khắc `Running...` này*).
 3. Quay lại **Kết nối 1** chạy `COMMIT;` → lập tức **Kết nối 2** chạy xong (`1 row(s) affected`). Chạy tiếp `COMMIT;` ở **Kết nối 2** rồi đối soát kết quả:
    ```sql
    SELECT * FROM stock WHERE s_w_id = 1 AND s_i_id = 101;
