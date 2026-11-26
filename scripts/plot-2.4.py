@@ -1,12 +1,16 @@
-"""Sinh bộ biểu đồ mục 2.4 (Biểu đồ 6 phần E1, Biểu đồ 6 phần E2 và Biểu đồ 6b phần E3)
-từ dữ liệu thực đo trong `results/official/2.4-{baseline,eager,batch,lazy,e1}/`.
+"""Sinh bộ biểu đồ mục 2.4 / 2.6 (cả biểu đồ cột tổng hợp cho báo cáo chính và chuỗi thời gian cho phụ lục)
+từ dữ liệu thực đo trong `results/official/2.4-{baseline,eager,batch,lazy,highload,e1}/`.
 
 Cách chạy:
     python scripts/plot-2.4.py
 Đầu ra:
-    docs/figures/2.4/fig6_e1_mdl_freeze.png
-    docs/figures/2.4/fig6_e2_strategies.png
-    docs/figures/2.4/fig6b_e3_q_sweep.png
+    docs/figures/2.4/fig6_bar_e1_mdl.png        (Bar chart E1 — báo cáo chính)
+    docs/figures/2.4/fig6_bar_e2_strategies.png (Bar chart E2 chuẩn — báo cáo chính)
+    docs/figures/2.4/fig6c_e2_highload.png      (Bar chart E2 tải cao — báo cáo chính)
+    docs/figures/2.4/fig6_bar_e3_q_sweep.png    (Bar chart E3 quét q — báo cáo chính)
+    docs/figures/2.4/fig6_e1_mdl_freeze.png     (Time-series E1 — phụ lục)
+    docs/figures/2.4/fig6_e2_strategies.png     (Time-series E2 — phụ lục)
+    docs/figures/2.4/fig6b_e3_q_sweep.png       (Line chart E3 — phụ lục)
 """
 
 from __future__ import annotations
@@ -311,9 +315,182 @@ def plot_fig6c_highload() -> None:
             axes[1].text(bar.get_x() + bar.get_width() / 2, val + 20, f"{val:.0f}",
                          ha="center", va="bottom", fontsize=7.5, rotation=90)
 
+    for ax, title, ylabel, ylim, leg_loc in [
+        (axes[0], "Thông lượng thành công (TPS — cao hơn là tốt hơn)", "TPS (giao dịch/giây)", 3150, "upper right"),
+        (axes[1], "Độ trễ đuôi p99 toàn pha (ms — thấp hơn là tốt hơn)", "Độ trễ p99 (ms)", 1620, "upper left"),
+    ]:
+        ax.set_title(title)
+        ax.set_ylabel(ylabel)
+        ax.set_xticks(x_base)
+        ax.set_xticklabels([e[1] for e in engines], fontweight="bold")
+        ax.set_ylim(0, ylim)
+        ax.legend(loc=leg_loc, fontsize=8.5)
+
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "fig6c_e2_highload.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_bar_e1() -> None:
+    """Biểu đồ cột E1 (báo cáo chính): So sánh TPS và thời gian đóng băng 0 TPS giữa các cơ chế DDL."""
+    e1_runs = load_runs("2.4-e1")
+    if not e1_runs:
+        return
+
+    specs = [
+        ("mysql", "add_column_instant", "MySQL: ADD COLUMN INSTANT", "#2ca02c"),
+        ("mysql", "add_column_copy", "MySQL: ADD COLUMN COPY", "#ff7f0e"),
+        ("mysql", "add_index_inplace", "MySQL: ADD INDEX INPLACE", "#9467bd"),
+        ("mysql", "mdl_freeze", "MySQL: Đọc dài 60s + DDL (MDL Freeze)", "#d62728"),
+        ("mysql", "mdl_timeout_retry", "MySQL: MDL + lock_wait_timeout=3s", "#1f77b4"),
+        ("mongo", "create_index", "MongoDB: createIndex (thường)", "#2ca02c"),
+        ("mongo", "create_index_long_txn", "MongoDB: createIndex + đọc dài 60s", "#e377c2"),
+        ("tidb", "add_column_online", "TiDB: ADD COLUMN Online DDL", "#2ca02c"),
+        ("tidb", "add_index_online", "TiDB: ADD INDEX Online DDL", "#17becf"),
+        ("tidb", "mdl_long_txn", "TiDB: ADD COLUMN + đọc dài 60s", "#1f77b4"),
+    ]
+
+    labels, tps_meds, freeze_meds, colors = [], [], [], []
+    for eng, scen, lbl, col in reversed(specs):
+        matched = [d for _, d in e1_runs if d["engine"] == eng and d["scenario"] == scen]
+        if not matched:
+            continue
+        labels.append(lbl)
+        tps_meds.append(statistics.median([d["measurement"]["tps"] for d in matched]))
+        freeze_meds.append(statistics.median([float(d["ddl"]["max_freeze_seconds"]) for d in matched]))
+        colors.append(col)
+
+    y_pos = list(range(len(labels)))
+    fig, axes = plt.subplots(1, 2, figsize=(15.5, 6.0), sharey=True)
+    fig.suptitle(
+        "Biểu đồ cột E1: Tác động của cơ chế DDL gốc và giao dịch đọc dài 60s lên TPS & thời gian đóng băng\n"
+        "(W=10, ~3 triệu dòng order_line, 64 client, θ = 0,5, q = 25%; giá trị trung vị trên các lượt chạy VALID)",
+        fontsize=12, fontweight="bold", y=1.02,
+    )
+
+    # Trái: TPS
+    bars_tps = axes[0].barh(y_pos, tps_meds, color=colors, height=0.66, alpha=0.92, edgecolor="#333333", linewidth=0.5)
+    axes[0].set_title("Thông lượng pha đo (TPS — cao hơn là tốt hơn)")
+    axes[0].set_xlabel("TPS trung vị (giao dịch/giây)")
+    axes[0].set_yticks(y_pos)
+    axes[0].set_yticklabels(labels, fontsize=9.5, fontweight="bold")
+    axes[0].set_xlim(0, 2480)
+    for bar, val in zip(bars_tps, tps_meds):
+        axes[0].text(val + 30, bar.get_y() + bar.get_height() / 2, f"{val:,.1f}".replace(",", "_").replace(".", ",").replace("_", "."),
+                     va="center", ha="left", fontsize=8.8, fontweight="bold")
+
+    # Phải: Thời gian đóng băng lâu nhất (giây)
+    bars_frz = axes[1].barh(y_pos, freeze_meds, color=colors, height=0.66, alpha=0.92, edgecolor="#333333", linewidth=0.5)
+    axes[1].set_title("Thời gian đóng băng 0 TPS lâu nhất (giây — thấp hơn là tốt hơn)")
+    axes[1].set_xlabel("Số giây liên tiếp hệ thống rơi về 0 TPS")
+    axes[1].set_xlim(0, 75)
+    for bar, val in zip(bars_frz, freeze_meds):
+        txt = f"{int(round(val))} s (treo cứng!)" if val >= 50 else (f"{int(round(val))} s" if val > 0 else "0 s (không treo)")
+        col_txt = "#b30000" if val >= 20 else ("#1b6e1b" if val == 0 else "#1f4e79")
+        axes[1].text(val + 1.0, bar.get_y() + bar.get_height() / 2, txt,
+                     va="center", ha="left", fontsize=8.8, fontweight="bold", color=col_txt)
+
+    # Vạch phân nhóm DBMS
+    for ax in axes:
+        ax.axhline(2.5, color="#888888", linestyle="--", linewidth=0.9, alpha=0.7)
+        ax.axhline(4.5, color="#888888", linestyle="--", linewidth=0.9, alpha=0.7)
+
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "fig6_bar_e1_mdl.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_bar_e2() -> None:
+    """Biểu đồ cột E2 chuẩn (báo cáo chính): So sánh 3 chiến lược chuyển dữ liệu tại q = 25%, 64 client, θ = 0,5."""
+    all_e2 = (
+        load_runs("2.4-baseline")
+        + load_runs("2.4-eager")
+        + load_runs("2.4-batch")
+        + load_runs("2.4-lazy")
+    )
+    if not all_e2:
+        return
+
+    engines = [
+        ("mysql", "MySQL 8.4.8 (InnoDB)"),
+        ("mongo", "MongoDB 8.0.20 (WiredTiger)"),
+        ("tidb", "TiDB 8.5.7 (3 TiKV)"),
+    ]
+    strategies = [
+        ("none", None, "Nền (none)", "#7f7f7f"),
+        ("eager", None, "P1 – Eager", "#d62728"),
+        ("batch", 5000, "P2 – Batch 5.000", "#ff7f0e"),
+        ("batch", 1000, "P2 – Batch 1.000", "#1f77b4"),
+        ("lazy", 1000, "P3 – Lazy", "#2ca02c"),
+    ]
+
+    base_tps = {}
+    for eng, _ in engines:
+        b_vals = [
+            d["measurement"]["tps"]
+            for _, d in all_e2
+            if d["engine"] == eng and d.get("migration_strategy") == "none" and d.get("old_order_read_pct") == 25.0
+        ]
+        base_tps[eng] = statistics.median(b_vals) if b_vals else 1.0
+
+    fig, axes = plt.subplots(1, 2, figsize=(15.2, 5.5))
+    fig.suptitle(
+        "Biểu đồ cột E2 (Tải chuẩn): So sánh TPS và độ trễ đuôi p99 giữa các chiến lược chuyển dữ liệu\n"
+        "(W=10, ~3 triệu dòng order_line, 64 client, θ = 0,5, q = 25%; trung vị kèm thanh min–max trên 3 lần chạy)",
+        fontsize=12, fontweight="bold", y=1.02,
+    )
+
+    x_base = list(range(len(engines)))
+    width = 0.155
+    for idx, (strat, bs, label, color) in enumerate(strategies):
+        offsets = [x + (idx - 2) * width for x in x_base]
+        tps_meds, tps_lo, tps_hi = [], [], []
+        p99_meds, p99_lo, p99_hi = [], [], []
+        pct_deltas = []
+        for eng, _ in engines:
+            matched = [
+                d for _, d in all_e2
+                if d["engine"] == eng
+                and d.get("migration_strategy") == strat
+                and d.get("old_order_read_pct") == 25.0
+                and (bs is None or d.get("migration_batch_size") == bs)
+            ]
+            t_list = [d["measurement"]["tps"] for d in matched]
+            p_list = [d["measurement"]["p99_ms"] for d in matched]
+            t_med = statistics.median(t_list)
+            p_med = statistics.median(p_list)
+            tps_meds.append(t_med)
+            tps_lo.append(t_med - min(t_list))
+            tps_hi.append(max(t_list) - t_med)
+            p99_meds.append(p_med)
+            p99_lo.append(p_med - min(p_list))
+            p99_hi.append(max(p_list) - p_med)
+            pct_deltas.append(0.0 if strat == "none" else 100.0 * (t_med - base_tps[eng]) / base_tps[eng])
+
+        bars1 = axes[0].bar(
+            offsets, tps_meds, width=width, label=label, color=color, alpha=0.92,
+            yerr=[tps_lo, tps_hi], capsize=2.5, error_kw={"lw": 0.9, "ecolor": "#222222"},
+        )
+        bars2 = axes[1].bar(
+            offsets, p99_meds, width=width, label=label, color=color, alpha=0.92,
+            yerr=[p99_lo, p99_hi], capsize=2.5, error_kw={"lw": 0.9, "ecolor": "#222222"},
+        )
+        for bar, val, hi, pct in zip(bars1, tps_meds, tps_hi, pct_deltas):
+            lbl_txt = f"{val:.0f}" if strat == "none" else f"{val:.0f} ({pct:+.1f}%)".replace(".", ",")
+            axes[0].text(
+                bar.get_x() + bar.get_width() / 2, val + hi + 40, lbl_txt,
+                ha="center", va="bottom", fontsize=7.6, rotation=90,
+                fontweight="bold" if (strat == "batch" and bs == 1000) else "normal",
+            )
+        for bar, val, hi in zip(bars2, p99_meds, p99_hi):
+            axes[1].text(
+                bar.get_x() + bar.get_width() / 2, val + hi + 15, f"{val:.0f}",
+                ha="center", va="bottom", fontsize=7.8, rotation=90,
+            )
+
     for ax, title, ylabel, ylim in [
-        (axes[0], "Thông lượng thành công (TPS — cao hơn là tốt hơn)", "TPS (giao dịch/giây)", 3150),
-        (axes[1], "Độ trễ đuôi p99 toàn pha (ms — thấp hơn là tốt hơn)", "Độ trễ p99 (ms)", 1550),
+        (axes[0], "Thông lượng thành công (TPS — cao hơn là tốt hơn)", "TPS (giao dịch/giây)", 2950),
+        (axes[1], "Độ trễ đuôi p99 toàn pha (ms — thấp hơn là tốt hơn)", "Độ trễ p99 (ms)", 1120),
     ]:
         ax.set_title(title)
         ax.set_ylabel(ylabel)
@@ -323,7 +500,92 @@ def plot_fig6c_highload() -> None:
         ax.legend(loc="upper right", fontsize=8.5)
 
     fig.tight_layout()
-    fig.savefig(OUT_DIR / "fig6c_e2_highload.png", dpi=300, bbox_inches="tight")
+    fig.savefig(OUT_DIR / "fig6_bar_e2_strategies.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_bar_e3() -> None:
+    """Biểu đồ cột E3 (báo cáo chính): Quét tỉ lệ đọc đơn cũ q ∈ {5%, 25%, 50%} giữa Nền, Batch 1.000 và Lazy."""
+    base_runs = load_runs("2.4-baseline")
+    batch_runs = load_runs("2.4-batch")
+    lazy_runs = load_runs("2.4-lazy")
+    if not base_runs:
+        return
+
+    qs = [5.0, 25.0, 50.0]
+    x_base = list(range(len(qs)))
+    width = 0.24
+
+    fig, axes = plt.subplots(1, 2, figsize=(14.8, 5.4))
+    fig.suptitle(
+        "Biểu đồ cột E3: Ảnh hưởng của tỉ lệ giao dịch 'Xem đơn cũ' q đến thông lượng — P2 Batch 1.000 vs P3 Lazy\n"
+        "(W=10, 64 client, θ = 0,5; giá trị trung vị kèm thanh min–max của 3 lần chạy độc lập)",
+        fontsize=12, fontweight="bold", y=1.02,
+    )
+
+    series_defs = [
+        ("Nền (none)", base_runs, None, "#7f7f7f"),
+        ("P2 – Batch 1.000", batch_runs, 1000, "#1f77b4"),
+        ("P3 – Lazy (on-demand)", lazy_runs, 1000, "#2ca02c"),
+    ]
+
+    for col, (eng, title, ylim) in enumerate([
+        ("mysql", "MySQL 8.4.8 (InnoDB) — Đảo chiều giữa q = 5% và q = 25%", 2820),
+        ("mongo", "MongoDB 8.0.20 (WiredTiger) — P2 Batch thắng ở mọi mức q", 3650),
+    ]):
+        ax = axes[col]
+        b_map = {}
+        for q in qs:
+            vals = [d["measurement"]["tps"] for _, d in base_runs if d["engine"] == eng and d.get("old_order_read_pct") == q]
+            b_map[q] = statistics.median(vals)
+
+        for idx, (label, runs, bs, color) in enumerate(series_defs):
+            offsets = [x + (idx - 1) * width for x in x_base]
+            meds, lo, hi, pcts = [], [], [], []
+            for q in qs:
+                vals = [
+                    d["measurement"]["tps"]
+                    for _, d in runs
+                    if d["engine"] == eng
+                    and d.get("old_order_read_pct") == q
+                    and (bs is None or d.get("migration_batch_size") == bs)
+                ]
+                m = statistics.median(vals)
+                meds.append(m)
+                lo.append(m - min(vals))
+                hi.append(max(vals) - m)
+                pcts.append(0.0 if idx == 0 else 100.0 * (m - b_map[q]) / b_map[q])
+
+            bars = ax.bar(
+                offsets, meds, width=width, label=label, color=color, alpha=0.92,
+                yerr=[lo, hi], capsize=3, error_kw={"lw": 1.0, "ecolor": "#222222"},
+            )
+            for bar, val, h_err, pct in zip(bars, meds, hi, pcts):
+                txt = f"{val:.0f}" if idx == 0 else f"{val:.0f}\n({pct:+.1f}%)".replace(".", ",")
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2, val + h_err + (35 if col == 0 else 45), txt,
+                    ha="center", va="bottom", fontsize=8.0,
+                    fontweight="bold" if idx > 0 else "normal",
+                )
+
+        ax.set_title(title)
+        ax.set_xlabel("Tỉ lệ giao dịch đọc 'Xem đơn cũ' q")
+        ax.set_ylabel("Thông lượng thành công (TPS)")
+        ax.set_xticks(x_base)
+        ax.set_xticklabels(["q = 5%\n(ít đọc đơn cũ)", "q = 25%\n(tải chuẩn)", "q = 50%\n(đọc đơn cũ cao)"], fontweight="bold")
+        ax.set_ylim(0, ylim)
+        ax.legend(loc="upper left", fontsize=8.8)
+
+    axes[0].annotate(
+        "q = 5%: Lazy thắng Batch\n(1.027 vs 988 TPS; p99 1,20× vs 1,29×)",
+        xy=(0 + width, 1340), xytext=(0.46, 2360),
+        arrowprops={"arrowstyle": "->", "color": "#1b6e1b", "lw": 1.4},
+        fontsize=8.5, fontweight="bold", color="#1b6e1b",
+        bbox={"boxstyle": "round,pad=0.35", "fc": "#eef9ee", "ec": "#2ca02c"},
+    )
+
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "fig6_bar_e3_q_sweep.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -333,6 +595,9 @@ def main() -> None:
     plot_fig6_e2()
     plot_fig6b_e3()
     plot_fig6c_highload()
+    plot_bar_e1()
+    plot_bar_e2()
+    plot_bar_e3()
     for p in sorted(OUT_DIR.glob("*.png")):
         print(f"Đã tạo: {p.relative_to(ROOT)} ({p.stat().st_size // 1024} KB)")
 
