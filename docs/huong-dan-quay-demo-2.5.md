@@ -25,7 +25,9 @@ Tài liệu này hướng dẫn từng thao tác thực tế trên **Windows (Do
 - **Tắt thông báo Windows:** Bật **Do Not Disturb** (góc dưới phải taskbar) để không dính pop-up Zalo/Messenger khi đang quay.
 - **Cửa sổ 1 — Trình duyệt (TiDB Dashboard):**
   - Mở `http://127.0.0.1:12379/dashboard`, đăng nhập User `root`, mật khẩu để trống.
-  - Vào menu trái: **Cluster Info → Instances**. Kiểm tra thấy đủ **PD (1)**, **TiDB (1)**, **TiKV (3)** đều chấm xanh **`Up`**.
+  - Mở sẵn **2 tab trình duyệt** trên Dashboard:
+    - *Tab trình duyệt 1:* **Cluster Info → Instances** (kiểm tra thấy đủ **PD (1)**, **TiDB (1)**, **TiKV (3)** đều chấm xanh **`Up`** — dùng cho Cảnh 1).
+    - *Tab trình duyệt 2:* **Cluster Info → Store Topology** (hiển thị sơ đồ 3 nút `tikv1`, `tikv2`, `tikv3` — dùng để đối chứng trực quan ở Cảnh 4 chỉ bằng 1 cú bấm chuột).
   - Phóng to trình duyệt lên **`110%–125%`** (`Ctrl + +`) cho chữ sắc nét.
 - **Cửa sổ 2 — MySQL Workbench:**
   - Kết nối `127.0.0.1`, Port **`14000`**, User `root`, mật khẩu trống (nếu báo cảnh báo phiên bản `8.0.11-TiDB-v8.5.7`, chọn **Continue Anyway**).
@@ -68,7 +70,7 @@ SELECT * FROM demo_scale.stock_slot ORDER BY ss_slot;
 ### Tab 2 — Cảnh 2b: Kiểm tra số Region TRƯỚC khi tách
 > **Lưu ý kỹ thuật MySQL Workbench:** Lệnh `SHOW TABLE ... REGIONS;` là cú pháp riêng của TiDB nên Workbench thường gạch đỏ cảnh báo cú pháp. Dùng câu truy vấn `information_schema` dưới đây sẽ chạy **mượt 100% không gạch đỏ** và hiển thị gọn đúng các cột cần đối chiếu (`REGION_ID`, `LEADER_STORE_ID`, `START_KEY`, `END_KEY`):
 ```sql
-SELECT
+SELECT DISTINCT
   r.TABLE_NAME,
   r.REGION_ID,
   p.STORE_ID AS LEADER_STORE_ID,
@@ -77,7 +79,9 @@ SELECT
 FROM information_schema.TIKV_REGION_STATUS r
 JOIN information_schema.TIKV_REGION_PEERS p
   ON r.REGION_ID = p.REGION_ID AND p.IS_LEADER = 1
-WHERE r.DB_NAME = 'demo_scale' AND r.TABLE_NAME = 'stock_slot'
+WHERE r.DB_NAME = 'demo_scale'
+  AND r.TABLE_NAME = 'stock_slot'
+  AND r.IS_INDEX = 0
 ORDER BY r.START_KEY;
 ```
 *(Nếu chạy thử thấy `SHOW TABLE demo_scale.stock_slot REGIONS;` vẫn chạy được và bạn thích bảng gọn của nó thì có thể dùng thay thế; nếu không thì giữ nguyên câu `SELECT` trên).*
@@ -93,7 +97,7 @@ SPLIT TABLE demo_scale.stock_slot BY (1, 101, 2), (1, 101, 4);
 ### Tab 4 — Cảnh 3b: Kiểm tra số Region SAU khi tách
 Dán lại y hệt câu lệnh ở **Tab 2**:
 ```sql
-SELECT
+SELECT DISTINCT
   r.TABLE_NAME,
   r.REGION_ID,
   p.STORE_ID AS LEADER_STORE_ID,
@@ -102,7 +106,9 @@ SELECT
 FROM information_schema.TIKV_REGION_STATUS r
 JOIN information_schema.TIKV_REGION_PEERS p
   ON r.REGION_ID = p.REGION_ID AND p.IS_LEADER = 1
-WHERE r.DB_NAME = 'demo_scale' AND r.TABLE_NAME = 'stock_slot'
+WHERE r.DB_NAME = 'demo_scale'
+  AND r.TABLE_NAME = 'stock_slot'
+  AND r.IS_INDEX = 0
 ORDER BY r.START_KEY;
 ```
 - **Kết quả kỳ vọng:** Xuất hiện **3 dòng Region** ứng với 3 khoảng khóa (`slot 0–1`, `slot 2–3`, `slot 4–5`).
@@ -148,7 +154,7 @@ ORDER BY STORE_ID;
 | **Cảnh 1** | `0:00 – 0:08` | Đang ở **TiDB Dashboard → Instances**. Rê con trỏ chuột chậm lần lượt qua dòng **PD (1)**, **TiDB (1)** và 3 dòng **TiKV (3)** đang `Up`. | Dừng 2 giây cuối | `Cụm TiDB: 1 PD, 1 TiDB, 3 TiKV` | *"Cụm minh họa gồm 1 PD, 1 TiDB và 3 TiKV."* |
 | **Cảnh 2** | `0:08 – 0:18` | Chuyển sang **MySQL Workbench**.<br>• Bấm **Tab 1** → nhấn ⚡ (hiện 6 dòng slot `0..5`).<br>• Bấm **Tab 2** → nhấn ⚡ (hiện đúng **1 dòng Region**). Rê chuột nhẹ qua dòng `REGION_ID`. | Dừng 2–3 giây ở mỗi bảng kết quả | `1 mặt hàng, 6 slot, 1 Region` | *"Một mặt hàng được chia thành 6 slot, ban đầu nằm chung một Region."* |
 | **Cảnh 3** | `0:18 – 0:28` | • Bấm **Tab 3** → nhấn ⚡ chạy `SPLIT TABLE ... BY (1,101,2), (1,101,4)`.<br>• Bấm **Tab 4** → nhấn ⚡ (hiện **3 dòng Region**). Rê chuột dọc qua 3 dòng `REGION_ID` và cột `LEADER_STORE_ID`. | Dừng 3 giây ở bảng 3 Region | `SPLIT TABLE: tách theo slot` *(thêm `Đặt leader bằng PD API` nếu có chạy bước 4.1)* | *"Tách bảng theo slot thành nhiều Region."* |
-| **Cảnh 4** | `0:28 – 0:35` | • Bấm **Tab 5** → nhấn ⚡ chạy truy vấn `TIKV_STORE_STATUS` (hiện 3 `STORE_ID` ứng với `tikv1`, `tikv2`, `tikv3`). Rê chuột qua 3 dòng để người xem đối chiếu `LEADER_STORE_ID` ↔ `STORE_ID`. | Dừng 3 giây rồi bấm **Stop** | `Minh họa cơ chế. Hiệu năng: xem số đo trên AWS` | *"Đây là minh họa cơ chế đặt dữ liệu. Hiệu năng được đo riêng trên AWS."* |
+| **Cảnh 4** | `0:28 – 0:38` | • Ở Workbench, bấm **Tab 5** → nhấn ⚡ chạy `TIKV_STORE_STATUS` (hiện 3 `STORE_ID` ứng với `tikv1`, `tikv2`, `tikv3`).<br>• Chuyển nhanh sang **Trình duyệt → Tab 2 (`Cluster Info → Store Topology`)**, rê chuột qua 3 nút TiKV để đối chứng trực quan vị trí các Store tương ứng với `LEADER_STORE_ID` vừa tách ở Workbench. | Dừng 2 giây ở Tab 5 + 3 giây ở Store Topology rồi bấm **Stop** | `Đối chứng Store Topology — Hiệu năng: xem số đo trên AWS` | *"Đối chiếu mã Store với 3 nút TiKV trên Dashboard. Đây là minh họa cơ chế đặt dữ liệu; hiệu năng được đo riêng trên AWS."* |
 
 4. Bấm **Stop** (nút đỏ trên thanh trên cùng) → lưu file thô vào máy (ví dụ `demo-2.5-raw.mp4`).
 5. **Chụp ngay 2 ảnh minh chứng** trước khi đóng Workbench:
@@ -171,7 +177,7 @@ ORDER BY STORE_ID;
      - `0:00 – 0:08`: `Cụm TiDB: 1 PD, 1 TiDB, 3 TiKV`
      - `0:08 – 0:18`: `1 mặt hàng, 6 slot, 1 Region`
      - `0:18 – 0:28`: `SPLIT TABLE: tách theo slot` *(hoặc `SPLIT TABLE + đặt leader bằng PD API` nếu có dùng `transfer-peer`)*
-     - `0:28 – 0:35`: `Minh họa cơ chế. Hiệu năng: xem số đo trên AWS`
+     - `0:28 – 0:38`: `Đối chứng Store Topology — Hiệu năng: xem số đo trên AWS`
 4. **Xuất video:** Bấm **Export → 1080p HD** → lưu đúng tên **`demo-2.5.mp4`**. Xem lại 1 lượt kiểm tra chữ có rõ và tổng thời lượng có quanh `~35 giây` không.
 
 ---
