@@ -1,8 +1,9 @@
-# Bản thảo hoàn chỉnh: Mục 2.6 (Báo cáo chính) & Phụ lục D (Phân tích chuyên sâu theo bài báo BullFrog và phong cách Mục 2.2–2.5)
+# Bản thảo hoàn chỉnh: Mục 2.6 (Báo cáo chính) & Phụ lục D (Phân tích chuyên sâu và Thực nghiệm)
 
 > **Hướng dẫn sử dụng file này:**
-> - **PHẦN A** đã được đồng bộ khớp với bản trình bày ngắn gọn ở trang 36–39 trong báo cáo chính hiện tại của nhóm (giữ gọn ~2 trang kèm 2 biểu đồ cột chính).
-> - **PHẦN B (Phụ lục D)** được viết lại toàn diện theo đúng văn phong phân tích nhân quả của **Mục 2.2 – 2.5** kết hợp đối chiếu học thuật sâu với bài báo **BullFrog (Bhattacherjee và cộng sự, SIGMOD '21)**, đồng thời **giữ nguyên chính xác toàn bộ mã tham chiếu** (`Phụ lục D.1`, `Bảng D.1–D.4`, `Hình D.1–D.5`) mà Mục 2.6 trong báo cáo chính đang trỏ tới.
+> - Toàn bộ **7 biểu đồ** trong `docs/figures/2.4/` đã được **bỏ phần tiêu đề nằm trên đỉnh ảnh** (`suptitle`) và đồng bộ tên chiến lược gọn gàng (`Eager`, `Batch 5.000`, `Batch 1.000`, `Lazy`, `Nền (none)`), đặt dòng tên hình chuẩn nằm ngay bên dưới mỗi ảnh để dán thẳng vào Word.
+> - **PHẦN A** đồng bộ khớp với trang 36–39 báo cáo chính hiện tại của nhóm (~2 trang kèm 2 biểu đồ cột chính).
+> - **PHẦN B (Phụ lục D)** trình bày chuyên sâu theo mạch Mục 2.2 – 2.5 và giữ nguyên 100% mã tham chiếu (`Phụ lục D.1`, `Bảng D.1–D.5`, `Hình D.1–D.5`).
 
 ---
 
@@ -30,13 +31,15 @@ Thực nghiệm gồm **159/159 lượt đo `VALID`** (thỏa mãn đồng thờ
 
 *(Toàn bộ phân tích cơ chế sâu, bảng số liệu chi tiết, biểu đồ tải cao/quét `q`, chuỗi thời gian và minh chứng demo được trình bày tại **Phụ lục D**).*
 
-![Hình 2.6.1. So sánh thông lượng (TPS) và thời gian đóng băng 0 TPS ở kịch bản DDL gốc trên ba DBMS (64 client, θ = 0,5, q = 25%).](figures/2.4/fig6_bar_e1_mdl.png)
+![](figures/2.4/fig6_bar_e1_mdl.png)
+*Hình 2.6.1. So sánh thông lượng (TPS) và thời gian đóng băng 0 TPS ở kịch bản DDL gốc trên ba DBMS (`64 client, θ = 0,5, q = 25%`).*
 
 - **MySQL:** `ADD COLUMN INSTANT` không gây treo khi tải bình thường (`0 s`, `1.420,2 TPS`), nhưng chỉ cần **1 giao dịch đọc giữ mở 60 s** là `ALTER` kẹt khóa siêu dữ liệu (*MDL*), làm treo cứng toàn bảng **57 s** (`502,1 TPS`). Đặt `lock_wait_timeout = 3` kèm retry giúp DDL tự rút khỏi hàng đợi, giảm đóng băng còn **2 s** và khôi phục lên `1.276,8 TPS`.
 - **TiDB:** Nhờ cơ chế Online DDL đa phiên bản, lệnh `ALTER` chỉ chờ giao dịch đọc cũ kết thúc mà không chặn giao dịch mới (**`0 s` đóng băng**, `1.042,2 TPS`).
 - **MongoDB:** Không rơi về `0 TPS`, nhưng giữ snapshot 60 s khi chốt `createIndex` gây áp lực bộ nhớ đệm làm TPS giảm từ `2.125,5` xuống `706,1`.
 
-![Hình 2.6.2. So sánh thông lượng (TPS) và độ trễ đuôi p99 giữa các chiến lược chuyển dữ liệu ở kịch bản so sánh chiến lược, tải chuẩn (64 client, θ = 0,5, q = 25%).](figures/2.4/fig6_bar_e2_strategies.png)
+![](figures/2.4/fig6_bar_e2_strategies.png)
+*Hình 2.6.2. So sánh thông lượng (TPS) và độ trễ đuôi p99 giữa các chiến lược chuyển dữ liệu ở tải chuẩn (`64 client, θ = 0,5, q = 25%`).*
 
 - **Eager:** Xong nhanh nhất (`71–127 s`) nhưng tranh chấp khóa và ghi đĩa mạnh, làm TPS sụt sâu trên MySQL (`-53,0%`; tải cao tụt `-62,8%`, gai p99 lên `22,2 s`) và TiDB (`-42,0%`); riêng MongoDB ít ảnh hưởng hơn (`-6,1%`).
 - **Batch lô `1.000` (nghỉ `20 ms`):** Giữ khóa ngắn và nhường I/O nên **đạt TPS cao nhất trên cả ba hệ ở cả hai mức tải** (`-0,6%` MongoDB, `-8,7%` TiDB, `-16,3%` MySQL ở tải chuẩn) và giảm `25,5×` gai p99 của Eager trên MySQL (*Bảng D.3, Hình D.3*).
@@ -45,7 +48,7 @@ Thực nghiệm gồm **159/159 lượt đo `VALID`** (thỏa mãn đồng thờ
 ---
 ---
 
-# PHẦN B — PHỤ LỤC D (BẢN VIẾT LẠI CHUYÊN SÂU, ĐỒNG BỘ PHONG CÁCH MỤC 2.2–2.5 & BÀI BÁO BULLFROG)
+# PHẦN B — PHỤ LỤC D: PHÂN TÍCH CHUYÊN SÂU VÀ THỰC NGHIỆM MỤC 2.6
 
 ## Phụ lục D: Phân tích cơ chế và thực nghiệm đổi lược đồ trực tuyến khi đang bán hàng (Online Schema Evolution)
 
@@ -105,7 +108,8 @@ Trước khi so sánh các chiến lược cập nhật dữ liệu, thí nghi�
 | **TiDB v8.5.7** | `ADD INDEX` *(Online DDL)* | 3/3 | **848,1** | 339,5 | 732,6 | **41,9 s** | **0 s** | Quét và điền chỉ mục phân tán nền trên 3 nút TiKV |
 | **TiDB v8.5.7** | **Đọc mở 60s + `ADD COLUMN`** | 3/3 | **1.042,2** | **250,9** | **422,7** | **59,3 s** | **0 s** | DDL tự đợi phiên đọc cũ kết thúc, không chặn giao dịch mới |
 
-![Hình D.1. Diễn biến thông lượng (TPS) theo từng giây ở kịch bản DDL gốc trên MySQL 8.4.8, MongoDB 8.0.20 và TiDB v8.5.7 (vạch chấm đen tại t = 5s đánh dấu thời điểm phát lệnh DDL).](figures/2.4/fig6_e1_mdl_freeze.png)
+![](figures/2.4/fig6_e1_mdl_freeze.png)
+*Hình D.1. Diễn biến thông lượng (TPS) theo từng giây ở kịch bản DDL gốc trên MySQL 8.4.8, MongoDB 8.0.20 và TiDB v8.5.7 (vạch chấm đen tại `t = 5 s` đánh dấu thời điểm phát lệnh DDL).*
 
 Đối chiếu **Bảng D.1** và đường cong theo từng giây trên **Hình D.1** làm rõ bản chất cơ chế đồng bộ lược đồ của từng hệ quản trị:
 
@@ -140,7 +144,8 @@ Sau khi đã thêm cột an toàn, thí nghiệm thứ hai cố định tỉ l�
 | **TiDB v8.5.7** | **Batch 1.000** | **895,0** *(753,7–918,5)* | **-8,7%** | 340,4 | 1,23× | **599,9** | 39,9 / — | 133,8 s |
 | **TiDB v8.5.7** | **Lazy** | **655,0** *(628,2–660,4)* | -33,2% | **311,8** | **1,13×** | 707,6 | **39,0 / 226,9** | 131,9 s |
 
-![Hình D.2. Diễn biến TPS (hàng trên) và độ trễ p99 thang log (hàng dưới) theo từng giây của Eager, Batch 1.000 và Lazy tại tải chuẩn (vạch chấm tại t = 2s đánh dấu thời điểm bắt đầu chuyển đổi).](figures/2.4/fig6_e2_strategies.png)
+![](figures/2.4/fig6_e2_strategies.png)
+*Hình D.2. Diễn biến TPS (hàng trên) và độ trễ p99 thang log (hàng dưới) theo từng giây của Eager, Batch 1.000 và Lazy tại tải chuẩn (`64 client, θ = 0,5, q = 25%`; vạch chấm tại `t = 2 s` đánh dấu thời điểm bắt đầu chuyển đổi).*
 
 **Bảng D.3:** *So sánh ba chiến lược chuyển dữ liệu ở tải cao Flash-sale (`128 client`, `θ = 0,9`, `q = 25%`, `45/45` lượt `VALID`).*
 
@@ -162,7 +167,8 @@ Sau khi đã thêm cột an toàn, thí nghiệm thứ hai cố định tỉ l�
 | **TiDB v8.5.7** | **Batch 1.000** | **710,4** *(638,1–792,9)* | **-33,8%** | **999,5** | **1,50×** | **1.434,3** | 71,6 / — | 131,6 s |
 | **TiDB v8.5.7** | **Lazy** | **567,8** *(524,6–610,6)* | -47,1% | 1.100,0 | 1,65× | 1.491,7 | **71,7 / 373,6** | 145,7 s |
 
-![Hình D.3. Biểu đồ cột so sánh thông lượng (TPS) và độ trễ đuôi p99 tại tải cao Flash-sale (128 client, θ = 0,9, q = 25%).](figures/2.4/fig6c_e2_highload.png)
+![](figures/2.4/fig6c_e2_highload.png)
+*Hình D.3. Biểu đồ cột so sánh thông lượng (TPS) và độ trễ đuôi p99 tại tải cao Flash-sale (`128 client, θ = 0,9, q = 25%`).*
 
 Phân tích đồng thời hai mức tải qua **Bảng D.2 – D.3** và **Hình D.2 – D.3** cho thấy ba quy luật gắn chặt với kiến trúc lưu trữ của từng DBMS:
 
@@ -195,9 +201,11 @@ Phân tích đồng thời hai mức tải qua **Bảng D.2 – D.3** và **Hìn
 | **MongoDB 8.0.20** | **`25%`** | 2.185,4 / 140,7 ms | **2.172,4** *(-0,6%)* / 162,3 ms *(1,15×)* | 1.755,2 *(-19,7%)* / **143,6 ms** *(1,02×)* | 228.944 *(7,63%)* | **Batch 1.000 (+23,8% TPS)** |
 | **MongoDB 8.0.20** | **`50%`** | 3.044,2 / 101,0 ms | **2.829,7** *(-7,0%)* / 114,2 ms *(1,13×)* | 1.788,9 *(-41,2%)* / **107,3 ms** *(1,06×)* | 446.218 *(14,88%)* | **Batch 1.000 (+58,2% TPS)** |
 
-![Hình D.4. Biểu đồ cột so sánh thông lượng của Batch 1.000 và Lazy khi quét q ∈ {5%, 25%, 50%} trên MySQL 8.4.8 và MongoDB 8.0.20.](figures/2.4/fig6_bar_e3_q_sweep.png)
+![](figures/2.4/fig6_bar_e3_q_sweep.png)
+*Hình D.4. Biểu đồ cột so sánh thông lượng của Batch 1.000 và Lazy khi quét `q ∈ {5%, 25%, 50%}` trên MySQL 8.4.8 và MongoDB 8.0.20 (`64 client, θ = 0,5`).*
 
-![Hình D.5. Đường cong TPS và độ trễ p99 toàn pha theo tỉ lệ truy cập đơn cũ q ∈ {5%, 25%, 50%} (điểm trung vị kèm thanh sai số min–max của 3 lần chạy).](figures/2.4/fig6b_e3_q_sweep.png)
+![](figures/2.4/fig6b_e3_q_sweep.png)
+*Hình D.5. Đường cong TPS và độ trễ p99 toàn pha theo tỉ lệ truy cập đơn cũ `q ∈ {5%, 25%, 50%}` (điểm trung vị kèm thanh sai số min–max của 3 lần chạy).*
 
 Kết quả trên **Hình D.4** và **Hình D.5** chỉ rõ ranh giới hiệu quả giữa hai phương pháp theo đặc trưng tải:
 - **Điểm đảo chiều trên MySQL giữa `q = 5%` và `q = 25%`:**
