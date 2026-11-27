@@ -1,21 +1,20 @@
-"""Sinh bộ biểu đồ mục 2.4 / 2.6 (cả biểu đồ cột tổng hợp cho báo cáo chính và chuỗi thời gian cho phụ lục)
+"""Sinh bộ biểu đồ mục 2.6 & Phụ lục D (không gắn tiêu đề trên đỉnh ảnh để đặt tên hình chuẩn dưới ảnh trong báo cáo)
 từ dữ liệu thực đo trong `results/official/2.4-{baseline,eager,batch,lazy,highload,e1}/`.
 
 Cách chạy:
     python scripts/plot-2.4.py
 Đầu ra:
-    docs/figures/2.4/fig6_bar_e1_mdl.png        (Bar chart E1 — báo cáo chính)
-    docs/figures/2.4/fig6_bar_e2_strategies.png (Bar chart E2 chuẩn — báo cáo chính)
-    docs/figures/2.4/fig6c_e2_highload.png      (Bar chart E2 tải cao — báo cáo chính)
-    docs/figures/2.4/fig6_bar_e3_q_sweep.png    (Bar chart E3 quét q — báo cáo chính)
-    docs/figures/2.4/fig6_e1_mdl_freeze.png     (Time-series E1 — phụ lục)
-    docs/figures/2.4/fig6_e2_strategies.png     (Time-series E2 — phụ lục)
-    docs/figures/2.4/fig6b_e3_q_sweep.png       (Line chart E3 — phụ lục)
+    docs/figures/2.4/fig6_bar_e1_mdl.png        (Hình 2.6.1 — Bar chart DDL & MDL)
+    docs/figures/2.4/fig6_bar_e2_strategies.png (Hình 2.6.2 — Bar chart tải chuẩn)
+    docs/figures/2.4/fig6_e1_mdl_freeze.png     (Hình D.1 — Time-series DDL & MDL)
+    docs/figures/2.4/fig6_e2_strategies.png     (Hình D.2 — Time-series tải chuẩn)
+    docs/figures/2.4/fig6c_e2_highload.png      (Hình D.3 — Bar chart tải cao)
+    docs/figures/2.4/fig6_bar_e3_q_sweep.png    (Hình D.4 — Bar chart quét q)
+    docs/figures/2.4/fig6b_e3_q_sweep.png       (Hình D.5 — Đường cong quét q)
 """
 
 from __future__ import annotations
 
-import csv
 import json
 from pathlib import Path
 import statistics
@@ -31,7 +30,7 @@ OUT_DIR = ROOT / "docs" / "figures" / "2.4"
 plt.rcParams.update({
     "font.family": "DejaVu Sans",
     "font.size": 10,
-    "axes.titlesize": 11,
+    "axes.titlesize": 10.5,
     "axes.labelsize": 10,
     "legend.fontsize": 9,
     "axes.grid": True,
@@ -72,19 +71,14 @@ def read_series(d: dict) -> tuple[list[int], list[float], list[float | None]]:
 
 
 def plot_fig6_e1() -> None:
-    """Biểu đồ 6 (phần E1): Tác động DDL gốc & kẹt Metadata Lock theo từng giây trên 3 hệ."""
+    """Hình D.1: Tác động DDL gốc & kẹt Metadata Lock theo từng giây trên 3 hệ."""
     e1_runs = load_runs("2.4-e1")
 
     def get_med(engine: str, scenario: str):
         matched = [(p, d) for p, d in e1_runs if d["engine"] == engine and d["scenario"] == scenario]
         return pick_median_run(matched) if matched else None
 
-    fig, axes = plt.subplots(1, 3, figsize=(16, 4.8), sharey=False)
-    fig.suptitle(
-        "Biểu đồ 6 (E1): TPS theo từng giây khi chạy DDL dưới tải & có giao dịch đọc order_line giữ mở 60s\n"
-        "(W=10, ~3 triệu dòng order_line, 64 client, θ=0,5, q=25%, lượt trung vị trên 3 lần chạy)",
-        fontsize=12, fontweight="bold", y=1.02,
-    )
+    fig, axes = plt.subplots(1, 3, figsize=(16, 4.6), sharey=False)
 
     # Panel 1: MySQL 8.4.8
     ax = axes[0]
@@ -101,7 +95,7 @@ def plot_fig6_e1() -> None:
         secs, tpss, _ = read_series(item[1])
         ax.plot(secs, tpss, label=label, color=color, linestyle=ls, linewidth=2.0)
     ax.axvline(5, color="black", linestyle=":", linewidth=1.2, alpha=0.7, label="Bắt đầu DDL (t=5s)")
-    ax.set_title("MySQL 8.4.8 (InnoDB — Metadata Lock)")
+    ax.set_title("MySQL 8.4.8 (InnoDB)", fontweight="bold")
     ax.set_xlabel("Thời gian pha đo (giây)")
     ax.set_ylabel("Thông lượng (TPS)")
     ax.set_ylim(bottom=-80)
@@ -120,18 +114,18 @@ def plot_fig6_e1() -> None:
         secs, tpss, _ = read_series(item[1])
         ax.plot(secs, tpss, label=label, color=color, linestyle=ls, linewidth=2.0)
     ax.axvline(5, color="black", linestyle=":", linewidth=1.2, alpha=0.7, label="Bắt đầu createIndex (t=5s)")
-    ax.set_title("MongoDB 8.0.20 (WiredTiger — createIndex)")
+    ax.set_title("MongoDB 8.0.20 (WiredTiger)", fontweight="bold")
     ax.set_xlabel("Thời gian pha đo (giây)")
     ax.set_ylabel("Thông lượng (TPS)")
     ax.set_ylim(bottom=-80)
     ax.legend(loc="lower right", fontsize=8)
 
-    # Panel 3: TiDB 8.5.7
+    # Panel 3: TiDB v8.5.7
     ax = axes[2]
     tidb_specs = [
         ("add_column_online", "ADD COLUMN Online DDL (1,2s, 0s đóng băng)", "#2ca02c", "-"),
         ("add_index_online", "ADD INDEX Online DDL (41,9s, 0s đóng băng)", "#ff7f0e", "--"),
-        ("mdl_long_txn", "ADD COLUMN + đọc giữ 60s (59,3s, 0s đóng băng!)", "#1f77b4", "-"),
+        ("mdl_long_txn", "ADD COLUMN + đọc giữ 60s (59,3s, 0s đóng băng)", "#1f77b4", "-"),
     ]
     for scen, label, color, ls in tidb_specs:
         item = get_med("tidb", scen)
@@ -140,7 +134,7 @@ def plot_fig6_e1() -> None:
         secs, tpss, _ = read_series(item[1])
         ax.plot(secs, tpss, label=label, color=color, linestyle=ls, linewidth=2.0)
     ax.axvline(5, color="black", linestyle=":", linewidth=1.2, alpha=0.7, label="Bắt đầu DDL (t=5s)")
-    ax.set_title("TiDB 8.5.7 (Online DDL — không chặn tải mới)")
+    ax.set_title("TiDB v8.5.7 (Online DDL)", fontweight="bold")
     ax.set_xlabel("Thời gian pha đo (giây)")
     ax.set_ylabel("Thông lượng (TPS)")
     ax.set_ylim(bottom=-80)
@@ -152,7 +146,7 @@ def plot_fig6_e1() -> None:
 
 
 def plot_fig6_e2() -> None:
-    """Biểu đồ 6 (phần E2): Chuỗi TPS và p99 theo từng giây của P1 Eager, P2 Batch 1000, P3 Lazy trên 3 hệ."""
+    """Hình D.2: Chuỗi TPS và p99 theo từng giây của Eager, Batch 1.000, Lazy trên 3 hệ."""
     eager_runs = load_runs("2.4-eager")
     batch_runs = load_runs("2.4-batch")
     lazy_runs = load_runs("2.4-lazy")
@@ -160,22 +154,17 @@ def plot_fig6_e2() -> None:
     engines = [
         ("mysql", "MySQL 8.4.8 (InnoDB)"),
         ("mongo", "MongoDB 8.0.20 (WiredTiger)"),
-        ("tidb", "TiDB 8.5.7 (3 TiKV)"),
+        ("tidb", "TiDB v8.5.7 (3 TiKV)"),
     ]
-    fig, axes = plt.subplots(2, 3, figsize=(16, 8.2), sharex=True)
-    fig.suptitle(
-        "Biểu đồ 6 (E2): TPS (hàng trên) và p99 (hàng dưới, thang log) theo từng giây trong lúc chuyển dữ liệu\n"
-        "(W=10, ~3 triệu dòng order_line, 64 client, θ=0,5, q=25%, lượt trung vị trên 3 lần chạy)",
-        fontsize=12, fontweight="bold", y=0.99,
-    )
+    fig, axes = plt.subplots(2, 3, figsize=(16, 7.6), sharex=True)
 
     for col, (eng, title) in enumerate(engines):
         ax_tps = axes[0, col]
         ax_p99 = axes[1, col]
         specs = [
-            ("P1 – Eager", [x for x in eager_runs if x[1]["engine"] == eng and x[1].get("old_order_read_pct") == 25.0], "#d62728", "-"),
-            ("P2 – Batch 1.000", [x for x in batch_runs if x[1]["engine"] == eng and x[1].get("migration_batch_size") == 1000 and x[1].get("old_order_read_pct") == 25.0], "#1f77b4", "-"),
-            ("P3 – Lazy (q=25%)", [x for x in lazy_runs if x[1]["engine"] == eng and x[1].get("old_order_read_pct") == 25.0], "#2ca02c", "--"),
+            ("Eager", [x for x in eager_runs if x[1]["engine"] == eng and x[1].get("old_order_read_pct") == 25.0], "#d62728", "-"),
+            ("Batch 1.000", [x for x in batch_runs if x[1]["engine"] == eng and x[1].get("migration_batch_size") == 1000 and x[1].get("old_order_read_pct") == 25.0], "#1f77b4", "-"),
+            ("Lazy (q=25%)", [x for x in lazy_runs if x[1]["engine"] == eng and x[1].get("old_order_read_pct") == 25.0], "#2ca02c", "--"),
         ]
         for label, matched, color, ls in specs:
             if not matched:
@@ -190,21 +179,21 @@ def plot_fig6_e2() -> None:
 
         ax_tps.axvline(2, color="black", linestyle=":", linewidth=1.1, alpha=0.7, label="Bắt đầu migration (t=2s)")
         ax_p99.axvline(2, color="black", linestyle=":", linewidth=1.1, alpha=0.7)
-        ax_tps.set_title(title)
+        ax_tps.set_title(title, fontweight="bold")
         ax_p99.set_yscale("log")
         ax_p99.set_xlabel("Thời gian pha đo (giây)")
         if col == 0:
             ax_tps.set_ylabel("Thông lượng (TPS)")
             ax_p99.set_ylabel("Độ trễ p99 (ms, thang log)")
-        ax_tps.legend(loc="lower right", fontsize=8)
+        ax_tps.legend(loc="lower right", fontsize=8.5)
 
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.tight_layout()
     fig.savefig(OUT_DIR / "fig6_e2_strategies.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
 def plot_fig6b_e3() -> None:
-    """Biểu đồ 6b (phần E3): Ảnh hưởng tỉ lệ q ∈ {5%, 25%, 50%} — P2 Batch 1000 vs P3 Lazy (MySQL & MongoDB)."""
+    """Hình D.5: Đường cong TPS và p99 khi quét q ∈ {5%, 25%, 50%} (MySQL & MongoDB)."""
     base_runs = load_runs("2.4-baseline")
     batch_runs = load_runs("2.4-batch")
     lazy_runs = load_runs("2.4-lazy")
@@ -221,20 +210,15 @@ def plot_fig6b_e3() -> None:
         med = statistics.median(vals)
         return med, med - min(vals), max(vals) - med
 
-    fig, axes = plt.subplots(2, 2, figsize=(13, 8.2), sharex=True)
-    fig.suptitle(
-        "Biểu đồ 6b (E3): Ảnh hưởng của tỉ lệ truy cập dữ liệu cũ q đến TPS và p99 — P2 Batch 1.000 vs P3 Lazy\n"
-        "(W=10, 64 client, θ=0,5; điểm trung vị kèm khoảng min–max của 3 lần chạy độc lập)",
-        fontsize=12, fontweight="bold", y=0.99,
-    )
+    fig, axes = plt.subplots(2, 2, figsize=(13, 7.6), sharex=True)
 
     for col, (eng, title) in enumerate([("mysql", "MySQL 8.4.8 (InnoDB)"), ("mongo", "MongoDB 8.0.20 (WiredTiger)")]):
         for row, (metric, ylabel) in enumerate([("tps", "Thông lượng (TPS)"), ("p99_ms", "Độ trễ p99 toàn pha (ms)")]):
             ax = axes[row, col]
             for label, runs, bs, color, marker, ls in [
-                ("Nền không migration (none)", base_runs, None, "#7f7f7f", "s", ":"),
-                ("P2 – Batch 1.000", batch_runs, 1000, "#1f77b4", "o", "-"),
-                ("P3 – Lazy", lazy_runs, 1000, "#2ca02c", "^", "--"),
+                ("Nền (none)", base_runs, None, "#7f7f7f", "s", ":"),
+                ("Batch 1.000", batch_runs, 1000, "#1f77b4", "o", "-"),
+                ("Lazy", lazy_runs, 1000, "#2ca02c", "^", "--"),
             ]:
                 stats = [series_stats(runs, eng, q, metric, bs) for q in qs]
                 meds = [s[0] for s in stats]
@@ -242,7 +226,7 @@ def plot_fig6b_e3() -> None:
                 ax.errorbar(qs, meds, yerr=yerr, label=label, color=color, marker=marker,
                             linestyle=ls, linewidth=2.2, markersize=7, capsize=4)
             if row == 0:
-                ax.set_title(title)
+                ax.set_title(title, fontweight="bold")
             else:
                 ax.set_xlabel("Tỉ lệ giao dịch 'Xem đơn cũ' q (%)")
             if col == 0:
@@ -251,23 +235,22 @@ def plot_fig6b_e3() -> None:
             ax.set_xticklabels(["5%", "25%", "50%"])
             ax.legend(loc="best", fontsize=8.5)
 
-        # Chú thích điểm đảo chiều trên MySQL
         if eng == "mysql":
             axes[0, 0].annotate(
-                "Điểm đảo chiều:\nq=5% Lazy thắng P2\n(1.027 vs 988 TPS)",
+                "Điểm đảo chiều:\nq=5% Lazy thắng Batch\n(1.027 vs 988 TPS)",
                 xy=(5, 1027), xytext=(12, 1380),
                 arrowprops={"arrowstyle": "->", "color": "#2ca02c", "lw": 1.4},
                 fontsize=8.5, fontweight="bold", color="#1b6e1b",
                 bbox={"boxstyle": "round,pad=0.3", "fc": "#eef9ee", "ec": "#2ca02c"},
             )
 
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.tight_layout()
     fig.savefig(OUT_DIR / "fig6b_e3_q_sweep.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
 def plot_fig6c_highload() -> None:
-    """Biểu đồ 6c (E2 tải cao): So sánh TPS và đỉnh p99 1s tại θ=0,9, 128 client trên 3 hệ."""
+    """Hình D.3: So sánh TPS và p99 tại tải cao θ=0,9, 128 client trên 3 hệ."""
     hl_runs = load_runs("2.4-highload")
     if not hl_runs:
         return
@@ -275,22 +258,17 @@ def plot_fig6c_highload() -> None:
     engines = [
         ("mysql", "MySQL 8.4.8"),
         ("mongo", "MongoDB 8.0.20"),
-        ("tidb", "TiDB 8.5.7"),
+        ("tidb", "TiDB v8.5.7"),
     ]
     strategies = [
         ("none", None, "Nền (none)", "#7f7f7f"),
-        ("eager", None, "P1 – Eager", "#d62728"),
-        ("batch", 5000, "P2 – Batch 5.000", "#ff7f0e"),
-        ("batch", 1000, "P2 – Batch 1.000", "#1f77b4"),
-        ("lazy", 1000, "P3 – Lazy", "#2ca02c"),
+        ("eager", None, "Eager", "#d62728"),
+        ("batch", 5000, "Batch 5.000", "#ff7f0e"),
+        ("batch", 1000, "Batch 1.000", "#1f77b4"),
+        ("lazy", 1000, "Lazy", "#2ca02c"),
     ]
 
-    fig, axes = plt.subplots(1, 2, figsize=(14.5, 5.2))
-    fig.suptitle(
-        "Biểu đồ 6c (E2 Tải cao Flash-sale): So sánh TPS và độ trễ p99 tại θ = 0,9, 128 client, q = 25%\n"
-        "(W=10, 45/45 lượt VALID; giá trị trung vị của 3 lần chạy độc lập trên mỗi cấu hình)",
-        fontsize=12, fontweight="bold", y=1.02,
-    )
+    fig, axes = plt.subplots(1, 2, figsize=(14.5, 4.9))
 
     x_base = list(range(len(engines)))
     width = 0.15
@@ -319,7 +297,7 @@ def plot_fig6c_highload() -> None:
         (axes[0], "Thông lượng thành công (TPS — cao hơn là tốt hơn)", "TPS (giao dịch/giây)", 3150, "upper right"),
         (axes[1], "Độ trễ đuôi p99 toàn pha (ms — thấp hơn là tốt hơn)", "Độ trễ p99 (ms)", 1620, "upper left"),
     ]:
-        ax.set_title(title)
+        ax.set_title(title, fontweight="bold")
         ax.set_ylabel(ylabel)
         ax.set_xticks(x_base)
         ax.set_xticklabels([e[1] for e in engines], fontweight="bold")
@@ -332,7 +310,7 @@ def plot_fig6c_highload() -> None:
 
 
 def plot_bar_e1() -> None:
-    """Biểu đồ cột E1 (báo cáo chính): So sánh TPS và thời gian đóng băng 0 TPS giữa các cơ chế DDL."""
+    """Hình 2.6.1: So sánh TPS và thời gian đóng băng 0 TPS giữa các cơ chế DDL."""
     e1_runs = load_runs("2.4-e1")
     if not e1_runs:
         return
@@ -361,16 +339,11 @@ def plot_bar_e1() -> None:
         colors.append(col)
 
     y_pos = list(range(len(labels)))
-    fig, axes = plt.subplots(1, 2, figsize=(15.5, 6.0), sharey=True)
-    fig.suptitle(
-        "Biểu đồ cột E1: Tác động của cơ chế DDL gốc và giao dịch đọc dài 60s lên TPS & thời gian đóng băng\n"
-        "(W=10, ~3 triệu dòng order_line, 64 client, θ = 0,5, q = 25%; giá trị trung vị trên các lượt chạy VALID)",
-        fontsize=12, fontweight="bold", y=1.02,
-    )
+    fig, axes = plt.subplots(1, 2, figsize=(15.5, 5.6), sharey=True)
 
     # Trái: TPS
     bars_tps = axes[0].barh(y_pos, tps_meds, color=colors, height=0.66, alpha=0.92, edgecolor="#333333", linewidth=0.5)
-    axes[0].set_title("Thông lượng pha đo (TPS — cao hơn là tốt hơn)")
+    axes[0].set_title("Thông lượng pha đo (TPS — cao hơn là tốt hơn)", fontweight="bold")
     axes[0].set_xlabel("TPS trung vị (giao dịch/giây)")
     axes[0].set_yticks(y_pos)
     axes[0].set_yticklabels(labels, fontsize=9.5, fontweight="bold")
@@ -381,7 +354,7 @@ def plot_bar_e1() -> None:
 
     # Phải: Thời gian đóng băng lâu nhất (giây)
     bars_frz = axes[1].barh(y_pos, freeze_meds, color=colors, height=0.66, alpha=0.92, edgecolor="#333333", linewidth=0.5)
-    axes[1].set_title("Thời gian đóng băng 0 TPS lâu nhất (giây — thấp hơn là tốt hơn)")
+    axes[1].set_title("Thời gian đóng băng 0 TPS lâu nhất (giây — thấp hơn là tốt hơn)", fontweight="bold")
     axes[1].set_xlabel("Số giây liên tiếp hệ thống rơi về 0 TPS")
     axes[1].set_xlim(0, 75)
     for bar, val in zip(bars_frz, freeze_meds):
@@ -390,7 +363,6 @@ def plot_bar_e1() -> None:
         axes[1].text(val + 1.0, bar.get_y() + bar.get_height() / 2, txt,
                      va="center", ha="left", fontsize=8.8, fontweight="bold", color=col_txt)
 
-    # Vạch phân nhóm DBMS
     for ax in axes:
         ax.axhline(2.5, color="#888888", linestyle="--", linewidth=0.9, alpha=0.7)
         ax.axhline(4.5, color="#888888", linestyle="--", linewidth=0.9, alpha=0.7)
@@ -401,7 +373,7 @@ def plot_bar_e1() -> None:
 
 
 def plot_bar_e2() -> None:
-    """Biểu đồ cột E2 chuẩn (báo cáo chính): So sánh 3 chiến lược chuyển dữ liệu tại q = 25%, 64 client, θ = 0,5."""
+    """Hình 2.6.2: So sánh 3 chiến lược chuyển dữ liệu tại q = 25%, 64 client, θ = 0,5."""
     all_e2 = (
         load_runs("2.4-baseline")
         + load_runs("2.4-eager")
@@ -414,14 +386,14 @@ def plot_bar_e2() -> None:
     engines = [
         ("mysql", "MySQL 8.4.8 (InnoDB)"),
         ("mongo", "MongoDB 8.0.20 (WiredTiger)"),
-        ("tidb", "TiDB 8.5.7 (3 TiKV)"),
+        ("tidb", "TiDB v8.5.7 (3 TiKV)"),
     ]
     strategies = [
         ("none", None, "Nền (none)", "#7f7f7f"),
-        ("eager", None, "P1 – Eager", "#d62728"),
-        ("batch", 5000, "P2 – Batch 5.000", "#ff7f0e"),
-        ("batch", 1000, "P2 – Batch 1.000", "#1f77b4"),
-        ("lazy", 1000, "P3 – Lazy", "#2ca02c"),
+        ("eager", None, "Eager", "#d62728"),
+        ("batch", 5000, "Batch 5.000", "#ff7f0e"),
+        ("batch", 1000, "Batch 1.000", "#1f77b4"),
+        ("lazy", 1000, "Lazy", "#2ca02c"),
     ]
 
     base_tps = {}
@@ -433,12 +405,7 @@ def plot_bar_e2() -> None:
         ]
         base_tps[eng] = statistics.median(b_vals) if b_vals else 1.0
 
-    fig, axes = plt.subplots(1, 2, figsize=(15.2, 5.5))
-    fig.suptitle(
-        "Biểu đồ cột E2 (Tải chuẩn): So sánh TPS và độ trễ đuôi p99 giữa các chiến lược chuyển dữ liệu\n"
-        "(W=10, ~3 triệu dòng order_line, 64 client, θ = 0,5, q = 25%; trung vị kèm thanh min–max trên 3 lần chạy)",
-        fontsize=12, fontweight="bold", y=1.02,
-    )
+    fig, axes = plt.subplots(1, 2, figsize=(15.2, 5.1))
 
     x_base = list(range(len(engines)))
     width = 0.155
@@ -492,7 +459,7 @@ def plot_bar_e2() -> None:
         (axes[0], "Thông lượng thành công (TPS — cao hơn là tốt hơn)", "TPS (giao dịch/giây)", 2950),
         (axes[1], "Độ trễ đuôi p99 toàn pha (ms — thấp hơn là tốt hơn)", "Độ trễ p99 (ms)", 1120),
     ]:
-        ax.set_title(title)
+        ax.set_title(title, fontweight="bold")
         ax.set_ylabel(ylabel)
         ax.set_xticks(x_base)
         ax.set_xticklabels([e[1] for e in engines], fontweight="bold")
@@ -505,7 +472,7 @@ def plot_bar_e2() -> None:
 
 
 def plot_bar_e3() -> None:
-    """Biểu đồ cột E3 (báo cáo chính): Quét tỉ lệ đọc đơn cũ q ∈ {5%, 25%, 50%} giữa Nền, Batch 1.000 và Lazy."""
+    """Hình D.4: Quét tỉ lệ đọc đơn cũ q ∈ {5%, 25%, 50%} giữa Nền, Batch 1.000 và Lazy."""
     base_runs = load_runs("2.4-baseline")
     batch_runs = load_runs("2.4-batch")
     lazy_runs = load_runs("2.4-lazy")
@@ -516,22 +483,17 @@ def plot_bar_e3() -> None:
     x_base = list(range(len(qs)))
     width = 0.24
 
-    fig, axes = plt.subplots(1, 2, figsize=(14.8, 5.4))
-    fig.suptitle(
-        "Biểu đồ cột E3: Ảnh hưởng của tỉ lệ giao dịch 'Xem đơn cũ' q đến thông lượng — P2 Batch 1.000 vs P3 Lazy\n"
-        "(W=10, 64 client, θ = 0,5; giá trị trung vị kèm thanh min–max của 3 lần chạy độc lập)",
-        fontsize=12, fontweight="bold", y=1.02,
-    )
+    fig, axes = plt.subplots(1, 2, figsize=(14.8, 5.0))
 
     series_defs = [
         ("Nền (none)", base_runs, None, "#7f7f7f"),
-        ("P2 – Batch 1.000", batch_runs, 1000, "#1f77b4"),
-        ("P3 – Lazy (on-demand)", lazy_runs, 1000, "#2ca02c"),
+        ("Batch 1.000", batch_runs, 1000, "#1f77b4"),
+        ("Lazy (on-demand)", lazy_runs, 1000, "#2ca02c"),
     ]
 
     for col, (eng, title, ylim) in enumerate([
-        ("mysql", "MySQL 8.4.8 (InnoDB) — Đảo chiều giữa q = 5% và q = 25%", 2820),
-        ("mongo", "MongoDB 8.0.20 (WiredTiger) — P2 Batch thắng ở mọi mức q", 3650),
+        ("mysql", "MySQL 8.4.8 (InnoDB)", 2820),
+        ("mongo", "MongoDB 8.0.20 (WiredTiger)", 3650),
     ]):
         ax = axes[col]
         b_map = {}
@@ -568,7 +530,7 @@ def plot_bar_e3() -> None:
                     fontweight="bold" if idx > 0 else "normal",
                 )
 
-        ax.set_title(title)
+        ax.set_title(title, fontweight="bold")
         ax.set_xlabel("Tỉ lệ giao dịch đọc 'Xem đơn cũ' q")
         ax.set_ylabel("Thông lượng thành công (TPS)")
         ax.set_xticks(x_base)
