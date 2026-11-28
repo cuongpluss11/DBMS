@@ -196,7 +196,7 @@ Mở **PowerShell** tại thư mục gốc `e:\BTL-DBMS`. **Chỉ bật duy nh�
    docker compose -f docker/compose.tidb.yml up -d
    ```
 2. Đợi ~15 giây cho cụm TiDB sẵn sàng. Từ màn hình **🏠 Home** của MySQL Workbench, mở **3 tab kết nối độc lập** tới `TiDB_Local` (`127.0.0.1:14000`, `root`, mật khẩu trống).
-3. Tại **Kết nối 1 (TiDB)**, dán và chạy lại khối tạo bảng `demo_ose` (cùng khối 15 dòng SQL khởi tạo ở đầu kịch bản D1).
+3. Tại **Kết nối 1 (TiDB)**, dán và chạy lại khối tạo bảng `demo_ose` (cùng khối 15 dòng SQL khởi tạo ở đầu kịch bản D1). *(Lưu ý: nếu trước đó có tab `TiDB_Local` đang giữ `BEGIN;` chưa đóng từ lần thử trước, hãy chạy `ROLLBACK;` ở các tab cũ trước khi chạy `DROP TABLE` để không bị chờ Metadata Lock).*
 
 #### Thực hiện & chụp **Hình D.8**
 1. **Ở Kết nối 1 (TiDB):** Giữ mở phiên đọc dài chưa `COMMIT`:
