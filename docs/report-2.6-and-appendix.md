@@ -29,21 +29,21 @@ Thực nghiệm gồm **159/159 lượt đo `VALID`** (thỏa mãn đồng thờ
 - **So sánh chiến lược (`none`, Eager, Batch 5.000, Batch 1.000, Lazy ở tải chuẩn `64 client, θ = 0,5` và tải cao `128 client, θ = 0,9`, `q = 25%`):** Nhằm định lượng sự đánh đổi giữa tốc độ hoàn tất chuyển đổi và mức sụt giảm TPS / gai độ trễ p99, đồng thời kiểm tra độ bền vững của kết luận khi tranh chấp Flash-sale tăng mạnh.
 - **Quét tỉ lệ đọc đơn cũ (`q ∈ {5%, 25%, 50%}`):** Nhằm xác định ngưỡng đảo chiều hiệu năng giữa cập nhật nền (Batch 1.000) và cập nhật theo yêu cầu trên đường đọc (Lazy) khi tần suất khách hàng tra cứu đơn cũ thay đổi.
 
-*(Toàn bộ phân tích cơ chế sâu, bảng số liệu chi tiết, biểu đồ tải cao/quét `q`, chuỗi thời gian và minh chứng demo được trình bày tại **Phụ lục D**).*
+*(Toàn bộ bảng số liệu chi tiết, biểu đồ tải cao/quét `q`, chuỗi thời gian và minh chứng demo trực quan tại **Bảng D.6, Hình D.6–D.10, Phụ lục D.5.3** được trình bày tại **Phụ lục D**).*
 
 ![](figures/2.4/fig6_bar_e1_mdl.png)
 *Hình 2.6.1. So sánh thông lượng (TPS) và thời gian đóng băng 0 TPS ở kịch bản DDL gốc trên ba DBMS (`64 client, θ = 0,5, q = 25%`).*
 
-- **MySQL:** `ADD COLUMN INSTANT` không gây treo khi tải bình thường (`0 s`, `1.420,2 TPS`), nhưng chỉ cần **1 giao dịch đọc giữ mở 60 s** là `ALTER` kẹt khóa siêu dữ liệu (*MDL*), làm treo cứng toàn bảng **57 s** (`502,1 TPS`). Đặt `lock_wait_timeout = 3` kèm retry giúp DDL tự rút khỏi hàng đợi, giảm đóng băng còn **2 s** và khôi phục lên `1.276,8 TPS`.
-- **TiDB:** Nhờ cơ chế Online DDL đa phiên bản, lệnh `ALTER` chỉ chờ giao dịch đọc cũ kết thúc mà không chặn giao dịch mới (**`0 s` đóng băng**, `1.042,2 TPS`).
-- **MongoDB:** Không rơi về `0 TPS`, nhưng giữ snapshot 60 s khi chốt `createIndex` gây áp lực bộ nhớ đệm làm TPS giảm từ `2.125,5` xuống `706,1`.
+- **MySQL:** `ADD COLUMN INSTANT` không gây treo khi tải bình thường (`0 s`, `1.420,2 TPS`), nhưng chỉ cần **1 giao dịch đọc giữ mở 60 s** là `ALTER` kẹt khóa siêu dữ liệu (*MDL*), làm treo cứng toàn bảng **57 s** (`502,1 TPS`). Đặt `lock_wait_timeout = 3` kèm retry giúp DDL tự rút khỏi hàng đợi, giảm đóng băng còn **2 s** và khôi phục lên `1.276,8 TPS` *(minh chứng trực quan xem **Hình D.6–D.7, Phụ lục D.5.3**)*.
+- **TiDB:** Nhờ cơ chế Online DDL đa phiên bản, lệnh `ALTER` chỉ chờ giao dịch đọc cũ kết thúc mà không chặn giao dịch mới (**`0 s` đóng băng**, `1.042,2 TPS`; *minh chứng xem **Hình D.8, Phụ lục D.5.3***).
+- **MongoDB:** Không rơi về `0 TPS`, nhưng giữ snapshot 60 s khi chốt `createIndex` gây áp lực bộ nhớ đệm làm TPS giảm từ `2.125,5` xuống `706,1` *(minh chứng linh hoạt lược đồ và `bulkWrite` xem **Hình D.10, Phụ lục D.5.3**)*.
 
 ![](figures/2.4/fig6_bar_e2_strategies.png)
 *Hình 2.6.2. So sánh thông lượng (TPS) và độ trễ đuôi p99 giữa các chiến lược chuyển dữ liệu ở tải chuẩn (`64 client, θ = 0,5, q = 25%`).*
 
 - **Eager:** Xong nhanh nhất (`71–127 s`) nhưng tranh chấp khóa và ghi đĩa mạnh, làm TPS sụt sâu trên MySQL (`-53,0%`; tải cao tụt `-62,8%`, gai p99 lên `22,2 s`) và TiDB (`-42,0%`); riêng MongoDB ít ảnh hưởng hơn (`-6,1%`).
 - **Batch lô `1.000` (nghỉ `20 ms`):** Giữ khóa ngắn và nhường I/O nên **đạt TPS cao nhất trên cả ba hệ ở cả hai mức tải** (`-0,6%` MongoDB, `-8,7%` TiDB, `-16,3%` MySQL ở tải chuẩn) và giảm `25,5×` gai p99 của Eager trên MySQL (*Bảng D.3, Hình D.3*).
-- **Lazy và điểm đảo chiều theo `q`:** Giữ p99 toàn pha sát nền nhất trên MongoDB (`1,02×`) và TiDB (`1,13×`), nhưng biến đọc đơn cũ thành ghi đồng bộ. Khi quét `q ∈ {5%, 25%, 50%}`, **MySQL đảo chiều rõ rệt**: Lazy chỉ thắng Batch ở `q = 5%` (`-18,6%` vs `-21,7%`), từ `q ≥ 25%` tụt sau Batch; còn trên MongoDB, Batch 1.000 thắng TPS ở mọi `q` (*Bảng D.4, Hình D.4–D.5*).
+- **Lazy và điểm đảo chiều theo `q`:** Giữ p99 toàn pha sát nền nhất trên MongoDB (`1,02×`) và TiDB (`1,13×`), nhưng biến đọc đơn cũ thành ghi đồng bộ. Khi quét `q ∈ {5%, 25%, 50%}`, **MySQL đảo chiều rõ rệt**: Lazy chỉ thắng Batch ở `q = 5%` (`-18,6%` vs `-21,7%`), từ `q ≥ 25%` tụt sau Batch; còn trên MongoDB, Batch 1.000 thắng TPS ở mọi `q` (*Bảng D.4, Hình D.4–D.5*; *minh chứng thực thi Lazy, Batch và tính lũy đẳng xem **Hình D.9, Phụ lục D.5.3***).
 
 ---
 ---
